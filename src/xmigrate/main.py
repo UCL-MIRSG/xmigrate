@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 import xnat
 from xml.etree import ElementTree as ET
+from xml.dom import minidom
 
 @dataclass
 class Migration:
@@ -54,6 +55,9 @@ class Migration:
             resource_type=XnatType.project,
         )
         xml_bytes = ET.tostring(root, encoding="utf-8")
+        xml = minidom.parseString(xml_bytes.decode("utf-8")).toprettyxml(indent="  ", encoding="utf-8")
+        with open("project_template.xml", "wb") as f:
+            f.write(xml_bytes)
         if self.destination_info.id not in self.destination_conn.projects:
             self.destination_conn.post(
                 f"/data/projects",
@@ -80,6 +84,8 @@ class Migration:
             resource_type=XnatType.subject,
         )
         xml_bytes = ET.tostring(root, encoding="utf-8")
+        with open("subject_template.xml", "wb") as f:
+            f.write(xml_bytes)
         if subject.label not in self.destination_conn.projects[self.destination_info.id].subjects:
             self.destination_conn.post(
                 f"/data/projects/{self.destination_info.id}/subjects",
@@ -128,14 +134,14 @@ class Migration:
         experiment = scan.parent
         subject = experiment.parent
         root = self._get_source_xml(
-            f"/data/projects/{self.source.id}/subjects/{subject.id}/experiments/{experiment.id}/scans/{scan.id}",
+            f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}/scans/{scan.id}",
         )
         root = self.mapper.map_xml(
             root,
             resource_type=XnatType.scan,
         )
         xml_bytes = ET.tostring(root, encoding="utf-8")
-        if scan.label not in self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[experiment.label].scans:
+        if scan.id not in self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[experiment.label].scans:
             self.destination_conn.post(
                 f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/scans",
                 data=xml_bytes,
@@ -212,24 +218,24 @@ class Migration:
         for subject in self.destination_conn.projects[self.destination_info.id].subjects:
             for experiment in subject.experiments:
                 for scan in experiment.scans:
-                    resource_path = f"/archive/projects/{self.destination_conn.id}/subjects/{subject.label}/experiments/{experiment.label}/scans/{scan.id}"
+                    resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/scans/{scan.id}"
                     self._refresh_catalogue(resource_path)
 
                 for assessor in experiment.assessors:
-                    resource_path = f"/archive/projects/{self.destination_conn.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors/{assessor.label}"
+                    resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors/{assessor.label}"
                     self._refresh_catalogue(resource_path)
 
-                resource_path = f"/archive/projects/{self.destination_conn.id}/subjects/{subject.label}/experiments/{experiment.label}"
+                resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}"
                 self._refresh_catalogue(resource_path)
                 # Regenerate OHIF session data
                 self.destination_conn.post(
-                    f"/xapi/viewer/projects/{self.destination_conn.id}/experiments/{experiment.id}",
+                    f"/xapi/viewer/projects/{self.destination_info.id}/experiments/{experiment.id}",
                 )
 
-            resource_path = f"/archive/projects/{self.destination_conn.id}/subjects/{subject.label}"
+            resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}"
             self._refresh_catalogue(resource_path)
 
-        resource_path = f"/archive/projects/{self.destination_conn.id}"
+        resource_path = f"/archive/projects/{self.destination_info.id}"
         self._refresh_catalogue(resource_path)
 
     def run(self) -> None:
@@ -253,7 +259,7 @@ if __name__ == "__main__":
         archive_path=destination_conn.get("/xapi/siteConfig/archivePath").text,
     )
     migration = Migration(
-        source_conn=xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk")
+        source_conn=xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk"),
         destination_conn=xnat.connect("http://localhost", user="admin", password="admin"),
         source_info=source_info,
         destination_info=destination_info,

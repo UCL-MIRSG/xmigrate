@@ -136,7 +136,9 @@ class XMLMapper:
             source (str): The source XNAT listing.
             destination (xnat.core.XNATListing): The destination XNAT listing.
         """
-        self.id_map[self.ids_to_map[map_type]][source] = destination
+        # Accept either a string ID or an XNATListing-like object; store the string id.
+        dest_val = getattr(destination, "id", destination)
+        self.id_map[self.ids_to_map[map_type]][source] = str(dest_val)
 
     def map_xml(
             self,
@@ -155,18 +157,30 @@ class XMLMapper:
             ET.Element: The mapped XML element.
         """
         # Remap project ID
-        element.attrib['project'] = self.destination.id
+        
+        # element.attrib['project'] = self.destination.project_name
 
         # Update the XML values for the project (ensure we have secondary ID and title)
         if resource_type.value == XnatType.project:
+            element.attrib['ID'] = self.destination.id
             element.attrib['secondary_ID'] = self.destination.secondary_id
             project_name_tag = f"{{{XnatNS.xnat}}}name"
             for child in element.findall(project_name_tag, self.namespaces):
                 child.text = self.destination.project_name
 
         # Delete ID tags that should not be migrated, keeping IDs for projects and scans
-        if resource_type.value not in ["project", "scans"]:
-            del element.attrib["ID"]
+        ATTRS_TO_DELETE = {"ID", "project"}
+        for attr in ATTRS_TO_DELETE:
+           # Don't delete ID for project or scan - it's required to create those resources
+            if attr == "ID" and resource_type in (XnatType.project, XnatType.scan):
+                continue
+            # Ensure project attribute points to the destination project ID
+            elif attr == "project":
+                element.attrib["project"] = self.destination.id
+                continue
+            # Only delete if the attribute exists to avoid KeyError
+            if attr in element.attrib:
+                del element.attrib[attr]
 
         # Attempt to fix scan modalities
         image_scan_data_tag = f"{{{XnatNS.xnat}}}imageScanData"
@@ -188,7 +202,8 @@ class XMLMapper:
                 map_id = self.ids_to_map[xnat_type]
                 tag_remap_dict = self.id_map[map_id]
                 try:
-                    child.text = tag_remap_dict[child.text]
+                    new_val = tag_remap_dict[child.text]
+                    child.text = None if new_val is None else str(new_val)
                 except KeyError as e:
                     raise ValueError(f"Tag {tag}: no new value for {child.text} found.") from e
 
