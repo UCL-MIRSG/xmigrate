@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import enum
 import xml.etree.ElementTree as ET
 
-
 class XnatType(enum.StrEnum):
     """Type of XNAT item so cleaning can be performed."""
     server = enum.auto()
@@ -71,6 +70,7 @@ class XMLMapper:
             "CT": f"{{{XnatNS.xnat}}}CTScan",
             "US": f"{{{XnatNS.xnat}}}USScan",
             "PT": f"{{{XnatNS.xnat}}}PETScan",
+            "NM": f"{{{XnatNS.xnat}}}NMScan",
         }
         self.tags_to_delete = [
             f"{{{XnatNS.xnat}}}experiments",
