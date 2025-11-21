@@ -4,7 +4,6 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 import xnat
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
-
 @dataclass
 class Migration:
     """Class to handle migration of XNAT projects.
@@ -120,11 +119,16 @@ class Migration:
                 headers={"Content-Type": "text/xml"},
             )
         self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments.clearcache()
-        self.mapper.update_id_map(
-            source=experiment.id,
-            destination=self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[experiment.label].id,
-            map_type=XnatType.experiment,
-        )
+        try:
+            self.mapper.update_id_map(
+                source=experiment.id,
+                destination=self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[experiment.label].id,
+                map_type=XnatType.experiment,
+            )
+        except KeyError as e:
+            raise KeyError(f"Failed to update ID map for experiment {experiment.id}: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error updating ID map for experiment {experiment.id}: {e}")
 
     def _create_scan(
             self,
@@ -148,11 +152,17 @@ class Migration:
                 headers={"Content-Type": "text/xml"},
             )
         self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[experiment.label].scans.clearcache()
-        self.mapper.update_id_map(
+        try:
+            self.mapper.update_id_map(
             source=scan.id,
             destination=scan.id,  # Scan IDs must be preserved
             map_type=XnatType.scan,
-        )
+            )
+        except KeyError as e:
+            raise KeyError(f"Failed to update ID map for scan {scan.id}: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error updating ID map for scan {scan.id}: {e}")
+
 
     def _create_assessor(
             self,
@@ -176,11 +186,16 @@ class Migration:
                 headers={"Content-Type": "text/xml"},
             )
         self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[experiment.label].assessors.clearcache()
-        self.mapper.update_id_map(
+        try:
+            self.mapper.update_id_map(
             source=assessor.id,
             destination=self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[experiment.label].assessors[assessor.label].id,
             map_type=XnatType.assessor,
-        )
+            )
+        except KeyError as e:
+            raise KeyError(f"Failed to update ID map for assessor {assessor.id}: {e}")
+        except Exception as e:
+            raise RuntimeError(f"Unexpected error updating ID map for assessor {assessor.id}: {e}")
 
     def _create_resources(self) -> None:
         """Create all resources on the destination XNAT instance."""
