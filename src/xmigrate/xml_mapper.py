@@ -166,8 +166,6 @@ class XMLMapper:
         Args:
             element (ET.Element): The XML element to map from source to destination.
             resource_type (XnatType): The type of XNAT resource being processed.
-            source_archive (str): The source XNAT archive path.
-            destination_archive (str): The destination XNAT archive path.
 
         Returns:
             ET.Element: The mapped XML element.
