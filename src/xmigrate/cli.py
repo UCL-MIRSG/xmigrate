@@ -1,9 +1,11 @@
-from cyclopts import App, config
+"""A cyclopts cli for XNAT data migration using xmigrate."""
+
+import logging
+
+import requests
 import xnat
-from typing import Optional
-import sys
-import os
-import pdb
+from cyclopts import App, config
+
 # Adjust imports to where Migration and ProjectInfo live in this repo
 from xmigrate.main import Migration, ProjectInfo
 
@@ -12,41 +14,49 @@ app = App(
     config=config.Env("XMIGRATE_"),
 )
 
+logger = logging.getLogger("xmigrate.cli")
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+    )
+    logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
 @app.command
-def migrate(
+def migrate(  # noqa: PLR0913
     source: str = "ucl-test-xnat",
     source_project: str = "test_rsync",
     destination_url: str = "http://localhost",
-    destination_user: Optional[str] = None,
-    destination_password: Optional[str] = None,
+    destination_user: str | None = None,
+    destination_password: str | None = None,
     destination_project: str = "test_migration",
-    destination_secondary_id: Optional[str] = "TEST MIGRATION",
-    destination_project_name: Optional[str] = "Test Migration",
-):
+    destination_secondary_id: str | None = "TEST MIGRATION",
+    destination_project_name: str | None = "Test Migration",
+) -> None:
     """
     Migrate a project from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate --source-url=https://xnat.example --source-user=alice --source-password=sekret \
-                      --destination-url=http://localhost --destination-user=admin --destination-password=secret
+      xmigrate migrate --source-url=https://xnat.example --source-user=gollifer \
+          --source-password=secret --destination-url=http://localhost \
+          --destination-user=admin --destination-password=secret
+
     """
     source_url=f"https://{source}.cs.ucl.ac.uk"
     src_conn = xnat.connect(source_url)
-    print(destination_user)
-    print("sys.executable:", sys.executable)
-    print("invoked argv:", sys.argv[:3])
-    print("ENV XMIGRATE_*:", {k: v for k, v in os.environ.items() if k.startswith("XMIGRATE_")})
-    print("cyclopts destination_user:", destination_user)
     dst_conn = xnat.connect(destination_url, destination_user, destination_password)
 
     try:
-        src_archive = src_conn.get("/xapi/siteConfig/archivePath").text
-    except Exception:
+        src_archive = src_conn.get("/xapi/siteConfig/archivePath")
+    except (requests.exceptions.RequestException, OSError) as e:
+        logger.warning("Failed to fetch source archive path: %s", e)
         src_archive = None
 
     try:
         dst_archive = dst_conn.get("/xapi/siteConfig/archivePath").text
-    except Exception:
+    except (requests.exceptions.RequestException, OSError) as e:
+        logger.warning("Failed to fetch destination archive path: %s", e)
         dst_archive = None
 
     source_info = ProjectInfo(
@@ -55,8 +65,6 @@ def migrate(
         project_name=None,
         archive_path=src_archive,
     )
-
-    pdb.set_trace()
 
     destination_info = ProjectInfo(
         id=destination_project,
@@ -73,10 +81,11 @@ def migrate(
     )
 
     migration.run()
-    print("Migration run finished.")
+    logger.info("Migration run finished.")
 
 @app.default
-def default_action():
-    print("Hello world! This runs when no command is specified.")
+def default_action() -> None:
+    """Docstring for default_action."""
+    logger.info("No input commands given.")
 
 app()
