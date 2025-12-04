@@ -2,7 +2,7 @@
 
 import logging
 
-import requests
+import requests  # type: ignore[import-untyped]
 import xnat
 from cyclopts import App, config
 
@@ -22,6 +22,7 @@ if not logger.handlers:
     )
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
+
 
 @app.command
 def migrate(  # noqa: PLR0913
@@ -43,7 +44,7 @@ def migrate(  # noqa: PLR0913
           --destination-user=admin --destination-password=secret
 
     """
-    source_url=f"https://{source}.cs.ucl.ac.uk"
+    source_url = f"https://{source}.cs.ucl.ac.uk"
     src_conn = xnat.connect(source_url)
     dst_conn = xnat.connect(destination_url, destination_user, destination_password)
 
@@ -83,9 +84,11 @@ def migrate(  # noqa: PLR0913
     migration.run()
     logger.info("Migration run finished.")
 
+
 @app.default
 def default_action() -> None:
     """Docstring for default_action."""
     logger.info("No input commands given.")
+
 
 app()

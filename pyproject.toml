@@ -72,6 +72,7 @@ paths.source = [
 
 [tool.mypy]
 explicit_package_bases = true
+python_version = "3.13"
 
 [tool.pytest.ini_options]
 addopts = [
