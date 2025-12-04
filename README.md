@@ -41,7 +41,7 @@ Then install `xmigrate` in editable mode:
 uv pip install -e .
 ```
 
-To use direnv, you need to create a `.envrc` file with 
+To use direnv, you need to create a `.envrc` file with
 `layout python-venv python3.13` which is specified in `.direnvrc`:
 
 ```sh

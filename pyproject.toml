@@ -55,10 +55,10 @@ license-files = [
 name = "xmigrate"
 readme = "README.md"
 requires-python = ">=3.13"
-urls.homepage = "https://github.com/UCL-MIRSG/xmigrate"
 scripts = {xmigrate = """\
     xmigrate.cli:app\
     """}
+urls.homepage = "https://github.com/UCL-MIRSG/xmigrate"
 
 [tool.coverage]
 report = {sort = "cover"}
