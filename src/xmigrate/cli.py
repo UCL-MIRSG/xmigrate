@@ -49,7 +49,7 @@ def migrate(  # noqa: PLR0913
     dst_conn = xnat.connect(destination_url, destination_user, destination_password)
 
     try:
-        src_archive = src_conn.get("/xapi/siteConfig/archivePath")
+        src_archive = src_conn.get("/xapi/siteConfig/archivePath").text
     except (requests.exceptions.RequestException, OSError) as e:
         logger.warning("Failed to fetch source archive path: %s", e)
         src_archive = None
