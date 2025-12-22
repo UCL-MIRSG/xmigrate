@@ -399,6 +399,104 @@ class Migration:
         self._logger.info("Duration = %d", end - start)
         self._refresh_catalogues()
 
+@dataclass
+class MultiProjectMigration:
+    """
+    Class to handle migration of multiple XNAT projects with shared ID mapping.
+
+    Args:
+        source_conn (xnat.BaseXNATSession): The source XNAT connection.
+        destination_conn (xnat.BaseXNATSession): The destination XNAT connection.
+        project_pairs (list[tuple[ProjectInfo, ProjectInfo]]): List of (source, destination) project info pairs.
+
+    """
+
+    _logger: logging.Logger = field(default=LOGGER, init=False, repr=False)
+
+    source_conn: xnat.BaseXNATSession
+    destination_conn: xnat.BaseXNATSession
+    project_pairs: list[tuple[ProjectInfo, ProjectInfo]]
+
+    def __post_init__(self):  # noqa: ANN204, D105
+        # Create a shared mapper that will maintain ID mappings across all projects
+        # We'll use the first project pair to initialize, but the mapper will
+        # accumulate mappings from all projects
+        if not self.project_pairs:
+            raise ValueError("At least one project pair must be provided")
+
+        # Initialize with first project, but mapper will be shared across all
+        first_source, first_dest = self.project_pairs[0]
+        self.shared_mapper = XMLMapper(
+            source=first_source,
+            destination=first_dest,
+        )
+
+        self.total_subj_failed = 0
+        self.total_exp_failed = 0
+        self.total_scan_failed = 0
+        self.total_assess_failed = 0
+
+    def run(self) -> None:
+        """Migrate multiple projects from source to destination XNAT instance."""
+        start = time.time()
+
+        for source_info, destination_info in self.project_pairs:
+            self._logger.info(
+                "Starting migration of project %s -> %s",
+                source_info.id,
+                destination_info.id,
+            )
+
+            # Create a migration instance that uses the shared mapper
+            migration = Migration(
+                source_conn=self.source_conn,
+                destination_conn=self.destination_conn,
+                source_info=source_info,
+                destination_info=destination_info,
+            )
+
+            # Replace the migration's mapper with our shared one
+            migration.mapper = self.shared_mapper
+
+            # Update the mapper's current project context
+            self.shared_mapper.source = source_info
+            self.shared_mapper.destination = destination_info
+
+            # Run the migration for this project
+            migration._create_resources()
+
+            # Accumulate failure counts
+            self.total_subj_failed += migration.subj_failed_count
+            self.total_exp_failed += migration.exp_failed_count
+            self.total_scan_failed += migration.scan_failed_count
+            self.total_assess_failed += migration.assess_failed_count
+
+            self._logger.info(
+                "Completed migration of project %s -> %s",
+                source_info.id,
+                destination_info.id,
+            )
+
+        end = time.time()
+        self._logger.info("Total migration duration = %d seconds", end - start)
+        self._logger.info("Total subjects failed: %d", self.total_subj_failed)
+        self._logger.info("Total experiments failed: %d", self.total_exp_failed)
+        self._logger.info("Total scans failed: %d", self.total_scan_failed)
+        self._logger.info("Total assessors failed: %d", self.total_assess_failed)
+
+        # Refresh catalogues for all migrated projects
+        self._logger.info("Refreshing catalogues for all migrated projects...")
+        for _, destination_info in self.project_pairs:
+            self._logger.info("Refreshing catalogues for project %s", destination_info.id)
+            migration = Migration(
+                source_conn=self.source_conn,
+                destination_conn=self.destination_conn,
+                source_info=source_info,  # Not used in refresh
+                destination_info=destination_info,
+            )
+            migration._refresh_catalogues()
+
+        self._logger.info("Multi-project migration completed successfully")
 
 if __name__ == "__main__":
     source_conn = xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk")
