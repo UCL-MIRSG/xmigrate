@@ -46,6 +46,10 @@ class Migration:
         self.exp_failed_count = 0
         self.scan_failed_count = 0
         self.assess_failed_count = 0
+        self.failed_subjects = []
+        self.failed_experiments = []
+        self.failed_scans = []
+        self.failed_assessors = []
 
     def _get_source_xml(
         self,
@@ -131,11 +135,12 @@ class Migration:
     def _create_experiment(
         self,
         experiment: xnat.core.XNATListing,
+        subject_id: str,
+        subject_label: str,
     ) -> None:
         """Create an experiment on the destination XNAT instance."""
-        subject = experiment.parent
         root = self._get_source_xml(
-            f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}",
+            f"/data/projects/{self.source_info.id}/subjects/{subject_id}/experiments/{experiment.id}",
         )
         root = self.mapper.map_xml(
             root,
@@ -145,22 +150,22 @@ class Migration:
         if (
             experiment.label
             not in self.destination_conn.projects[self.destination_info.id]
-            .subjects[subject.label]
+            .subjects[subject_label]
             .experiments
         ):
             self.destination_conn.post(
-                f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments",
+                f"/data/projects/{self.destination_info.id}/subjects/{subject_label}/experiments",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
         self.destination_conn.projects[self.destination_info.id].subjects[
-            subject.label
+            subject_label
         ].experiments.clearcache()
         try:
             self.mapper.update_id_map(
                 source=experiment.id,
                 destination=self.destination_conn.projects[self.destination_info.id]
-                .subjects[subject.label]
+                .subjects[subject_label]
                 .experiments[experiment.label]
                 .id,
                 map_type=XnatType.experiment,
@@ -168,12 +173,12 @@ class Migration:
         except (KeyError, AttributeError):
             self.exp_failed_count = self.exp_failed_count + 1
             self.destination_conn.projects[self.destination_info.id].subjects[
-                subject.label
+                subject_label
             ].experiments.clearcache()
             self.mapper.update_id_map(
                 source=experiment.id,
                 destination=self.destination_conn.projects[self.destination_info.id]
-                .subjects[subject.label]
+                .subjects[subject_label]
                 .experiments[experiment.label]
                 .id,
                 map_type=XnatType.experiment,
@@ -182,12 +187,14 @@ class Migration:
     def _create_scan(
         self,
         scan: xnat.core.XNATListing,
+        subject_id: str,
+        subject_label: str,
+        experiment_id: str,
+        experiment_label: str,
     ) -> None:
         """Create a scan on the destination XNAT instance."""
-        experiment = scan.parent
-        subject = experiment.parent
         root = self._get_source_xml(
-            f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}/scans/{scan.id}",
+            f"/data/projects/{self.source_info.id}/subjects/{subject_id}/experiments/{experiment_id}/scans/{scan.id}",
         )
         root = self.mapper.map_xml(
             root,
@@ -197,44 +204,47 @@ class Migration:
         if (
             scan.id
             not in self.destination_conn.projects[self.destination_info.id]
-            .subjects[subject.label]
-            .experiments[experiment.label]
+            .subjects[subject_label]
+            .experiments[experiment_label]
             .scans
         ):
             self.destination_conn.post(
-                f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/scans",
+                f"/data/projects/{self.destination_info.id}/subjects/{subject_label}/experiments/{experiment_label}/scans",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
         self.destination_conn.projects[self.destination_info.id].subjects[
-            subject.label
-        ].experiments[experiment.label].scans.clearcache()
+            subject_label
+        ].experiments[experiment_label].scans.clearcache()
         try:
             self.mapper.update_id_map(
                 source=scan.id,
                 destination=scan.id,  # Scan IDs must be preserved
                 map_type=XnatType.scan,
             )
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError) as e:
             self.scan_failed_count = self.scan_failed_count + 1
             self.destination_conn.projects[self.destination_info.id].subjects[
-                subject.label
-            ].experiments[experiment.label].scans.clearcache()
+                subject_label
+            ].experiments[experiment_label].scans.clearcache()
             self.mapper.update_id_map(
                 source=scan.id,
                 destination=scan.id,  # Scan IDs must be preserved
                 map_type=XnatType.scan,
             )
+            raise  # Re-raise the exception so the future captures it
 
     def _create_assessor(
         self,
         assessor: xnat.core.XNATListing,
+        subject_id: str,
+        subject_label: str,
+        experiment_id: str,
+        experiment_label: str,
     ) -> None:
         """Create an assessor on the destination XNAT instance."""
-        experiment = assessor.parent
-        subject = experiment.parent
         root = self._get_source_xml(
-            f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}/assessors/{assessor.id}",
+            f"/data/projects/{self.source_info.id}/subjects/{subject_id}/experiments/{experiment_id}/assessors/{assessor.id}",
         )
         root = self.mapper.map_xml(
             root,
@@ -244,42 +254,43 @@ class Migration:
         if (
             assessor.label
             not in self.destination_conn.projects[self.destination_info.id]
-            .subjects[subject.label]
-            .experiments[experiment.label]
+            .subjects[subject_label]
+            .experiments[experiment_label]
             .assessors
         ):
             self.destination_conn.post(
-                f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors",
+                f"/data/projects/{self.destination_info.id}/subjects/{subject_label}/experiments/{experiment_label}/assessors",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
         self.destination_conn.projects[self.destination_info.id].subjects[
-            subject.label
-        ].experiments[experiment.label].assessors.clearcache()
+            subject_label
+        ].experiments[experiment_label].assessors.clearcache()
         try:
             self.mapper.update_id_map(
                 source=assessor.id,
                 destination=self.destination_conn.projects[self.destination_info.id]
-                .subjects[subject.label]
-                .experiments[experiment.label]
+                .subjects[subject_label]
+                .experiments[experiment_label]
                 .assessors[assessor.label]
                 .id,
                 map_type=XnatType.assessor,
             )
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError) as e:
             self.assess_failed_count = self.assess_failed_count + 1
             self.destination_conn.projects[self.destination_info.id].subjects[
-                subject.label
-            ].experiments[experiment.label].assessors.clearcache()
+                subject_label
+            ].experiments[experiment_label].assessors.clearcache()
             self.mapper.update_id_map(
                 source=assessor.id,
                 destination=self.destination_conn.projects[self.destination_info.id]
-                .subjects[subject.label]
-                .experiments[experiment.label]
+                .subjects[subject_label]
+                .experiments[experiment_label]
                 .assessors[assessor.label]
                 .id,
                 map_type=XnatType.assessor,
             )
+            raise  # Re-raise the exception so the future captures it
 
     def _create_resources(self) -> None:
         """Create all resources on the destination XNAT instance."""
@@ -289,68 +300,149 @@ class Migration:
             "/xapi/schemas/datatypes"
         ).json()
 
-        with ThreadPoolExecutor(max_workers=4) as subject_executor:
+        with ThreadPoolExecutor(max_workers=10) as subject_executor:
 
             def process_subject(subject: xnat.core.XNATListing) -> None:
+                # Extract subject data before parallel processing
+                subject_id = subject.id
+                subject_label = subject.label
+                
                 self._create_subject(subject)
 
-                with ThreadPoolExecutor(max_workers=4) as exp_executor:
+                with ThreadPoolExecutor(max_workers=10) as exp_executor:
 
                     def process_experiment(experiment: xnat.core.XNATListing) -> None:
-                        if (
-                            experiment.fulldata["meta"]["xsi:type"]
-                            not in destination_datatypes
-                        ):
-                            datatype = experiment.fulldata["meta"]["xsi:type"]
+                        # Extract experiment data before parallel processing
+                        experiment_id = experiment.id
+                        experiment_label = experiment.label
+                        experiment_datatype = experiment.fulldata["meta"]["xsi:type"]
+                        
+                        if experiment_datatype not in destination_datatypes:
                             self._logger.info(
-                                "Datatype %d not available on destination server for experiment %d, skipping.",  # noqa: E501
-                                datatype,
-                                experiment.id,
+                                "Datatype %s not available on destination server for experiment %s, skipping.",
+                                experiment_datatype,
+                                experiment_id,
                             )
                             return
 
-                        self._create_experiment(experiment)
+                        self._create_experiment(experiment, subject_id, subject_label)
+
+                        # Extract scan and assessor lists before parallel processing
+                        scans_list = [(scan, scan.id) for scan in experiment.scans]
+                        assessors_list = [(assessor, assessor.label) for assessor in experiment.assessors]
 
                         # Process scans and assessors in parallel
-                        with ThreadPoolExecutor(max_workers=4) as resource_executor:
+                        with ThreadPoolExecutor(max_workers=10) as resource_executor:
                             scan_futures = [
-                                resource_executor.submit(self._create_scan, scan)
-                                for scan in experiment.scans
+                                resource_executor.submit(
+                                    self._create_scan, 
+                                    scan, 
+                                    subject_id, 
+                                    subject_label, 
+                                    experiment_id, 
+                                    experiment_label
+                                )
+                                for scan, _ in scans_list
                             ]
                             assessor_futures = [
                                 resource_executor.submit(
-                                    self._create_assessor, assessor
+                                    self._create_assessor, 
+                                    assessor, 
+                                    subject_id, 
+                                    subject_label, 
+                                    experiment_id, 
+                                    experiment_label
                                 )
-                                for assessor in experiment.assessors
+                                for assessor, _ in assessors_list
                             ]
 
                             # Wait for all scans and assessors to complete
-                            for future in scan_futures + assessor_futures:
-                                future.result()
+                            for idx, future in enumerate(scan_futures):
+                                try:
+                                    future.result()
+                                except Exception as e:
+                                    scan, scan_id = scans_list[idx]
+                                    self.failed_scans.append({
+                                        "subject": subject_label,
+                                        "experiment": experiment_label,
+                                        "scan_id": scan_id,
+                                        "error": str(e)
+                                    })
+                                    self._logger.error(
+                                        "Failed to create scan %s for subject %s, experiment %s: %s", 
+                                        scan_id, 
+                                        subject_label, 
+                                        experiment_label, 
+                                        e
+                                    )
+                                    
+                            for idx, future in enumerate(assessor_futures):
+                                try:
+                                    future.result()
+                                except Exception as e:
+                                    assessor, assessor_label = assessors_list[idx]
+                                    self.failed_assessors.append({
+                                        "subject": subject_label,
+                                        "experiment": experiment_label,
+                                        "assessor_label": assessor_label,
+                                        "error": str(e)
+                                    })
+                                    self._logger.error(
+                                        "Failed to create assessor %s for subject %s, experiment %s: %s", 
+                                        assessor_label, 
+                                        subject_label, 
+                                        experiment_label, 
+                                        e
+                                    )
 
+
+                    # Extract experiment list before parallel processing
+                    experiments_list = [(exp, exp.label) for exp in subject.experiments]
+                    
                     exp_futures = [
                         exp_executor.submit(process_experiment, exp)
-                        for exp in subject.experiments
+                        for exp, _ in experiments_list
                     ]
 
                     # Wait for all experiments to complete
-                    for future in exp_futures:
-                        future.result()
+                    for idx, future in enumerate(exp_futures):
+                        try:
+                            future.result()
+                        except Exception as e:
+                            experiment, experiment_label = experiments_list[idx]
+                            self.failed_experiments.append({
+                                "subject": subject_label,
+                                "experiment_label": experiment_label,
+                                "error": str(e)
+                            })
+                            self._logger.exception("Failed to process experiment %s: %s", experiment_label, e)
 
+            # Extract subject list before parallel processing
+            subjects_list = [(subj, subj.label) for subj in source_project.subjects]
+            
             subject_futures = [
                 subject_executor.submit(process_subject, subj)
-                for subj in source_project.subjects
+                for subj, _ in subjects_list
             ]
 
             # Wait for all subjects to complete
-            for future in subject_futures:
-                future.result()
+            for idx, future in enumerate(subject_futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    subject, subject_label = subjects_list[idx]
+                    self.failed_subjects.append({
+                        "subject_label": subject_label,
+                        "error": str(e)
+                    })
+                    self._logger.exception("Failed to process subject %s: %s", subject_label, e)
 
-        self._logger.info("Subjects failed: %d", self.subj_failed_count)
+
+        self._logger.info("Subjects failed: %d", len(self.failed_subjects))
         self._logger.info("Total subjects: %d", len(source_project.subjects))
-        self._logger.info("Experiments failed: %d", self.exp_failed_count)
-        self._logger.info("Scans failed: %d", self.scan_failed_count)
-        self._logger.info("Assessors failed: %d", self.assess_failed_count)
+        self._logger.info("Experiments failed: %d", len(self.failed_experiments))
+        self._logger.info("Scans failed: %d", len(self.failed_scans))
+        self._logger.info("Assessors failed: %d", len(self.failed_assessors))
 
     def _refresh_catalogue(self, resource_path: str) -> None:
         """Refresh a catalogue on the destination XNAT instance."""
