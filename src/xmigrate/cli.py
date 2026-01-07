@@ -106,7 +106,7 @@ def migrate(  # noqa: PLR0913
 def migrate_multiple(
     source: str = "ucl-test-xnat",
     projects: list[str] | None = None,
-    destination_url: str = "http://localhost",
+    destination: str = "http://localhost",
     destination_user: str | None = None,
     destination_password: str | None = None,
 ) -> None:
@@ -123,9 +123,8 @@ def migrate_multiple(
         logger.error("No projects specified")
         return
 
-    source_url = f"https://{source}.cs.ucl.ac.uk"
-    src_conn = xnat.connect(source_url)
-    dst_conn = xnat.connect(destination_url, destination_user, destination_password)
+    src_conn = xnat.connect(source)
+    dst_conn = xnat.connect(destination, destination_user, destination_password)
 
     multi_migration = MultiProjectMigration(
         source_conn=src_conn,
