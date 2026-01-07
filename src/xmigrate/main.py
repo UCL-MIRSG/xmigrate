@@ -281,7 +281,7 @@ class Migration:
                 map_type=XnatType.assessor,
             )
 
-    def _create_resources(self) -> None:
+    def create_resources(self) -> None:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
@@ -362,7 +362,7 @@ class Migration:
             populate_stats=True,
         )
 
-    def _refresh_catalogues(self) -> None:
+    def refresh_catalogues(self) -> None:
         """Refresh all catalogues for the destination XNAT project."""
         for subject in self.destination_conn.projects[
             self.destination_info.id
@@ -394,10 +394,11 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
-        self._create_resources()
+        self.create_resources()
         end = time.time()
         self._logger.info("Duration = %d", end - start)
-        self._refresh_catalogues()
+        self.refresh_catalogues()
+
 
 @dataclass
 class MultiProjectMigration:
@@ -407,7 +408,8 @@ class MultiProjectMigration:
     Args:
         source_conn (xnat.BaseXNATSession): The source XNAT connection.
         destination_conn (xnat.BaseXNATSession): The destination XNAT connection.
-        project_names (list[str]): List of project names to migrate (same name used for source and destination).
+        project_names (list[str]): List of project names to migrate (same name used for
+        source and destination).
 
     """
 
@@ -419,19 +421,22 @@ class MultiProjectMigration:
 
     def __post_init__(self):  # noqa: ANN204, D105
         if not self.project_names:
-            raise ValueError("At least one project name must be provided")
+            msg = "At least one project name must be provided"
+            raise ValueError(msg)
 
-        # Fetch archive paths once
         try:
             self.src_archive = self.source_conn.get("/xapi/siteConfig/archivePath").text
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             self._logger.warning("Failed to fetch source archive path: %s", e)
             self.src_archive = None
-
+            self.src_archive = None
         try:
-            self.dst_archive = self.destination_conn.get("/xapi/siteConfig/archivePath").text
-        except Exception as e:
+            self.dst_archive = self.destination_conn.get(
+                "/xapi/siteConfig/archivePath"
+            ).text
+        except Exception as e:  # noqa: BLE001
             self._logger.warning("Failed to fetch destination archive path: %s", e)
+            self.dst_archive = None
             self.dst_archive = None
 
         # Initialize with first project
@@ -447,7 +452,7 @@ class MultiProjectMigration:
             project_name=self.project_names[0],
             archive_path=self.dst_archive,
         )
-        
+
         self.shared_mapper = XMLMapper(
             source=first_source,
             destination=first_dest,
@@ -498,7 +503,7 @@ class MultiProjectMigration:
             self.shared_mapper.destination = destination_info
 
             # Run the migration for this project
-            migration._create_resources()
+            migration.create_resources()
 
             # Accumulate failure counts
             self.total_subj_failed += migration.subj_failed_count
@@ -534,9 +539,10 @@ class MultiProjectMigration:
                 source_info=source_info,  # Not used in refresh
                 destination_info=destination_info,
             )
-            migration._refresh_catalogues()
+            migration.refresh_catalogues()
 
         self._logger.info("Multi-project migration completed successfully")
+
 
 if __name__ == "__main__":
     source_conn = xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk")

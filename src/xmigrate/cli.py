@@ -101,10 +101,11 @@ def migrate(  # noqa: PLR0913
     migration.run()
     logger.info("Migration run finished.")
 
+
 @app.command
 def migrate_multiple(
     source: str = "ucl-test-xnat",
-    projects: list[str] = [],
+    projects: list[str] | None = None,
     destination_url: str = "http://localhost",
     destination_user: str | None = None,
     destination_password: str | None = None,
@@ -134,6 +135,7 @@ def migrate_multiple(
 
     multi_migration.run()
     logger.info("Multi-project migration run finished.")
+
 
 @app.default
 def default_action() -> None:
