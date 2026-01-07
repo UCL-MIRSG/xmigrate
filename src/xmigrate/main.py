@@ -407,7 +407,7 @@ class MultiProjectMigration:
     Args:
         source_conn (xnat.BaseXNATSession): The source XNAT connection.
         destination_conn (xnat.BaseXNATSession): The destination XNAT connection.
-        project_pairs (list[tuple[ProjectInfo, ProjectInfo]]): List of (source, destination) project info pairs.
+        project_names (list[str]): List of project names to migrate (same name used for source and destination).
 
     """
 
@@ -415,17 +415,39 @@ class MultiProjectMigration:
 
     source_conn: xnat.BaseXNATSession
     destination_conn: xnat.BaseXNATSession
-    project_pairs: list[tuple[ProjectInfo, ProjectInfo]]
+    project_names: list[str]
 
     def __post_init__(self):  # noqa: ANN204, D105
-        # Create a shared mapper that will maintain ID mappings across all projects
-        # We'll use the first project pair to initialize, but the mapper will
-        # accumulate mappings from all projects
-        if not self.project_pairs:
-            raise ValueError("At least one project pair must be provided")
+        if not self.project_names:
+            raise ValueError("At least one project name must be provided")
 
-        # Initialize with first project, but mapper will be shared across all
-        first_source, first_dest = self.project_pairs[0]
+        # Fetch archive paths once
+        try:
+            self.src_archive = self.source_conn.get("/xapi/siteConfig/archivePath").text
+        except Exception as e:
+            self._logger.warning("Failed to fetch source archive path: %s", e)
+            self.src_archive = None
+
+        try:
+            self.dst_archive = self.destination_conn.get("/xapi/siteConfig/archivePath").text
+        except Exception as e:
+            self._logger.warning("Failed to fetch destination archive path: %s", e)
+            self.dst_archive = None
+
+        # Initialize with first project
+        first_source = ProjectInfo(
+            id=self.project_names[0],
+            secondary_id=None,
+            project_name=None,
+            archive_path=self.src_archive,
+        )
+        first_dest = ProjectInfo(
+            id=self.project_names[0],
+            secondary_id=self.project_names[0],
+            project_name=self.project_names[0],
+            archive_path=self.dst_archive,
+        )
+        
         self.shared_mapper = XMLMapper(
             source=first_source,
             destination=first_dest,
@@ -440,11 +462,24 @@ class MultiProjectMigration:
         """Migrate multiple projects from source to destination XNAT instance."""
         start = time.time()
 
-        for source_info, destination_info in self.project_pairs:
+        for project_name in self.project_names:
             self._logger.info(
-                "Starting migration of project %s -> %s",
-                source_info.id,
-                destination_info.id,
+                "Starting migration of project %s",
+                project_name,
+            )
+
+            source_info = ProjectInfo(
+                id=project_name,
+                secondary_id=None,
+                project_name=None,
+                archive_path=self.src_archive,
+            )
+
+            destination_info = ProjectInfo(
+                id=project_name,
+                secondary_id=project_name,
+                project_name=project_name,
+                archive_path=self.dst_archive,
             )
 
             # Create a migration instance that uses the shared mapper
@@ -472,9 +507,8 @@ class MultiProjectMigration:
             self.total_assess_failed += migration.assess_failed_count
 
             self._logger.info(
-                "Completed migration of project %s -> %s",
-                source_info.id,
-                destination_info.id,
+                "Completed migration of project %s",
+                project_name,
             )
 
         end = time.time()
@@ -486,8 +520,14 @@ class MultiProjectMigration:
 
         # Refresh catalogues for all migrated projects
         self._logger.info("Refreshing catalogues for all migrated projects...")
-        for _, destination_info in self.project_pairs:
-            self._logger.info("Refreshing catalogues for project %s", destination_info.id)
+        for project_name in self.project_names:
+            self._logger.info("Refreshing catalogues for project %s", project_name)
+            destination_info = ProjectInfo(
+                id=project_name,
+                secondary_id=project_name,
+                project_name=project_name,
+                archive_path=self.dst_archive,
+            )
             migration = Migration(
                 source_conn=self.source_conn,
                 destination_conn=self.destination_conn,
