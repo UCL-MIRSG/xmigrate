@@ -84,7 +84,7 @@ def migrate(  # noqa: PLR0913
         secondary_id=None,
         project_name=None,
         archive_path=src_archive,
-        rsync_path=source_rsync
+        rsync_path=source_rsync,
     )
 
     destination_info = ProjectInfo(
@@ -92,7 +92,7 @@ def migrate(  # noqa: PLR0913
         secondary_id=destination_secondary_id,
         project_name=destination_project_name,
         archive_path=dst_archive,
-        rsync_path=destination_rsync
+        rsync_path=destination_rsync,
     )
 
     migration = Migration(

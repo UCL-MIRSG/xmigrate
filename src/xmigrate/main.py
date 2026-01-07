@@ -311,12 +311,13 @@ class Migration:
             try:
                 subprocess.check_output(command_to_run)  # noqa: S603
             except subprocess.CalledProcessError as exc:
-                msg = f"An error occurred running the rsync command; the error was: {exc}"
+                msg = (
+                    f"An error occurred running the rsync command; the error was: {exc}"
+                )
                 raise ValueError(msg) from exc
 
         else:
             self._logger.warning("No rsync as rsync dest and source paths were None")
-
 
         with ThreadPoolExecutor(max_workers=12) as subject_executor:
 
