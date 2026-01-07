@@ -11,7 +11,11 @@ from xmigrate.main import Migration, MultiProjectMigration, ProjectInfo
 
 app = App(
     name="xmigrate",
-    config=config.Env("XMIGRATE_"),
+    config=config.Toml(
+        "xmigrate.toml",
+        root_keys=["tool", "xmigrate"],
+        search_parents=True,
+    ),
 )
 
 logger = logging.getLogger("xmigrate.cli")
@@ -26,27 +30,40 @@ logger.setLevel(logging.INFO)
 
 @app.command
 def migrate(  # noqa: PLR0913
-    source: str = "ucl-test-xnat",
-    source_project: str = "test_rsync",
-    destination_url: str = "http://localhost",
-    destination_user: str | None = None,
-    destination_password: str | None = None,
-    destination_project: str = "test_migration",
-    destination_secondary_id: str | None = "TEST MIGRATION",
-    destination_project_name: str | None = "Test Migration",
+    source: str,
+    source_project: str,
+    destination: str,
+    destination_user: str,
+    destination_password: str,
+    destination_project: str | None,
+    destination_secondary_id: str | None,
+    destination_project_name: str | None,
 ) -> None:
     """
     Migrate a project from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate --source-url=https://xnat.example --source-user=gollifer \
-          --source-password=secret --destination-url=http://localhost \
+      xmigrate migrate --source=https://xnat.example --source-user=gollifer \
+          --source-password=secret --destination=http://localhost \
           --destination-user=admin --destination-password=secret
 
     """
-    source_url = f"https://{source}.cs.ucl.ac.uk"
-    src_conn = xnat.connect(source_url)
-    dst_conn = xnat.connect(destination_url, destination_user, destination_password)
+    destination_project = (
+        destination_project if destination_project is not None else source_project
+    )
+    destination_secondary_id = (
+        destination_secondary_id
+        if destination_secondary_id is not None
+        else source_project
+    )
+    destination_project_name = (
+        destination_project_name
+        if destination_project_name is not None
+        else source_project
+    )
+
+    src_conn = xnat.connect(source)
+    dst_conn = xnat.connect(destination, destination_user, destination_password)
 
     try:
         src_archive = src_conn.get("/xapi/siteConfig/archivePath").text
