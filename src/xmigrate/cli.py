@@ -32,12 +32,14 @@ logger.setLevel(logging.INFO)
 def migrate(  # noqa: PLR0913
     source: str,
     source_project: str,
+    source_rsync: str,
     destination: str,
     destination_user: str,
     destination_password: str,
     destination_project: str | None,
     destination_secondary_id: str | None,
     destination_project_name: str | None,
+    destination_rsync: str | None,
 ) -> None:
     """
     Migrate a project from source to destination XNAT instance.
@@ -82,6 +84,7 @@ def migrate(  # noqa: PLR0913
         secondary_id=None,
         project_name=None,
         archive_path=src_archive,
+        rsync_path=source_rsync
     )
 
     destination_info = ProjectInfo(
@@ -89,6 +92,7 @@ def migrate(  # noqa: PLR0913
         secondary_id=destination_secondary_id,
         project_name=destination_project_name,
         archive_path=dst_archive,
+        rsync_path=destination_rsync
     )
 
     migration = Migration(

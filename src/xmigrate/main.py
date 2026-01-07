@@ -1,6 +1,7 @@
 """Module to migrate XNAT projects between instances."""
 
 import logging
+import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -289,12 +290,40 @@ class Migration:
             "/xapi/schemas/datatypes"
         ).json()
 
-        with ThreadPoolExecutor(max_workers=4) as subject_executor:
+        if self.destination_info.rsync_path is not None:
+            rsync_dest = self.destination_info.rsync_path
+            rsync_source = self.source_info.rsync_path
+
+            command_to_run = [
+                "rsync",
+                "-azP",
+                "--ignore-existing",
+                "--exclude=*.log",
+                "--exclude=.*",
+                "--exclude=*.json",
+                "--stats",
+                "--progress",
+                "--checksum",
+                rsync_source,
+                rsync_dest,
+            ]
+
+            try:
+                subprocess.check_output(command_to_run)  # noqa: S603
+            except subprocess.CalledProcessError as exc:
+                msg = f"An error occurred running the rsync command; the error was: {exc}"
+                raise ValueError(msg) from exc
+
+        else:
+            self._logger.warning("No rsync as rsync dest and source paths were None")
+
+
+        with ThreadPoolExecutor(max_workers=12) as subject_executor:
 
             def process_subject(subject: xnat.core.XNATListing) -> None:
                 self._create_subject(subject)
 
-                with ThreadPoolExecutor(max_workers=4) as exp_executor:
+                with ThreadPoolExecutor(max_workers=12) as exp_executor:
 
                     def process_experiment(experiment: xnat.core.XNATListing) -> None:
                         if (
@@ -312,7 +341,7 @@ class Migration:
                         self._create_experiment(experiment)
 
                         # Process scans and assessors in parallel
-                        with ThreadPoolExecutor(max_workers=4) as resource_executor:
+                        with ThreadPoolExecutor(max_workers=12) as resource_executor:
                             scan_futures = [
                                 resource_executor.submit(self._create_scan, scan)
                                 for scan in experiment.scans
@@ -408,12 +437,14 @@ if __name__ == "__main__":
         secondary_id=None,
         project_name=None,
         archive_path=source_conn.get("/xapi/siteConfig/archivePath").text,
+        rsync_path=None,
     )
     destination_info = ProjectInfo(
         id="test_migration4",
         secondary_id="TEST MIGRATION4",
         project_name="Test Migration4",
         archive_path=destination_conn.get("/xapi/siteConfig/archivePath").text,
+        rsync_path=None,
     )
     migration = Migration(
         source_conn=xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk"),
