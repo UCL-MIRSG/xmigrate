@@ -408,8 +408,8 @@ class MultiProjectMigration:
     Args:
         source_conn (xnat.BaseXNATSession): The source XNAT connection.
         destination_conn (xnat.BaseXNATSession): The destination XNAT connection.
-        project_names (list[str]): List of project names to migrate (same name used for
-        source and destination).
+        project_names (list[str]): List of project names to migrate (same name used
+            for source and destination).
 
     """
 
