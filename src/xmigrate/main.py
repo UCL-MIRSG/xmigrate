@@ -319,12 +319,12 @@ class Migration:
         else:
             self._logger.warning("No rsync as rsync dest and source paths were None")
 
-        with ThreadPoolExecutor(max_workers=12) as subject_executor:
+        with ThreadPoolExecutor(max_workers=4) as subject_executor:
 
             def process_subject(subject: xnat.core.XNATListing) -> None:
                 self._create_subject(subject)
 
-                with ThreadPoolExecutor(max_workers=12) as exp_executor:
+                with ThreadPoolExecutor(max_workers=4) as exp_executor:
 
                     def process_experiment(experiment: xnat.core.XNATListing) -> None:
                         if (
@@ -342,7 +342,7 @@ class Migration:
                         self._create_experiment(experiment)
 
                         # Process scans and assessors in parallel
-                        with ThreadPoolExecutor(max_workers=12) as resource_executor:
+                        with ThreadPoolExecutor(max_workers=4) as resource_executor:
                             scan_futures = [
                                 resource_executor.submit(self._create_scan, scan)
                                 for scan in experiment.scans
