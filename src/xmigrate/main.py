@@ -429,6 +429,39 @@ class Migration:
         self._logger.info("Duration = %d", end - start)
         self._refresh_catalogues()
 
+    def rsync_only(self) -> None:
+        """Create projects before running rsync."""
+        self._create_project()
+
+        if self.destination_info.rsync_path is not None:
+            rsync_dest = self.destination_info.rsync_path
+            rsync_source = self.source_info.rsync_path
+
+            command_to_run = [
+                "rsync",
+                "-azP",
+                "--ignore-existing",
+                "--exclude=*.log",
+                "--exclude=.*",
+                "--exclude=*.json",
+                "--stats",
+                "--progress",
+                "--checksum",
+                rsync_source,
+                rsync_dest,
+            ]
+
+            try:
+                subprocess.check_output(command_to_run)  # noqa: S603
+            except subprocess.CalledProcessError as exc:
+                msg = (
+                    f"An error occurred running the rsync command; the error was: {exc}"
+                )
+                raise ValueError(msg) from exc
+
+        else:
+            self._logger.warning("No rsync as rsync dest and source paths were None")
+
 
 if __name__ == "__main__":
     source_conn = xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk")

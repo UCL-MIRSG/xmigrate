@@ -9,3 +9,4 @@ destination_project = "dest_project"
 destination_secondary_id = "Dest ID"
 destination_project_name = "Destination Project"
 destination_rsync = "/original/data/location/"
+rsync_only = true # optional as default is false

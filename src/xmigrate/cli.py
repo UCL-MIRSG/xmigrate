@@ -40,6 +40,8 @@ def migrate(  # noqa: PLR0913
     destination_secondary_id: str | None,
     destination_project_name: str | None,
     destination_rsync: str | None,
+    *,
+    rsync_only: bool = False,
 ) -> None:
     """
     Migrate a project from source to destination XNAT instance.
@@ -102,8 +104,13 @@ def migrate(  # noqa: PLR0913
         destination_info=destination_info,
     )
 
-    migration.run()
-    logger.info("Migration run finished.")
+    if rsync_only:
+        migration.rsync_only()
+        logger.info("Rsync only finished.")
+
+    else:
+        migration.run()
+        logger.info("Migration run finished.")
 
 
 @app.default
