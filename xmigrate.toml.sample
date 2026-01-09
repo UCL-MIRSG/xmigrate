@@ -7,3 +7,4 @@ destination_password = "password"
 destination_project = "dest_project"
 destination_secondary_id = "Dest ID"
 destination_project_name = "Destination Project"
+apply_sharing = true

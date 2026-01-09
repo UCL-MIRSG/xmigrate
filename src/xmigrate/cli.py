@@ -38,6 +38,8 @@ def migrate(  # noqa: PLR0913
     destination_project: str | None,
     destination_secondary_id: str | None,
     destination_project_name: str | None,
+    *,
+    apply_sharing: bool = False,
 ) -> None:
     """
     Migrate a project from source to destination XNAT instance.
@@ -98,7 +100,7 @@ def migrate(  # noqa: PLR0913
         destination_info=destination_info,
     )
 
-    migration.run()
+    migration.run(apply_sharing=apply_sharing)
     logger.info("Migration run finished.")
 
 

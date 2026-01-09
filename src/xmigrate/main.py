@@ -46,6 +46,9 @@ class Migration:
         self.exp_failed_count = 0
         self.scan_failed_count = 0
         self.assess_failed_count = 0
+        self.subject_sharing = {}
+        self.experiment_sharing = {}
+        self.assessor_sharing = {}
 
     def _get_source_xml(
         self,
@@ -391,13 +394,153 @@ class Migration:
         resource_path = f"/archive/projects/{self.destination_info.id}"
         self._refresh_catalogue(resource_path)
 
-    def run(self) -> None:
+    def _collect_sharing_info(self) -> None:
+        """Collect sharing information for all resources in the source project."""
+        self._logger.info("Collecting sharing information...")
+        source_project = self.source_conn.projects[self.source_info.id]
+
+        for subject in source_project.subjects:
+            # Get subject sharing info
+            response = self.source_conn.get(
+                f"/data/projects/{self.source_info.id}/subjects/{subject.id}/projects",
+                format="json",
+            )
+            response.raise_for_status()
+            subject_shared = response.json()["ResultSet"]
+            self.subject_sharing[subject.id] = {
+                "label": subject.label,
+                "owner": None,  # Will be determined from XML
+                "projects": [result["ID"] for result in subject_shared["Result"]],
+            }
+
+            for experiment in subject.experiments:
+                # Get experiment sharing info
+                response = self.source_conn.get(
+                    f"/data/experiments/{experiment.id}/projects", format="json"
+                )
+                response.raise_for_status()
+                experiment_shared = response.json()["ResultSet"]
+                self.experiment_sharing[experiment.id] = {
+                    "label": experiment.label,
+                    "subject_label": subject.label,
+                    "owner": None,  # Will be determined from XML
+                    "projects": [
+                        result["ID"] for result in experiment_shared["Result"]
+                    ],
+                }
+
+                for assessor in experiment.assessors:
+                    # Get assessor sharing info
+                    response = self.source_conn.get(
+                        f"/data/experiments/{experiment.id}/assessors/{assessor.id}/projects",
+                        format="json",
+                    )
+                    response.raise_for_status()
+                    assessor_shared = response.json()["ResultSet"]
+                    self.assessor_sharing[assessor.id] = {
+                        "label": assessor.label,
+                        "subject_label": subject.label,
+                        "experiment_label": experiment.label,
+                        "owner": None,  # Will be determined from XML
+                        "projects": [
+                            result["ID"] for result in assessor_shared["Result"]
+                        ],
+                    }
+
+        self._logger.info("Sharing information collected.")
+
+    def _apply_sharing(self) -> None:  # noqa: PLR0912
+        """Apply sharing configurations to resources on the destination instance."""
+        self._logger.info("Applying sharing configurations...")
+
+        # Share subjects
+        for sharing_info in self.subject_sharing.values():
+            dest_subject_label = sharing_info["label"]
+            for project_id in sharing_info["projects"]:
+                if project_id != self.source_info.id:
+                    try:
+                        self.destination_conn.put(
+                            f"/data/projects/{self.destination_info.id}/subjects/{dest_subject_label}/projects/{project_id}"
+                        )
+                        self._logger.info(
+                            "Shared subject %s with project %s",
+                            dest_subject_label,
+                            project_id,
+                        )
+                    except Exception as e:  # noqa: BLE001
+                        self._logger.warning(
+                            "Failed to share subject %s with project %s: %s",
+                            dest_subject_label,
+                            project_id,
+                            str(e),
+                        )
+
+        # Share experiments
+        for source_id, sharing_info in self.experiment_sharing.items():
+            dest_experiment_id = self.mapper.get_destination_id(
+                source_id, XnatType.experiment
+            )
+            if dest_experiment_id:
+                for project_id in sharing_info["projects"]:
+                    if project_id != self.source_info.id:
+                        try:
+                            self.destination_conn.put(
+                                f"/data/experiments/{dest_experiment_id}/projects/{project_id}"
+                            )
+                            self._logger.info(
+                                "Shared experiment %s with project %s",
+                                sharing_info["label"],
+                                project_id,
+                            )
+                        except Exception as e:  # noqa: BLE001
+                            self._logger.warning(
+                                "Failed to share experiment %s with project %s: %s",
+                                sharing_info["label"],
+                                project_id,
+                                str(e),
+                            )
+
+        # Share assessors
+        for source_id, sharing_info in self.assessor_sharing.items():
+            dest_assessor_id = self.mapper.get_destination_id(
+                source_id, XnatType.assessor
+            )
+            if dest_assessor_id:
+                for project_id in sharing_info["projects"]:
+                    if project_id != self.source_info.id:
+                        try:
+                            dest_experiment_id = self.mapper.get_destination_id(
+                                sharing_info["experiment_label"], XnatType.experiment
+                            )
+                            self.destination_conn.put(
+                                f"/data/experiments/{dest_experiment_id}/assessors/{dest_assessor_id}/projects/{project_id}"
+                            )
+                            self._logger.info(
+                                "Shared assessor %s with project %s",
+                                sharing_info["label"],
+                                project_id,
+                            )
+                        except Exception as e:  # noqa: BLE001
+                            self._logger.warning(
+                                "Failed to share assessor %s with project %s: %s",
+                                sharing_info["label"],
+                                project_id,
+                                str(e),
+                            )
+
+        self._logger.info("Sharing configurations applied.")
+
+    def run(self, *, apply_sharing: bool = False) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
+        if apply_sharing:
+            self._collect_sharing_info()
         self._create_resources()
         end = time.time()
         self._logger.info("Duration = %d", end - start)
         self._refresh_catalogues()
+        if apply_sharing:
+            self._apply_sharing()
 
 
 if __name__ == "__main__":
