@@ -68,6 +68,34 @@ class Migration:
         response.raise_for_status()
         return ET.fromstring(response.text)  # noqa: S314
 
+    def _create_users(self) -> None:
+        """Create users on the destination XNAT instance."""
+        source_profiles = self.source_conn.get('/xapi/users/profiles', format='json').json()
+        destination_profiles = self.destination_conn.get('/xapi/users/profiles', format='json').json()
+
+        # First check that existing users on the destination are identical to the source
+        for source_profile, destination_profile in zip(source_profiles, destination_profiles):
+            if source_profile['username'] != destination_profile['username']:
+                msg = f"Usernames not equal: {source_profile['username']=} {destination_profile['username']=}"
+                raise(ValueError(msg))
+
+            if source_profile['id'] != destination_profile['id']:
+                msg = f"IDs not equal: {source_profile['id']=} {destination_profile['id']=}"
+                raise(ValueError(msg))
+
+        # Now create missing users from the source on the destination
+        for source_profile in source_profiles[len(destination_profiles):]:
+            self._logger.info(f"Creating user: {source_profile['username']}")
+            destination_profile = {
+                "username": source_profile['username'].rstrip("#EXT#"),
+                "enabled": source_profile['enabled'],
+                "email": source_profile['email'],
+                "verified": source_profile['verified'],
+                "firstName": source_profile['firstName'],
+                "lastName": source_profile['lastName'],
+            }
+            self.destination_conn.post('/xapi/users', json=destination_profile)
+
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
         root = self._get_source_xml(
@@ -394,6 +422,7 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
+        self._create_users()
         self._create_resources()
         end = time.time()
         self._logger.info("Duration = %d", end - start)
@@ -426,3 +455,6 @@ if __name__ == "__main__":
         destination_info=destination_info,
     )
     migration.run()
+
+
+def 
