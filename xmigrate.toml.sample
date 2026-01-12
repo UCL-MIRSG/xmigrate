@@ -1,9 +1,9 @@
 [tool.xmigrate.migrate]
 source = "https://xnat.example"
-source_project = "source_project"
-destination_url = "https://another-xnat.example"
+source_project = '["proj1", "proj2"]'
+destination = "https://another-xnat.example"
 destination_user = "user"
 destination_password = "password"
-destination_project = "dest_project"
-destination_secondary_id = "Dest ID"
-destination_project_name = "Destination Project"
+destination_project = '["proj11", "proj12"]'
+destination_secondary_id = '["Dest ID11", "Dest ID12"]'
+destination_project_name = '["Destination Project 11", "Destination Project 12"]'

@@ -1,6 +1,0 @@
-[tool.xmigrate.migrate_multiple]
-source = "https://xnat.example"
-projects = '["proj1", "proj2"]'
-destination = "https://another-xnat.example"
-destination_user = "user"
-destination_password = "password"
