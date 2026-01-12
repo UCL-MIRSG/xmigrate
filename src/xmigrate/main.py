@@ -116,6 +116,25 @@ class Migration:
         df = pd.DataFrame(response.json()["ResultSet"]["Result"])
         df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
+    def _export_id_map(
+        self,
+        resource: str,
+        id_map: dict[str, str],
+        output_dir: pathlib.Path = pathlib.Path("./output"),
+    ) -> None:
+        """
+        Write ID map to CSV.
+
+        Args:
+            resource (str): The resource type, e.g., 'subjects' or 'experiments'.
+            id_map (dict[str, str]): The mapping of source IDs to destination IDs.
+            output_dir (pathlib.Path): The directory to write the CSV file to.
+
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
+        df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
+
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
         root = self._get_source_xml(
@@ -415,13 +434,22 @@ class Migration:
         start = time.time()
 
         self._create_users()
-        self._get_resource_metadata("subjects")
-        self._get_resource_metadata("experiments")
+        self._get_resource_metadata(resource="subjects")
+        self._get_resource_metadata(resource="experiments")
         self._create_resources()
+        self._export_id_map(
+            resource="subjects",
+            id_map=self.mapper.id_map[XnatType.subject],
+        )
+        self._export_id_map(
+            resource="experiments",
+            id_map=self.mapper.id_map[XnatType.experiment],
+        )
 
         end = time.time()
 
         self._logger.info("Duration = %d", end - start)
+
         self._refresh_catalogues()
 
 
