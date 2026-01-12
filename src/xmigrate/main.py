@@ -1,8 +1,8 @@
 """Module to migrate XNAT projects between instances."""
 
 import logging
-import subprocess
 import pathlib
+import subprocess
 import time
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
