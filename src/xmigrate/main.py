@@ -25,8 +25,8 @@ class Migration:
     Args:
         source_conn (xnat.BaseXNATSession): The source XNAT connection.
         destination_conn (xnat.BaseXNATSession): The destination XNAT connection.
-        source_info (ProjectInfo): The source project information.
-        destination_info (ProjectInfo): The destination project information.
+        all_source_info (list[ProjectInfo]): The source projects information.
+        all_destination_info (list[ProjectInfo]): The destination projects information.
 
     """
 
