@@ -52,12 +52,3 @@ Then run the migration using:
 ```sh
 xmigrate migrate
 ```
-
-If you want to migrate multiple projects, then configure using `xmigrate.toml`.
-See `xmigrate_multi_proj.toml.sample` for an example.
-
-Then run the migration using:
-
-```sh
-xmigrate migrate_multiple
-```
