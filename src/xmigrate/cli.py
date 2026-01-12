@@ -36,10 +36,10 @@ def migrate(  # noqa: PLR0913
     destination: str,
     destination_user: str,
     destination_password: str,
-    destination_project: str | None,
-    destination_secondary_id: str | None,
-    destination_project_name: str | None,
-    destination_rsync: str | None,
+    destination_rsync: str,
+    destination_project: str | None = None,
+    destination_secondary_id: str | None = None,
+    destination_project_name: str | None = None,
     *,
     rsync_only: bool = False,
 ) -> None:
@@ -49,7 +49,11 @@ def migrate(  # noqa: PLR0913
     Example:
       xmigrate migrate --source=https://xnat.example --source-user=gollifer \
           --source-password=secret --destination=http://localhost \
-          --destination-user=admin --destination-password=secret
+          --destination-user=admin --destination-password=secret \
+          --source-rsync=/path/to/source --destination-rsync=/path/to/dest
+
+    It should be noted that source_rsync and destination_rsync must both
+    be local paths.
 
     """
     destination_project = (
@@ -102,15 +106,11 @@ def migrate(  # noqa: PLR0913
         destination_conn=dst_conn,
         source_info=source_info,
         destination_info=destination_info,
+        rsync_only=rsync_only,
     )
 
-    if rsync_only:
-        migration.rsync_only()
-        logger.info("Rsync only finished.")
-
-    else:
-        migration.run()
-        logger.info("Migration run finished.")
+    migration.run()
+    logger.info("Migration run finished.")
 
 
 @app.default
