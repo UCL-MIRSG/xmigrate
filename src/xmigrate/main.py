@@ -2,11 +2,12 @@
 
 import logging
 import subprocess
+import pathlib
 import time
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
 
+import pandas as pd
 import xnat
 
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
@@ -71,6 +72,71 @@ class Migration:
         response.raise_for_status()
         return ET.fromstring(response.text)  # noqa: S314
 
+    def _create_users(self) -> None:
+        """Create users on the destination XNAT instance."""
+        source_profiles = self.source_conn.get("/xapi/users/profiles", format="json").json()
+        destination_profiles = self.destination_conn.get("/xapi/users/profiles", format="json").json()
+
+        # First check that existing users on the destination are identical to the source
+        for source_profile, destination_profile in zip(source_profiles, destination_profiles, strict=False):
+            if source_profile["username"] != destination_profile["username"]:
+                msg = f"Usernames not equal: {source_profile['username']=} {destination_profile['username']=}"
+                raise (ValueError(msg))
+
+            if source_profile["id"] != destination_profile["id"]:
+                msg = f"IDs not equal: {source_profile['id']=} {destination_profile['id']=}"
+                raise (ValueError(msg))
+
+        # Now create missing users from the source on the destination
+        for source_profile in source_profiles[len(destination_profiles) :]:
+            self._logger.info("Creating user: %s", source_profile["username"])
+            destination_profile = {
+                "username": source_profile["username"].remove_suffix("#EXT#"),
+                "enabled": source_profile["enabled"],
+                "email": source_profile["email"],
+                "verified": source_profile["verified"],
+                "firstName": source_profile["firstName"],
+                "lastName": source_profile["lastName"],
+            }
+            self.destination_conn.post("/xapi/users", json=destination_profile)
+
+    def _get_resource_metadata(self, resource: str, output_dir: pathlib.Path = pathlib.Path("./output")) -> None:
+        """
+        Retrieve resource metadata and write to CSV.
+
+        This can be used to set the correct insert_user, insert_date, and last_modified metadata
+        on the destination after migration.
+
+        Args:
+            resource (str): The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
+            output_dir (pathlib.Path): The directory to write the CSV file to.
+
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
+        response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", params=params)
+        df = pd.DataFrame(response.json()["ResultSet"]["Result"])
+        df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
+
+    def _export_id_map(
+        self,
+        resource: str,
+        id_map: dict[str, str],
+        output_dir: pathlib.Path = pathlib.Path("./output"),
+    ) -> None:
+        """
+        Write ID map to CSV.
+
+        Args:
+            resource (str): The resource type, e.g., 'subjects' or 'experiments'.
+            id_map (dict[str, str]): The mapping of source IDs to destination IDs.
+            output_dir (pathlib.Path): The directory to write the CSV file to.
+
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
+        df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
+
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
         root = self._get_source_xml(
@@ -109,10 +175,7 @@ class Migration:
         )
         xml_bytes = ET.tostring(root, encoding="utf-8")
 
-        if (
-            subject.label
-            not in self.destination_conn.projects[self.destination_info.id].subjects
-        ):
+        if subject.label not in self.destination_conn.projects[self.destination_info.id].subjects:
             self.destination_conn.post(
                 f"/data/projects/{self.destination_info.id}/subjects",
                 data=xml_bytes,
@@ -123,9 +186,7 @@ class Migration:
         try:
             self.mapper.update_id_map(
                 source=subject.id,
-                destination=self.destination_conn.projects[
-                    self.destination_info.id
-                ].subjects[subject.label],
+                destination=self.destination_conn.projects[self.destination_info.id].subjects[subject.label],
                 map_type=XnatType.subject,
             )
         except (KeyError, AttributeError):
@@ -147,18 +208,14 @@ class Migration:
         xml_bytes = ET.tostring(root, encoding="utf-8")
         if (
             experiment.label
-            not in self.destination_conn.projects[self.destination_info.id]
-            .subjects[subject.label]
-            .experiments
+            not in self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments
         ):
             self.destination_conn.post(
                 f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_conn.projects[self.destination_info.id].subjects[
-            subject.label
-        ].experiments.clearcache()
+        self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments.clearcache()
         try:
             self.mapper.update_id_map(
                 source=experiment.id,
@@ -170,9 +227,7 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.exp_failed_count = self.exp_failed_count + 1
-            self.destination_conn.projects[self.destination_info.id].subjects[
-                subject.label
-            ].experiments.clearcache()
+            self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments.clearcache()
             self.mapper.update_id_map(
                 source=experiment.id,
                 destination=self.destination_conn.projects[self.destination_info.id]
@@ -209,9 +264,9 @@ class Migration:
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_conn.projects[self.destination_info.id].subjects[
-            subject.label
-        ].experiments[experiment.label].scans.clearcache()
+        self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[
+            experiment.label
+        ].scans.clearcache()
         try:
             self.mapper.update_id_map(
                 source=scan.id,
@@ -220,9 +275,9 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.scan_failed_count = self.scan_failed_count + 1
-            self.destination_conn.projects[self.destination_info.id].subjects[
-                subject.label
-            ].experiments[experiment.label].scans.clearcache()
+            self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[
+                experiment.label
+            ].scans.clearcache()
             self.mapper.update_id_map(
                 source=scan.id,
                 destination=scan.id,  # Scan IDs must be preserved
@@ -256,9 +311,9 @@ class Migration:
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_conn.projects[self.destination_info.id].subjects[
-            subject.label
-        ].experiments[experiment.label].assessors.clearcache()
+        self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[
+            experiment.label
+        ].assessors.clearcache()
         try:
             self.mapper.update_id_map(
                 source=assessor.id,
@@ -271,9 +326,9 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.assess_failed_count = self.assess_failed_count + 1
-            self.destination_conn.projects[self.destination_info.id].subjects[
-                subject.label
-            ].experiments[experiment.label].assessors.clearcache()
+            self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[
+                experiment.label
+            ].assessors.clearcache()
             self.mapper.update_id_map(
                 source=assessor.id,
                 destination=self.destination_conn.projects[self.destination_info.id]
@@ -288,10 +343,6 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        destination_datatypes = self.destination_conn.get(
-            "/xapi/schemas/datatypes"
-        ).json()
-
         rsync_dest = self.destination_info.rsync_path
         rsync_source = self.source_info.rsync_path
 
@@ -318,62 +369,21 @@ class Migration:
         if self.rsync_only:
             return
 
-        with ThreadPoolExecutor(max_workers=4) as subject_executor:
+        destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
+        for subject in source_project.subjects:
+            self._create_subject(subject)
+            for experiment in subject.experiments:
+                if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
+                    datatype = experiment.fulldata["meta"]["xsi:type"]
+                    msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
+                    raise RuntimeError(msg)
+                self._create_experiment(experiment)
 
-            def process_subject(subject: xnat.core.XNATListing) -> None:
-                self._create_subject(subject)
+                for scan in experiment.scans:
+                    self._create_scan(scan)
 
-                with ThreadPoolExecutor(max_workers=4) as exp_executor:
-
-                    def process_experiment(experiment: xnat.core.XNATListing) -> None:
-                        if (
-                            experiment.fulldata["meta"]["xsi:type"]
-                            not in destination_datatypes
-                        ):
-                            datatype = experiment.fulldata["meta"]["xsi:type"]
-                            self._logger.info(
-                                "Datatype %d not available on destination server for experiment %d, skipping.",  # noqa: E501
-                                datatype,
-                                experiment.id,
-                            )
-                            return
-
-                        self._create_experiment(experiment)
-
-                        # Process scans and assessors in parallel
-                        with ThreadPoolExecutor(max_workers=4) as resource_executor:
-                            scan_futures = [
-                                resource_executor.submit(self._create_scan, scan)
-                                for scan in experiment.scans
-                            ]
-                            assessor_futures = [
-                                resource_executor.submit(
-                                    self._create_assessor, assessor
-                                )
-                                for assessor in experiment.assessors
-                            ]
-
-                            # Wait for all scans and assessors to complete
-                            for future in scan_futures + assessor_futures:
-                                future.result()
-
-                    exp_futures = [
-                        exp_executor.submit(process_experiment, exp)
-                        for exp in subject.experiments
-                    ]
-
-                    # Wait for all experiments to complete
-                    for future in exp_futures:
-                        future.result()
-
-            subject_futures = [
-                subject_executor.submit(process_subject, subj)
-                for subj in source_project.subjects
-            ]
-
-            # Wait for all subjects to complete
-            for future in subject_futures:
-                future.result()
+                for assessor in experiment.assessors:
+                    self._create_assessor(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
@@ -393,9 +403,7 @@ class Migration:
 
     def _refresh_catalogues(self) -> None:
         """Refresh all catalogues for the destination XNAT project."""
-        for subject in self.destination_conn.projects[
-            self.destination_info.id
-        ].subjects:
+        for subject in self.destination_conn.projects[self.destination_info.id].subjects:
             for experiment in subject.experiments:
                 for scan in experiment.scans:
                     resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/scans/{scan.id}"  # noqa: E501
@@ -412,9 +420,7 @@ class Migration:
                     f"/xapi/viewer/projects/{self.destination_info.id}/experiments/{experiment.id}",
                 )
 
-            resource_path = (
-                f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}"
-            )
+            resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}"
             self._refresh_catalogue(resource_path)
 
         resource_path = f"/archive/projects/{self.destination_info.id}"
@@ -423,9 +429,24 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
+
+        self._create_users()
+        self._get_resource_metadata(resource="subjects")
+        self._get_resource_metadata(resource="experiments")
         self._create_resources()
+        self._export_id_map(
+            resource="subjects",
+            id_map=self.mapper.id_map[XnatType.subject],
+        )
+        self._export_id_map(
+            resource="experiments",
+            id_map=self.mapper.id_map[XnatType.experiment],
+        )
+
         end = time.time()
+
         self._logger.info("Duration = %d", end - start)
+
         self._refresh_catalogues()
 
 
