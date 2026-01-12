@@ -128,14 +128,10 @@ class XMLMapper:
             return
 
         if source_path not in child.attrib["URI"]:
-            msg = (
-                f"source_archive {source_path} not found in URI {child.attrib['URI']}."
-            )
+            msg = f"source_archive {source_path} not found in URI {child.attrib['URI']}."
             raise ValueError(msg)
 
-        child.attrib["URI"] = child.attrib["URI"].replace(
-            source_path, destination_path, count=1
-        )
+        child.attrib["URI"] = child.attrib["URI"].replace(source_path, destination_path, count=1)
 
     def update_id_map(
         self,
@@ -200,15 +196,9 @@ class XMLMapper:
         modality_tag = f"{{{XnatNS.xnat}}}modality"
         other_scan_tag = "xnat:OtherDicomScan"
         if element.tag == image_scan_data_tag:
-            modalities = [
-                modality.text
-                for modality in element.findall(modality_tag, self.namespaces)
-                if modality.text
-            ]
+            modalities = [modality.text for modality in element.findall(modality_tag, self.namespaces) if modality.text]
             new_tag = (
-                self.modality_to_scan.get(modalities[0], other_scan_tag)
-                if len(modalities) == 1
-                else other_scan_tag
+                self.modality_to_scan.get(modalities[0], other_scan_tag) if len(modalities) == 1 else other_scan_tag
             )
             element.tag = new_tag
 
