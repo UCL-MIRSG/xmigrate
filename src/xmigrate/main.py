@@ -421,18 +421,14 @@ class Migration:
 
             for experiment in subject.experiments:
                 # Get experiment sharing info
-                response = self.source_conn.get(
-                    f"/data/experiments/{experiment.id}/projects", format="json"
-                )
+                response = self.source_conn.get(f"/data/experiments/{experiment.id}/projects", format="json")
                 response.raise_for_status()
                 experiment_shared = response.json()["ResultSet"]
                 self.experiment_sharing[experiment.id] = {
                     "label": experiment.label,
                     "subject_label": subject.label,
                     "owner": None,  # Will be determined from XML
-                    "projects": [
-                        result["ID"] for result in experiment_shared["Result"]
-                    ],
+                    "projects": [result["ID"] for result in experiment_shared["Result"]],
                 }
 
                 for assessor in experiment.assessors:
@@ -448,9 +444,7 @@ class Migration:
                         "subject_label": subject.label,
                         "experiment_label": experiment.label,
                         "owner": None,  # Will be determined from XML
-                        "projects": [
-                            result["ID"] for result in assessor_shared["Result"]
-                        ],
+                        "projects": [result["ID"] for result in assessor_shared["Result"]],
                     }
 
         self._logger.info("Sharing information collected.")
@@ -483,16 +477,12 @@ class Migration:
 
         # Share experiments
         for source_id, sharing_info in self.experiment_sharing.items():
-            dest_experiment_id = self.mapper.get_destination_id(
-                source_id, XnatType.experiment
-            )
+            dest_experiment_id = self.mapper.get_destination_id(source_id, XnatType.experiment)
             if dest_experiment_id:
                 for project_id in sharing_info["projects"]:
                     if project_id != self.source_info.id:
                         try:
-                            self.destination_conn.put(
-                                f"/data/experiments/{dest_experiment_id}/projects/{project_id}"
-                            )
+                            self.destination_conn.put(f"/data/experiments/{dest_experiment_id}/projects/{project_id}")
                             self._logger.info(
                                 "Shared experiment %s with project %s",
                                 sharing_info["label"],
@@ -508,9 +498,7 @@ class Migration:
 
         # Share assessors
         for source_id, sharing_info in self.assessor_sharing.items():
-            dest_assessor_id = self.mapper.get_destination_id(
-                source_id, XnatType.assessor
-            )
+            dest_assessor_id = self.mapper.get_destination_id(source_id, XnatType.assessor)
             if dest_assessor_id:
                 for project_id in sharing_info["projects"]:
                     if project_id != self.source_info.id:
