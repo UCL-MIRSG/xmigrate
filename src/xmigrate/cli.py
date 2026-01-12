@@ -47,13 +47,11 @@ def migrate(  # noqa: PLR0913
     Migrate a project from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate --source=https://xnat.example --source-user=gollifer \
-          --source-password=secret --destination=http://localhost \
-          --destination-user=admin --destination-password=secret \
-          --source-rsync=/path/to/source --destination-rsync=/path/to/dest
+      xmigrate migrate
 
-    It should be noted that source_rsync and destination_rsync must both
-    be local paths.
+    Command can be run with the arguments within an xmigrate.toml config file.
+
+    It should be noted that source_rsync and destination_rsync must both be local paths.
 
     """
     destination_project = (
