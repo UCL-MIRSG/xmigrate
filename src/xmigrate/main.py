@@ -3,7 +3,6 @@
 import logging
 import pathlib
 import time
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
 
@@ -342,51 +341,20 @@ class Migration:
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
         destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
+        for subject in source_project.subjects:
+            self._create_subject(subject)
+            for experiment in subject.experiments:
+                if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
+                    datatype = experiment.fulldata["meta"]["xsi:type"]
+                    msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
+                    raise RuntimeError(msg)
+                self._create_experiment(experiment)
 
-        with ThreadPoolExecutor(max_workers=4) as subject_executor:
+                for scan in experiment.scans:
+                    self._create_scan(scan)
 
-            def process_subject(subject: xnat.core.XNATListing) -> None:
-                self._create_subject(subject)
-
-                with ThreadPoolExecutor(max_workers=4) as exp_executor:
-
-                    def process_experiment(experiment: xnat.core.XNATListing) -> None:
-                        if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
-                            datatype = experiment.fulldata["meta"]["xsi:type"]
-                            self._logger.info(
-                                "Datatype %d not available on destination server for experiment %d, skipping.",
-                                datatype,
-                                experiment.id,
-                            )
-                            return
-
-                        self._create_experiment(experiment)
-
-                        # Process scans and assessors in parallel
-                        with ThreadPoolExecutor(max_workers=4) as resource_executor:
-                            scan_futures = [
-                                resource_executor.submit(self._create_scan, scan) for scan in experiment.scans
-                            ]
-                            assessor_futures = [
-                                resource_executor.submit(self._create_assessor, assessor)
-                                for assessor in experiment.assessors
-                            ]
-
-                            # Wait for all scans and assessors to complete
-                            for future in scan_futures + assessor_futures:
-                                future.result()
-
-                    exp_futures = [exp_executor.submit(process_experiment, exp) for exp in subject.experiments]
-
-                    # Wait for all experiments to complete
-                    for future in exp_futures:
-                        future.result()
-
-            subject_futures = [subject_executor.submit(process_subject, subj) for subj in source_project.subjects]
-
-            # Wait for all subjects to complete
-            for future in subject_futures:
-                future.result()
+                for assessor in experiment.assessors:
+                    self._create_assessor(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
