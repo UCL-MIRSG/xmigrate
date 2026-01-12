@@ -336,7 +336,7 @@ class Migration:
                 map_type=XnatType.assessor,
             )
 
-    def create_resources(self) -> None:
+    def _create_resources(self) -> None:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
@@ -372,7 +372,7 @@ class Migration:
             populate_stats=True,
         )
 
-    def refresh_catalogues(self) -> None:
+    def _refresh_catalogues(self) -> None:
         """Refresh all catalogues for the destination XNAT project."""
         for subject in self.destination_conn.projects[self.destination_info.id].subjects:
             for experiment in subject.experiments:
@@ -417,7 +417,6 @@ class Migration:
         end = time.time()
 
         self._logger.info("Duration = %d", end - start)
-
 
         self._refresh_catalogues()
 
