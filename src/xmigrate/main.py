@@ -1,11 +1,13 @@
 """Module to migrate XNAT projects between instances."""
 
 import logging
+import pathlib
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
 
+import pandas as pd
 import xnat
 
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
@@ -95,6 +97,24 @@ class Migration:
                 "lastName": source_profile["lastName"],
             }
             self.destination_conn.post("/xapi/users", json=destination_profile)
+
+    def _get_resource_metadata(self, resource: str, output_dir: pathlib.Path = pathlib.Path("./output")) -> None:
+        """
+        Retrieve resource metadata and write to CSV.
+
+        This can be used to set the correct insert_user, insert_date, and last_modified metadata
+        on the destination after migration.
+
+        Args:
+            resource (str): The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
+            output_dir (pathlib.Path): The directory to write the CSV file to.
+
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
+        response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", params=params)
+        df = pd.DataFrame(response.json()["ResultSet"]["Result"])
+        df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
@@ -393,9 +413,14 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
+
         self._create_users()
+        self._get_resource_metadata("subjects")
+        self._get_resource_metadata("experiments")
         self._create_resources()
+
         end = time.time()
+
         self._logger.info("Duration = %d", end - start)
         self._refresh_catalogues()
 
