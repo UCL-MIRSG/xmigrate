@@ -314,7 +314,7 @@ class Migration:
                 msg = (
                     f"An error occurred running the rsync command; the error was: {exc}"
                 )
-                raise ValueError(msg) from exc
+                raise RuntimeError(msg) from exc
 
         else:
             self._logger.warning("No rsync as rsync dest and source paths were None")
