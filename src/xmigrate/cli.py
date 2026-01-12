@@ -21,9 +21,7 @@ app = App(
 logger = logging.getLogger("xmigrate.cli")
 if not logger.handlers:
     handler = logging.StreamHandler()
-    handler.setFormatter(
-        logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
-    )
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
@@ -50,19 +48,9 @@ def migrate(  # noqa: PLR0913
           --destination-user=admin --destination-password=secret
 
     """
-    destination_project = (
-        destination_project if destination_project is not None else source_project
-    )
-    destination_secondary_id = (
-        destination_secondary_id
-        if destination_secondary_id is not None
-        else source_project
-    )
-    destination_project_name = (
-        destination_project_name
-        if destination_project_name is not None
-        else source_project
-    )
+    destination_project = destination_project if destination_project is not None else source_project
+    destination_secondary_id = destination_secondary_id if destination_secondary_id is not None else source_project
+    destination_project_name = destination_project_name if destination_project_name is not None else source_project
 
     src_conn = xnat.connect(source)
     dst_conn = xnat.connect(destination, destination_user, destination_password)

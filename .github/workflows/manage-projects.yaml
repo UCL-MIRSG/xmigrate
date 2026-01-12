@@ -1,0 +1,16 @@
+---
+name: Manage issues on the projects board
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  add-issue-to-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: UCL-MIRSG/.github/actions/add-to-project@85567ca1b931922d97eeaead990f5422693147d5 # v0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          app-pem: ${{ secrets.APP_PEM }}
