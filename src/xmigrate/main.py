@@ -172,6 +172,18 @@ class Migration:
         root = self._get_source_xml(
             f"/data/projects/{self.source_info.id}/subjects/{subject.id}",
         )
+
+        # _collect_sharing_info
+        sharing_info = self.subject_sharing.get(subject.id, {"label": None, "owner": None, "projects": []})
+        if root.attrib["project"] != self.source_info.id:
+            # this project is not the owner of the resource, no need to create it on the destination
+            sharing_info["projects"].append(self.destination_info.id)
+            return
+        # otherwise, this project is the owner
+        sharing_info["owner"] = self.destination_info.id
+        sharing_info["label"] = subject.label
+        self.subject_sharing = sharing_info
+
         root = self.mapper.map_xml(
             root,
             resource_type=XnatType.subject,
@@ -204,6 +216,17 @@ class Migration:
         root = self._get_source_xml(
             f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}",
         )
+
+        # _collect_sharing_info
+        sharing_info = self.experiment_sharing.get(experiment.id, {"owner": None, "projects": []})
+        if root.attrib["project"] != self.source_info.id:
+            # this project is not the owner of the resource, no need to create it on the destination
+            sharing_info["projects"].append(self.destination_info.id)
+            return
+        # otherwise, this project is the owner
+        sharing_info["owner"] = self.destination_info.id
+        self.experiment_sharing = sharing_info
+
         root = self.mapper.map_xml(
             root,
             resource_type=XnatType.experiment,
@@ -297,6 +320,17 @@ class Migration:
         root = self._get_source_xml(
             f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}/assessors/{assessor.id}",
         )
+
+        # _collect_sharing_info
+        sharing_info = self.assessor_sharing.get(assessor.id, {"owner": None, "projects": []})
+        if root.attrib["project"] != self.source_info.id:
+            # this project is not the owner of the resource, no need to create it on the destination
+            sharing_info["projects"].append(self.destination_info.id)
+            return
+        # otherwise, this project is the owner
+        sharing_info["owner"] = self.destination_info.id
+        self.assessor_sharing = sharing_info
+
         root = self.mapper.map_xml(
             root,
             resource_type=XnatType.assessor,
@@ -429,55 +463,6 @@ class Migration:
         resource_path = f"/archive/projects/{self.destination_info.id}"
         self._refresh_catalogue(resource_path)
 
-    def _collect_sharing_info(self) -> None:
-        """Collect sharing information for all resources in the source project."""
-        self._logger.info("Collecting sharing information...")
-        source_project = self.source_conn.projects[self.source_info.id]
-
-        for subject in source_project.subjects:
-            # Get subject sharing info
-            response = self.source_conn.get(
-                f"/data/projects/{self.source_info.id}/subjects/{subject.id}/projects",
-                format="json",
-            )
-            response.raise_for_status()
-            subject_shared = response.json()["ResultSet"]
-            self.subject_sharing[subject.id] = {
-                "label": subject.label,
-                "owner": None,  # Will be determined from XML
-                "projects": [result["ID"] for result in subject_shared["Result"]],
-            }
-
-            for experiment in subject.experiments:
-                # Get experiment sharing info
-                response = self.source_conn.get(f"/data/experiments/{experiment.id}/projects", format="json")
-                response.raise_for_status()
-                experiment_shared = response.json()["ResultSet"]
-                self.experiment_sharing[experiment.id] = {
-                    "label": experiment.label,
-                    "subject_label": subject.label,
-                    "owner": None,  # Will be determined from XML
-                    "projects": [result["ID"] for result in experiment_shared["Result"]],
-                }
-
-                for assessor in experiment.assessors:
-                    # Get assessor sharing info
-                    response = self.source_conn.get(
-                        f"/data/experiments/{experiment.id}/assessors/{assessor.id}/projects",
-                        format="json",
-                    )
-                    response.raise_for_status()
-                    assessor_shared = response.json()["ResultSet"]
-                    self.assessor_sharing[assessor.id] = {
-                        "label": assessor.label,
-                        "subject_label": subject.label,
-                        "experiment_label": experiment.label,
-                        "owner": None,  # Will be determined from XML
-                        "projects": [result["ID"] for result in assessor_shared["Result"]],
-                    }
-
-        self._logger.info("Sharing information collected.")
-
     def _apply_sharing(self) -> None:  # noqa: PLR0912
         """Apply sharing configurations to resources on the destination instance."""
         self._logger.info("Applying sharing configurations...")
@@ -556,8 +541,6 @@ class Migration:
     def run(self, *, apply_sharing: bool = False) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
-        if apply_sharing:
-            self._collect_sharing_info()
         self._create_users()
         self._get_resource_metadata(resource="subjects")
         self._get_resource_metadata(resource="experiments")
