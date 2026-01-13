@@ -30,13 +30,6 @@ logger.setLevel(logging.INFO)
 def migrate(  # noqa: PLR0913
     source: str,
     source_projects: list[str],
-    destination: str,
-    destination_user: str,
-    destination_password: str,
-    destination_projects: list[str] | None,
-    destination_secondary_ids: list[str] | None,
-    destination_project_names: list[str] | None,
-    source_projects: list[str],
     source_rsync: str,
     destination: str,
     destination_user: str,
