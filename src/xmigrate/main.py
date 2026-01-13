@@ -538,7 +538,7 @@ class Migration:
 
         self._logger.info("Sharing configurations applied.")
 
-    def run(self, *, apply_sharing: bool = False) -> None:
+    def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
         self._create_users()
@@ -559,8 +559,7 @@ class Migration:
         self._logger.info("Duration = %d", end - start)
 
         self._refresh_catalogues()
-        if apply_sharing:
-            self._apply_sharing()
+        self._apply_sharing()
 
 
 if __name__ == "__main__":

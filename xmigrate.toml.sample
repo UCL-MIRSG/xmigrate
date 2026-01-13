@@ -10,4 +10,3 @@ destination_secondary_id = "Dest ID"
 destination_project_name = "Destination Project"
 destination_rsync = "/new/local/path/"
 rsync_only = true # optional as default is false
-apply_sharing = true

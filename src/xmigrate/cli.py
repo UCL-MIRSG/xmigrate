@@ -40,7 +40,6 @@ def migrate(  # noqa: PLR0913
     destination_project_name: str | None = None,
     *,
     rsync_only: bool = False,
-    apply_sharing: bool = False,
 ) -> None:
     """
     Migrate a project from source to destination XNAT instance.
@@ -96,7 +95,7 @@ def migrate(  # noqa: PLR0913
         rsync_only=rsync_only,
     )
 
-    migration.run(apply_sharing=apply_sharing)
+    migration.run()
     logger.info("Migration run finished.")
 
 
