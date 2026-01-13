@@ -2,6 +2,7 @@
 
 import logging
 import pathlib
+import subprocess
 import time
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
@@ -27,6 +28,7 @@ class Migration:
         destination_conn (xnat.BaseXNATSession): The destination XNAT connection.
         all_source_info (list[ProjectInfo]): The source projects information.
         all_destination_info (list[ProjectInfo]): The destination projects information.
+        rsync_only (bool): Conditional for whether to run rsync only.
 
     """
 
@@ -37,6 +39,7 @@ class Migration:
     destination_conn: xnat.BaseXNATSession
     all_source_info: list[ProjectInfo]
     all_destination_info: list[ProjectInfo]
+    rsync_only: bool = False
 
     def __post_init__(self):  # noqa: ANN204, D105
         self.mappers = [
@@ -347,6 +350,32 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
+        rsync_dest = self.destination_info.rsync_path
+        rsync_source = self.source_info.rsync_path
+
+        command_to_run = [
+            "rsync",
+            "-azP",
+            "--ignore-existing",
+            "--exclude=*.log",
+            "--exclude=.*",
+            "--exclude=*.json",
+            "--stats",
+            "--progress",
+            "--checksum",
+            rsync_source,
+            rsync_dest,
+        ]
+
+        try:
+            subprocess.check_output(command_to_run)  # noqa: S603
+        except subprocess.CalledProcessError as exc:
+            msg = f"An error occurred running the rsync command; the error was: {exc}"
+            raise RuntimeError(msg) from exc
+
+        if self.rsync_only:
+            return
+
         destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
         for subject in source_project.subjects:
             self._create_subject(subject)
@@ -447,12 +476,14 @@ if __name__ == "__main__":
         secondary_id=None,
         project_name=None,
         archive_path=source_conn.get("/xapi/siteConfig/archivePath").text,
+        rsync_path=None,
     )
     destination_info = ProjectInfo(
         id="test_migration4",
         secondary_id="TEST MIGRATION4",
         project_name="Test Migration4",
         archive_path=destination_conn.get("/xapi/siteConfig/archivePath").text,
+        rsync_path=None,
     )
     migration = Migration(
         source_conn=xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk"),

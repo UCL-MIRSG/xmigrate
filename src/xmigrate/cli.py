@@ -36,14 +36,27 @@ def migrate(  # noqa: PLR0913
     destination_projects: list[str] | None,
     destination_secondary_ids: list[str] | None,
     destination_project_names: list[str] | None,
+    source_projects: list[str],
+    source_rsync: str,
+    destination: str,
+    destination_user: str,
+    destination_password: str,
+    destination_rsync: str,
+    destination_projects: list[str] | None,
+    destination_secondary_ids: list[str] | None,
+    destination_project_names: list[str] | None,
+    *,
+    rsync_only: bool = False,
 ) -> None:
     """
     Migrate a project from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate --source=https://xnat.example --source-user=gollifer \
-          --source-password=secret --destination=http://localhost \
-          --destination-user=admin --destination-password=secret
+      xmigrate migrate
+
+    Command can be run with the arguments within an xmigrate.toml config file.
+
+    It should be noted that source_rsync and destination_rsync must both be local paths.
 
     """
     destination_projects = destination_projects if destination_projects is not None else source_projects
@@ -72,6 +85,7 @@ def migrate(  # noqa: PLR0913
             secondary_id=None,
             project_name=None,
             archive_path=src_archive,
+            rsync_path=source_rsync,
         )
         for src_proj in source_projects
     ]
@@ -82,6 +96,7 @@ def migrate(  # noqa: PLR0913
             secondary_id=dst_sec_id,
             project_name=dst_proj_name,
             archive_path=dst_archive,
+            rsync_path=destination_rsync,
         )
         for dst_proj, dst_sec_id, dst_proj_name in zip(
             destination_projects,
@@ -96,6 +111,7 @@ def migrate(  # noqa: PLR0913
         destination_conn=dst_conn,
         all_source_info=all_source_info,
         all_destination_info=all_destination_info,
+        rsync_only=rsync_only,
     )
 
     migration.run()
