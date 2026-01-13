@@ -46,6 +46,7 @@ class ProjectInfo:  # noqa: D101
     secondary_id: str
     project_name: str
     archive_path: str
+    rsync_path: str
 
 
 @dataclass
