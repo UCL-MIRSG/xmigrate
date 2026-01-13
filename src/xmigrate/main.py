@@ -350,8 +350,8 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        rsync_dest = self.destination_info.rsync_path
-        rsync_source = self.source_info.rsync_path
+        rsync_dest = self.destination_info.rsync_path / self.destination_info.id
+        rsync_source = self.source_info.rsync_path / self.source_info.id
 
         command_to_run = [
             "rsync",
