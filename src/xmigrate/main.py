@@ -469,6 +469,10 @@ class Migration:
 
         # Share subjects
         for sharing_info in self.subject_sharing.values():
+            if sharing_info["owner"] is None:
+                msg = "The owning project wasn't included in the migration."
+                raise ValueError(msg)
+
             dest_subject_label = sharing_info["label"]
             for project_id in sharing_info["projects"]:
                 if project_id != self.source_info.id:
