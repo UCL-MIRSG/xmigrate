@@ -29,15 +29,15 @@ logger.setLevel(logging.INFO)
 @app.command
 def migrate(  # noqa: PLR0913
     source: str,
-    source_project: str,
+    source_projects: list[str],
     source_rsync: str,
     destination: str,
     destination_user: str,
     destination_password: str,
     destination_rsync: str,
-    destination_project: str | None = None,
-    destination_secondary_id: str | None = None,
-    destination_project_name: str | None = None,
+    destination_projects: list[str] | None,
+    destination_secondary_ids: list[str] | None,
+    destination_project_names: list[str] | None,
     *,
     rsync_only: bool = False,
 ) -> None:
@@ -52,9 +52,9 @@ def migrate(  # noqa: PLR0913
     It should be noted that source_rsync and destination_rsync must both be local paths.
 
     """
-    destination_project = destination_project if destination_project is not None else source_project
-    destination_secondary_id = destination_secondary_id if destination_secondary_id is not None else source_project
-    destination_project_name = destination_project_name if destination_project_name is not None else source_project
+    destination_projects = destination_projects if destination_projects is not None else source_projects
+    destination_secondary_ids = destination_secondary_ids if destination_secondary_ids is not None else source_projects
+    destination_project_names = destination_project_names if destination_project_names is not None else source_projects
 
     src_conn = xnat.connect(source)
     dst_conn = xnat.connect(destination, destination_user, destination_password)
@@ -71,27 +71,39 @@ def migrate(  # noqa: PLR0913
         logger.warning("Failed to fetch destination archive path: %s", e)
         dst_archive = None
 
-    source_info = ProjectInfo(
-        id=source_project,
-        secondary_id=None,
-        project_name=None,
-        archive_path=src_archive,
-        rsync_path=source_rsync,
-    )
+    # Create a list of ProjectInfo objects, one for each project
+    all_source_info = [
+        ProjectInfo(
+            id=src_proj,
+            secondary_id=None,
+            project_name=None,
+            archive_path=src_archive,
+            rsync_path=source_rsync,
+        )
+        for src_proj in source_projects
+    ]
 
-    destination_info = ProjectInfo(
-        id=destination_project,
-        secondary_id=destination_secondary_id,
-        project_name=destination_project_name,
-        archive_path=dst_archive,
-        rsync_path=destination_rsync,
-    )
+    all_destination_info = [
+        ProjectInfo(
+            id=dst_proj,
+            secondary_id=dst_sec_id,
+            project_name=dst_proj_name,
+            archive_path=dst_archive,
+            rsync_path=destination_rsync,
+        )
+        for dst_proj, dst_sec_id, dst_proj_name in zip(
+            destination_projects,
+            destination_secondary_ids,
+            destination_project_names,
+            strict=True,
+        )
+    ]
 
     migration = Migration(
         source_conn=src_conn,
         destination_conn=dst_conn,
-        source_info=source_info,
-        destination_info=destination_info,
+        all_source_info=all_source_info,
+        all_destination_info=all_destination_info,
         rsync_only=rsync_only,
     )
 
