@@ -26,8 +26,8 @@ class Migration:
     Args:
         source_conn (xnat.BaseXNATSession): The source XNAT connection.
         destination_conn (xnat.BaseXNATSession): The destination XNAT connection.
-        source_info (ProjectInfo): The source project information.
-        destination_info (ProjectInfo): The destination project information.
+        all_source_info (list[ProjectInfo]): The source projects information.
+        all_destination_info (list[ProjectInfo]): The destination projects information.
         rsync_only (bool): Conditional for whether to run rsync only.
 
     """
@@ -37,15 +37,22 @@ class Migration:
 
     source_conn: xnat.BaseXNATSession
     destination_conn: xnat.BaseXNATSession
-    source_info: ProjectInfo
-    destination_info: ProjectInfo
+    all_source_info: list[ProjectInfo]
+    all_destination_info: list[ProjectInfo]
     rsync_only: bool = False
 
     def __post_init__(self):  # noqa: ANN204, D105
-        self.mapper = XMLMapper(
-            source=self.source_info,
-            destination=self.destination_info,
-        )
+        self.mappers = [
+            XMLMapper(
+                source=source_info,
+                destination=destination_info,
+            )
+            for source_info, destination_info in zip(self.all_source_info, self.all_destination_info, strict=False)
+        ]
+        self.source_info = self.all_destination_info[0]
+        self.destination_info = self.all_destination_info[0]
+        self.mapper = self.all_mappers[0]
+
         self.subj_failed_count = 0
         self.exp_failed_count = 0
         self.scan_failed_count = 0
@@ -380,8 +387,8 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        rsync_dest = self.destination_info.rsync_path
-        rsync_source = self.source_info.rsync_path
+        rsync_dest = self.destination_info.rsync_path / self.destination_info.id
+        rsync_source = self.source_info.rsync_path / self.source_info.id
 
         command_to_run = [
             "rsync",
@@ -546,24 +553,38 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
         self._create_users()
-        self._get_resource_metadata(resource="subjects")
-        self._get_resource_metadata(resource="experiments")
-        self._create_resources()
-        self._export_id_map(
-            resource="subjects",
-            id_map=self.mapper.id_map[XnatType.subject],
-        )
-        self._export_id_map(
-            resource="experiments",
-            id_map=self.mapper.id_map[XnatType.experiment],
-        )
+
+        # Iterate over all projects
+        for mapper, source_info, destination_info in zip(
+            self.mappers, self.all_source_info, self.all_destination_info, strict=True
+        ):
+            # Set current project context
+            self.mapper = mapper
+            self.source_info = source_info
+            self.destination_info = destination_info
+
+            self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
+
+            self._get_resource_metadata(resource="subjects")
+            self._get_resource_metadata(resource="experiments")
+            self._create_resources()
+            self._export_id_map(
+                resource="subjects",
+                id_map=self.mapper.id_map[XnatType.subject],
+            )
+            self._export_id_map(
+                resource="experiments",
+                id_map=self.mapper.id_map[XnatType.experiment],
+            )
+            self._refresh_catalogues()
+            
+        self._apply_sharing()
 
         end = time.time()
 
         self._logger.info("Duration = %d", end - start)
 
-        self._refresh_catalogues()
-        self._apply_sharing()
+        
 
 
 if __name__ == "__main__":
@@ -590,7 +611,7 @@ if __name__ == "__main__":
             user="admin",
             password="admin",  # noqa: S106
         ),
-        source_info=source_info,
-        destination_info=destination_info,
+        all_source_info=source_info,
+        all_destination_info=destination_info,
     )
     migration.run()
