@@ -110,6 +110,34 @@ def migrate(  # noqa: PLR0913
     migration.run()
     logger.info("Migration run finished.")
 
+@app.command
+def check_datatypes(
+    source: str,
+    destination: str,
+    destination_user: str,
+    destination_password: str,
+    ) -> None:
+    """Check datatypes are enabled on the destination."""
+    src_conn = xnat.connect(source)
+    dst_conn = xnat.connect(destination, destination_user, destination_password)
+
+    enabled_datatypes_source = [
+        datatype["elementName"]
+        for datatype in src_conn.get("/xapi/access/displays/createable").json()
+        if not datatype["elementName"].startswith("xdat:")
+    ]
+    enabled_datatypes_dest = [
+        datatype["elementName"]
+        for datatype in dst_conn.get("/xapi/access/displays/createable").json()
+        if not datatype["elementName"].startswith("xdat:")
+    ]
+
+    if enabled_datatypes_source != enabled_datatypes_dest:
+        msg = f"Enabled dataypes in src: {enabled_datatypes_source}, don't with dest: {enabled_datatypes_dest}"
+        raise ValueError(msg)
+
+
+    logger.info("Enabled datatypes on dest %s match with src", enabled_datatypes_dest)
 
 @app.default
 def default_action() -> None:
