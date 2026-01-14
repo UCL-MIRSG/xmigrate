@@ -482,27 +482,26 @@ class Migration:
 
             dest_subject_label = sharing_info["label"]
             for project_id in sharing_info["projects"]:
-                if project_id != self.source_info.id:
-                    try:
-                        self.destination_conn.put(
-                            f"/data/projects/{self.destination_info.id}/subjects/{dest_subject_label}/projects/{project_id}"
-                        )
-                        self._logger.info(
-                            "Shared subject %s with project %s",
-                            dest_subject_label,
-                            project_id,
-                        )
-                    except Exception as e:  # noqa: BLE001
-                        self._logger.warning(
-                            "Failed to share subject %s with project %s: %s",
-                            dest_subject_label,
-                            project_id,
-                            str(e),
-                        )
+                try:
+                    self.destination_conn.put(
+                        f"/data/projects/{self.destination_info.id}/subjects/{dest_subject_label}/projects/{project_id}"
+                    )
+                    self._logger.info(
+                        "Shared subject %s with project %s",
+                        dest_subject_label,
+                        project_id,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    self._logger.warning(
+                        "Failed to share subject %s with project %s: %s",
+                        dest_subject_label,
+                        project_id,
+                        str(e),
+                    )
 
         # Share experiments
-        for source_id, sharing_info in self.experiment_sharing.items():
-            dest_experiment_id = self.mapper.get_destination_id(source_id, XnatType.experiment)
+        for sharing_info in self.experiment_sharing.values():
+            dest_experiment_id = sharing_info["owner"]
             if dest_experiment_id:
                 for project_id in sharing_info["projects"]:
                     if project_id != self.source_info.id:
@@ -522,8 +521,8 @@ class Migration:
                             )
 
         # Share assessors
-        for source_id, sharing_info in self.assessor_sharing.items():
-            dest_assessor_id = self.mapper.get_destination_id(source_id, XnatType.assessor)
+        for sharing_info in self.assessor_sharing.values():
+            dest_assessor_id = sharing_info["owner"]
             if dest_assessor_id:
                 for project_id in sharing_info["projects"]:
                     if project_id != self.source_info.id:
@@ -577,14 +576,12 @@ class Migration:
                 id_map=self.mapper.id_map[XnatType.experiment],
             )
             self._refresh_catalogues()
-            
+
         self._apply_sharing()
 
         end = time.time()
 
         self._logger.info("Duration = %d", end - start)
-
-        
 
 
 if __name__ == "__main__":
