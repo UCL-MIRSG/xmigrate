@@ -110,13 +110,14 @@ def migrate(  # noqa: PLR0913
     migration.run()
     logger.info("Migration run finished.")
 
+
 @app.command
 def check_datatypes(
     source: str,
     destination: str,
     destination_user: str,
     destination_password: str,
-    ) -> None:
+) -> None:
     """Check datatypes are enabled on the destination."""
     src_conn = xnat.connect(source)
     dst_conn = xnat.connect(destination, destination_user, destination_password)
@@ -136,8 +137,8 @@ def check_datatypes(
         msg = f"Enabled dataypes in src: {enabled_datatypes_source}, don't with dest: {enabled_datatypes_dest}"
         raise ValueError(msg)
 
-
     logger.info("Enabled datatypes on dest %s match with src", enabled_datatypes_dest)
+
 
 @app.default
 def default_action() -> None:
