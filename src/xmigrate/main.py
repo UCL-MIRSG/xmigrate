@@ -182,7 +182,7 @@ class Migration:
         )
 
         # _collect_sharing_info
-        sharing_info = self.subject_sharing.get(subject.id, {"label": None, "owner": None, "projects": []})
+        sharing_info = self.subject_sharing.get(subject.label, {"owner": None, "projects": []})
         if root.attrib["project"] != self.source_info.id:
             # this project is not the owner of the resource, no need to create it on the destination
             sharing_info["projects"].append(self.destination_info.id)
