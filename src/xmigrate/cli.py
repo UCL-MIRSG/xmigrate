@@ -35,9 +35,9 @@ def migrate(  # noqa: PLR0913
     destination_user: str,
     destination_password: str,
     destination_rsync: str,
-    destination_projects: list[str] | None,
-    destination_secondary_ids: list[str] | None,
-    destination_project_names: list[str] | None,
+    destination_projects: list[str] | None = None,
+    destination_secondary_ids: list[str] | None = None,
+    destination_project_names: list[str] | None = None,
     *,
     rsync_only: bool = False,
 ) -> None:

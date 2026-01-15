@@ -6,7 +6,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
-
+from xnat.exceptions import XNATResponseError
 import pandas as pd
 import xnat
 
@@ -51,7 +51,7 @@ class Migration:
         ]
         self.source_info = self.all_destination_info[0]
         self.destination_info = self.all_destination_info[0]
-        self.mapper = self.all_mappers[0]
+        self.mapper = self.mappers[0]
 
         self.subj_failed_count = 0
         self.exp_failed_count = 0
@@ -79,6 +79,33 @@ class Migration:
         response.raise_for_status()
         return ET.fromstring(response.text)  # noqa: S314
 
+    def _set_project_configs(self) -> None:
+        # If a project has no custom configuration, XNAT raises an error
+        try:
+            custom_configs = self.source_conn.get(f"/data/projects/{self.source_info.id}/config").json()["ResultSet"]["Result"]
+        except XNATResponseError as e:
+            if "Couldn't find config for" in e.text:
+                self.logger.info(f"No custom project configuration found for project {source_info.id}.")
+                return
+            msg = f"Invalid response from XNAT\n: {e.text}"
+            raise RuntimeError(msg) from e
+
+        tools = [config["tool"] for config in custom_configs]
+        for tool in tools:
+            tool_configs = self.source_conn.get(f"/data/projects/{self.source_info.id}/config/{tool}").json()["ResultSet"]["Result"]  # noqa: E501
+            # There is one result per setting in the config
+            for tool_config_result in tool_configs:
+                path = tool_config_result["path"]  # name of the setting
+                data = {"contents": tool_config_result["contents"]}
+                try:
+                    self.destination_conn.put(
+                        f"/data/projects/{self.destination_info.id}/config/{tool}/{path}?inbody=true",
+                        data=data,
+                    )
+                except XNATResponseError as e:
+                    raise RuntimeError(f"Failed to put config to destination XNAT\n: {e.text}") from e
+
+    
     def _create_users(self) -> None:
         """Create users on the destination XNAT instance."""
         source_profiles = self.source_conn.get("/xapi/users/profiles", format="json").json()
@@ -350,8 +377,8 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        rsync_dest = self.destination_info.rsync_path / self.destination_info.id
-        rsync_source = self.source_info.rsync_path / self.source_info.id
+        rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
+        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id
 
         command_to_run = [
             "rsync",
@@ -437,7 +464,7 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
-        self._create_users()
+        # self._create_users()
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
@@ -450,9 +477,10 @@ class Migration:
 
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
 
-            self._get_resource_metadata(resource="subjects")
-            self._get_resource_metadata(resource="experiments")
+            # self._get_resource_metadata(resource="subjects")
+            # self._get_resource_metadata(resource="experiments")
             self._create_resources()
+            self._set_project_configs()
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
