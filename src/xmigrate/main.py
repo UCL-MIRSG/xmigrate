@@ -476,16 +476,12 @@ class Migration:
         self._logger.info("Applying sharing configurations...")
 
         # Share subjects
-        for sharing_info in self.subject_sharing.values():
-            if sharing_info["owner"] is None:
-                msg = "The owning project wasn't included in the migration."
-                raise ValueError(msg)
-
-            dest_subject_label = sharing_info["label"]
+        for label, sharing_info in self.subject_sharing.items():
+            owner = sharing_info["owner"]
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_conn.put(
-                        f"/data/projects/{self.destination_info.id}/subjects/{dest_subject_label}/projects/{project_id}"
+                        f"/data/projects/{owner}/subjects/{label}/projects/{project_id}"
                     )
                     self._logger.info(
                         "Shared subject %s with project %s",
