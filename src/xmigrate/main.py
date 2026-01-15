@@ -491,7 +491,7 @@ class Migration:
                         dest_subject_label,
                         project_id,
                     )
-                except Exception as e:  # noqa: BLE001
+                except XNATResponseError as e:
                     self._logger.warning(
                         "Failed to share subject %s with project %s: %s",
                         dest_subject_label,
