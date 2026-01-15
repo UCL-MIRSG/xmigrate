@@ -18,6 +18,40 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
+def check_datatypes_matching(
+    source_conn: xnat.BaseXNATSession,
+    destination_conn: xnat.BaseXNATSession,
+) -> None:
+    """
+    Check that all source datatypes are enabled on the destination.
+
+    Args:
+        source_conn: The source XNAT connection.
+        destination_conn: The destination XNAT connection.
+
+    Raises:
+        ValueError: If source has datatypes not enabled on destination.
+
+    """
+    enabled_datatypes_source = {
+        datatype["elementName"]
+        for datatype in source_conn.get("/xapi/access/displays/createable").json()
+        if not datatype["elementName"].startswith("xdat:")
+    }
+    enabled_datatypes_dest = {
+        datatype["elementName"]
+        for datatype in destination_conn.get("/xapi/access/displays/createable").json()
+        if not datatype["elementName"].startswith("xdat:")
+    }
+
+    if not enabled_datatypes_source.issubset(enabled_datatypes_dest):
+        missing_datatypes = enabled_datatypes_source - enabled_datatypes_dest
+        msg = f"Source has datatypes not enabled on destination: {missing_datatypes}"
+        raise ValueError(msg)
+
+    LOGGER.info("All source datatypes are enabled on destination")
+
+
 @dataclass
 class Migration:
     """
@@ -109,23 +143,7 @@ class Migration:
 
     def _check_datatypes(self) -> None:
         """Check that all source datatypes are enabled on the destination."""
-        enabled_datatypes_source = {
-            datatype["elementName"]
-            for datatype in self.source_conn.get("/xapi/access/displays/createable").json()
-            if not datatype["elementName"].startswith("xdat:")
-        }
-        enabled_datatypes_dest = {
-            datatype["elementName"]
-            for datatype in self.destination_conn.get("/xapi/access/displays/createable").json()
-            if not datatype["elementName"].startswith("xdat:")
-        }
-
-        if not enabled_datatypes_source.issubset(enabled_datatypes_dest):
-            missing_datatypes = enabled_datatypes_source - enabled_datatypes_dest
-            msg = f"Source has datatypes not enabled on destination: {missing_datatypes}"
-            raise ValueError(msg)
-
-        self._logger.info("All source datatypes are enabled on destination")
+        check_datatypes_matching(self.source_conn, self.destination_conn)
 
     def _get_resource_metadata(self, resource: str, output_dir: pathlib.Path = pathlib.Path("./output")) -> None:
         """

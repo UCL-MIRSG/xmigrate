@@ -7,7 +7,7 @@ import xnat
 from cyclopts import App, config
 
 # Adjust imports to where Migration and ProjectInfo live in this repo
-from xmigrate.main import Migration, ProjectInfo
+from xmigrate.main import Migration, ProjectInfo, check_datatypes_matching
 
 app = App(
     name="xmigrate",
@@ -122,23 +122,8 @@ def check_datatypes(
     src_conn = xnat.connect(source)
     dst_conn = xnat.connect(destination, destination_user, destination_password)
 
-    enabled_datatypes_source = {
-        datatype["elementName"]
-        for datatype in src_conn.get("/xapi/access/displays/createable").json()
-        if not datatype["elementName"].startswith("xdat:")
-    }
-    enabled_datatypes_dest = {
-        datatype["elementName"]
-        for datatype in dst_conn.get("/xapi/access/displays/createable").json()
-        if not datatype["elementName"].startswith("xdat:")
-    }
-
-    if not enabled_datatypes_source.issubset(enabled_datatypes_dest):
-        missing_datatypes = enabled_datatypes_source - enabled_datatypes_dest
-        msg = f"Source has datatypes not enabled on destination: {missing_datatypes}"
-        raise ValueError(msg)
-
-    logger.info("Enabled datatypes on dest %s match with src", enabled_datatypes_dest)
+    check_datatypes_matching(src_conn, dst_conn)
+    logger.info("All source datatypes are enabled on destination")
 
 
 @app.default
