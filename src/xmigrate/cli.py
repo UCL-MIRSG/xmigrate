@@ -35,9 +35,9 @@ def migrate(  # noqa: PLR0913
     destination_user: str,
     destination_password: str,
     destination_rsync: str,
-    destination_projects: list[str] | None,
-    destination_secondary_ids: list[str] | None,
-    destination_project_names: list[str] | None,
+    destination_projects: list[str] | None = None,
+    destination_secondary_ids: list[str] | None = None,
+    destination_project_names: list[str] | None = None,
     *,
     rsync_only: bool = False,
 ) -> None:
@@ -134,7 +134,8 @@ def check_datatypes(
     }
 
     if not enabled_datatypes_source.issubset(enabled_datatypes_dest):
-        msg = f"Enabled dataypes in src: {enabled_datatypes_source}, don't with dest: {enabled_datatypes_dest}"
+        missing_datatypes = enabled_datatypes_source - enabled_datatypes_dest
+        msg = f"Source has datatypes not enabled on destination: {missing_datatypes}"
         raise ValueError(msg)
 
     logger.info("Enabled datatypes on dest %s match with src", enabled_datatypes_dest)

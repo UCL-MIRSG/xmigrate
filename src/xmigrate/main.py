@@ -51,7 +51,7 @@ class Migration:
         ]
         self.source_info = self.all_destination_info[0]
         self.destination_info = self.all_destination_info[0]
-        self.mapper = self.all_mappers[0]
+        self.mapper = self.mappers[0]
 
         self.subj_failed_count = 0
         self.exp_failed_count = 0
