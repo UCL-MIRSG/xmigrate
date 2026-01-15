@@ -122,16 +122,16 @@ def check_datatypes(
     src_conn = xnat.connect(source)
     dst_conn = xnat.connect(destination, destination_user, destination_password)
 
-    enabled_datatypes_source = [
+    enabled_datatypes_source = {
         datatype["elementName"]
         for datatype in src_conn.get("/xapi/access/displays/createable").json()
         if not datatype["elementName"].startswith("xdat:")
-    ]
-    enabled_datatypes_dest = [
+    }
+    enabled_datatypes_dest = {
         datatype["elementName"]
         for datatype in dst_conn.get("/xapi/access/displays/createable").json()
         if not datatype["elementName"].startswith("xdat:")
-    ]
+    }
 
     if enabled_datatypes_source != enabled_datatypes_dest:
         msg = f"Enabled dataypes in src: {enabled_datatypes_source}, don't with dest: {enabled_datatypes_dest}"
