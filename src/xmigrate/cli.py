@@ -133,7 +133,7 @@ def check_datatypes(
         if not datatype["elementName"].startswith("xdat:")
     }
 
-    if enabled_datatypes_source != enabled_datatypes_dest:
+    if not enabled_datatypes_source.issubset(enabled_datatypes_dest):
         msg = f"Enabled dataypes in src: {enabled_datatypes_source}, don't with dest: {enabled_datatypes_dest}"
         raise ValueError(msg)
 
