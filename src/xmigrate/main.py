@@ -9,6 +9,7 @@ from xml.etree import ElementTree as ET
 
 import pandas as pd
 import xnat
+from xnat.exceptions import XNATResponseError
 
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
@@ -51,7 +52,7 @@ class Migration:
         ]
         self.source_info = self.all_destination_info[0]
         self.destination_info = self.all_destination_info[0]
-        self.mapper = self.all_mappers[0]
+        self.mapper = self.mappers[0]
 
         self.subj_failed_count = 0
         self.exp_failed_count = 0
@@ -387,8 +388,8 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        rsync_dest = self.destination_info.rsync_path / self.destination_info.id
-        rsync_source = self.source_info.rsync_path / self.source_info.id
+        rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
+        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id
 
         command_to_run = [
             "rsync",
