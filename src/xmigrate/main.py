@@ -359,10 +359,14 @@ class Migration:
         if root.attrib["project"] != self.source_info.id:
             # this project is not the owner of the resource, no need to create it on the destination
             sharing_info["projects"].append(self.destination_info.id)
+            sharing_info["source_id"] = assessor.id  # Store the source ID
+            self.assessor_sharing[assessor.label] = sharing_info
             return
         # otherwise, this project is the owner
         sharing_info["owner"] = self.destination_info.id
-        self.assessor_sharing = sharing_info
+        sharing_info["label"] = assessor.label
+        sharing_info["source_id"] = assessor.id  # Store the source ID
+        self.assessor_sharing[assessor.label] = sharing_info
 
         root = self.mapper.map_xml(
             root,
@@ -573,37 +577,46 @@ class Migration:
                     )
 
         # Share assessors
-        for sharing_info in self.assessor_sharing.values():
-            dest_assessor_id = sharing_info["owner"]
-            if dest_assessor_id:
-                for project_id in sharing_info["projects"]:
-                    if project_id != self.source_info.id:
-                        try:
-                            dest_experiment_id = self.mapper.get_destination_id(
-                                sharing_info["experiment_label"], XnatType.experiment
-                            )
-                            self.destination_conn.put(
-                                f"/data/experiments/{dest_experiment_id}/assessors/{dest_assessor_id}/projects/{project_id}"
-                            )
-                            self._logger.info(
-                                "Shared assessor %s with project %s",
-                                sharing_info["label"],
-                                project_id,
-                            )
-                        except Exception as e:  # noqa: BLE001
-                            self._logger.warning(
-                                "Failed to share assessor %s with project %s: %s",
-                                sharing_info["label"],
-                                project_id,
-                                str(e),
-                            )
+        for label, sharing_info in self.assessor_sharing.items():
+            owner = sharing_info["owner"]
+
+            # Search across all mappers for the destination ID
+            dest_assessor_id = None
+            for mapper in self.mappers:
+                try:
+                    dest_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
+                    break
+                except KeyError:
+                    continue
+
+            if dest_assessor_id is None:
+                self._logger.warning("Could not find destination ID for assessor %s", label)
+                continue
+
+            for project_id in sharing_info["projects"]:
+                try:
+                    self.destination_conn.put(
+                        f"/data/projects/{owner}/assessors/{dest_assessor_id}/projects/{project_id}?label={label}"
+                    )
+                    self._logger.info(
+                        "Shared assessor %s with project %s",
+                        label,
+                        project_id,
+                    )
+                except XNATResponseError as e:
+                    self._logger.warning(
+                        "Failed to share assessor %s with project %s: %s",
+                        label,
+                        project_id,
+                        str(e),
+                    )
 
         self._logger.info("Sharing configurations applied.")
 
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
-        self._create_users()
+        # self._create_users()
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
@@ -616,8 +629,8 @@ class Migration:
 
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
 
-            self._get_resource_metadata(resource="subjects")
-            self._get_resource_metadata(resource="experiments")
+            # self._get_resource_metadata(resource="subjects")
+            # self._get_resource_metadata(resource="experiments")
             self._create_resources()
             self._export_id_map(
                 resource="subjects",
@@ -642,7 +655,7 @@ if __name__ == "__main__":
     source_projects = ["test_rsync", "project1"]
     source_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/xmigrate/archive"
     destination = "http://localhost"
-    destination_projects = ["test_rsync44", "project44"]
+    destination_projects = ["test_rsync42", "project42"]
     destination_user = "admin"
     destination_password = "admin"  # noqa: S105
     destination_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/MRI-PET-Raw-Data-Plugins-XNAT/xnat-docker-compose/xnat-data/archive"  # noqa: E501
