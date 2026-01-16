@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
 
 import pandas as pd
+import requests  # type: ignore[import-untyped]
 import xnat
 from xnat.exceptions import XNATResponseError
 
@@ -417,18 +418,18 @@ class Migration:
         destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
         for subject in source_project.subjects:
             self._create_subject(subject)
-            for experiment in subject.experiments:
-                if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
-                    datatype = experiment.fulldata["meta"]["xsi:type"]
-                    msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
-                    raise RuntimeError(msg)
-                self._create_experiment(experiment)
+            # for experiment in subject.experiments:
+            #     if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
+            #         datatype = experiment.fulldata["meta"]["xsi:type"]
+            #         msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
+            #         raise RuntimeError(msg)
+            #     self._create_experiment(experiment)
 
-                for scan in experiment.scans:
-                    self._create_scan(scan)
+            #     for scan in experiment.scans:
+            #         self._create_scan(scan)
 
-                for assessor in experiment.assessors:
-                    self._create_assessor(assessor)
+            #     for assessor in experiment.assessors:
+            #         self._create_assessor(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
@@ -546,7 +547,7 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
-        self._create_users()
+        # self._create_users()
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
@@ -559,8 +560,8 @@ class Migration:
 
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
 
-            self._get_resource_metadata(resource="subjects")
-            self._get_resource_metadata(resource="experiments")
+            # self._get_resource_metadata(resource="subjects")
+            # self._get_resource_metadata(resource="experiments")
             self._create_resources()
             self._export_id_map(
                 resource="subjects",
@@ -580,30 +581,68 @@ class Migration:
 
 
 if __name__ == "__main__":
-    source_conn = xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk")
-    destination_conn = xnat.connect("http://localhost", user="admin", password="admin")  # noqa: S106
-    source_info = ProjectInfo(
-        id="test_rsync",
-        secondary_id=None,
-        project_name=None,
-        archive_path=source_conn.get("/xapi/siteConfig/archivePath").text,
-        rsync_path=None,
-    )
-    destination_info = ProjectInfo(
-        id="test_migration4",
-        secondary_id="TEST MIGRATION4",
-        project_name="Test Migration4",
-        archive_path=destination_conn.get("/xapi/siteConfig/archivePath").text,
-        rsync_path=None,
-    )
+    # Hardcoded values from xmigrate.toml
+    source = "https://ucl-test-xnat.cs.ucl.ac.uk/"
+    source_projects = ["test_rsync", "project1"]
+    source_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/xmigrate/archive"
+    destination = "http://localhost"
+    destination_projects = ["test_rsync31", "project31"]
+    destination_user = "admin"
+    destination_password = "admin"
+    destination_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/MRI-PET-Raw-Data-Plugins-XNAT/xnat-docker-compose/xnat-data/archive"  # noqa: E501
+    rsync_only = False
+
+    source_conn = xnat.connect(source)
+    destination_conn = xnat.connect(destination, destination_user, destination_password)
+
+    # Get archive paths
+    try:
+        src_archive = source_conn.get("/xapi/siteConfig/archivePath").text
+    except (requests.exceptions.RequestException, OSError):
+        src_archive = None
+
+    try:
+        dst_archive = destination_conn.get("/xapi/siteConfig/archivePath").text
+    except (requests.exceptions.RequestException, OSError):
+        dst_archive = None
+
+    # Use destination_projects or fallback to source_projects
+    destination_secondary_ids = destination_projects
+    destination_project_names = destination_projects
+
+    # Create lists of ProjectInfo objects
+    all_source_info = [
+        ProjectInfo(
+            id=src_proj,
+            secondary_id=None,
+            project_name=None,
+            archive_path=src_archive,
+            rsync_path=source_rsync,
+        )
+        for src_proj in source_projects
+    ]
+
+    all_destination_info = [
+        ProjectInfo(
+            id=dst_proj,
+            secondary_id=dst_sec_id,
+            project_name=dst_proj_name,
+            archive_path=dst_archive,
+            rsync_path=destination_rsync,
+        )
+        for dst_proj, dst_sec_id, dst_proj_name in zip(
+            destination_projects,
+            destination_secondary_ids,
+            destination_project_names,
+            strict=True,
+        )
+    ]
+
     migration = Migration(
-        source_conn=xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk"),
-        destination_conn=xnat.connect(
-            "http://localhost",
-            user="admin",
-            password="admin",  # noqa: S106
-        ),
-        all_source_info=source_info,
-        all_destination_info=destination_info,
+        source_conn=source_conn,
+        destination_conn=destination_conn,
+        all_source_info=all_source_info,
+        all_destination_info=all_destination_info,
+        rsync_only=rsync_only,
     )
     migration.run()
