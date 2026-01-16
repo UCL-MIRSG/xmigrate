@@ -183,15 +183,18 @@ class Migration:
         )
 
         # _collect_sharing_info
-        sharing_info = self.subject_sharing.get(subject.label, {"owner": None, "projects": []})
+        sharing_info = self.subject_sharing.get(subject.label, {"owner": None, "projects": [], "source_id": subject.id})
         if root.attrib["project"] != self.source_info.id:
             # this project is not the owner of the resource, no need to create it on the destination
             sharing_info["projects"].append(self.destination_info.id)
+            sharing_info["source_id"] = subject.id  # Store the source ID
+            self.subject_sharing[subject.label] = sharing_info
             return
         # otherwise, this project is the owner
         sharing_info["owner"] = self.destination_info.id
         sharing_info["label"] = subject.label
-        self.subject_sharing[subject.id] = sharing_info
+        sharing_info["source_id"] = subject.id  # Store the source ID
+        self.subject_sharing[subject.label] = sharing_info
 
         root = self.mapper.map_xml(
             root,
@@ -479,9 +482,25 @@ class Migration:
         # Share subjects
         for label, sharing_info in self.subject_sharing.items():
             owner = sharing_info["owner"]
+
+            # Search across all mappers for the destination ID
+            dest_subject_id = None
+            for mapper in self.mappers:
+                try:
+                    dest_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
+                    break
+                except KeyError:
+                    continue
+
+            if dest_subject_id is None:
+                self._logger.warning("Could not find destination ID for subject %s", label)
+                continue
+
             for project_id in sharing_info["projects"]:
                 try:
-                    self.destination_conn.put(f"/data/projects/{owner}/subjects/{label}/projects/{project_id}")
+                    self.destination_conn.put(
+                        f"/data/projects/{owner}/subjects/{dest_subject_id}/projects/{project_id}?label={label}"
+                    )
                     self._logger.info(
                         "Shared subject %s with project %s",
                         label,
@@ -586,7 +605,7 @@ if __name__ == "__main__":
     source_projects = ["test_rsync", "project1"]
     source_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/xmigrate/archive"
     destination = "http://localhost"
-    destination_projects = ["test_rsync31", "project31"]
+    destination_projects = ["test_rsync37", "project37"]
     destination_user = "admin"
     destination_password = "admin"
     destination_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/MRI-PET-Raw-Data-Plugins-XNAT/xnat-docker-compose/xnat-data/archive"  # noqa: E501
