@@ -603,7 +603,7 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
-        # self._create_users()
+        self._create_users()
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
@@ -616,8 +616,8 @@ class Migration:
 
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
 
-            # self._get_resource_metadata(resource="subjects")
-            # self._get_resource_metadata(resource="experiments")
+            self._get_resource_metadata(resource="subjects")
+            self._get_resource_metadata(resource="experiments")
             self._create_resources()
             self._export_id_map(
                 resource="subjects",
@@ -644,7 +644,7 @@ if __name__ == "__main__":
     destination = "http://localhost"
     destination_projects = ["test_rsync44", "project44"]
     destination_user = "admin"
-    destination_password = "admin"
+    destination_password = "admin"  # noqa: S105
     destination_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/MRI-PET-Raw-Data-Plugins-XNAT/xnat-docker-compose/xnat-data/archive"  # noqa: E501
     rsync_only = False
 
