@@ -234,10 +234,14 @@ class Migration:
         if root.attrib["project"] != self.source_info.id:
             # this project is not the owner of the resource, no need to create it on the destination
             sharing_info["projects"].append(self.destination_info.id)
+            sharing_info["source_id"] = experiment.id  # Store the source ID
+            self.experiment_sharing[experiment.label] = sharing_info
             return
         # otherwise, this project is the owner
         sharing_info["owner"] = self.destination_info.id
-        self.experiment_sharing = sharing_info
+        sharing_info["label"] = experiment.label
+        sharing_info["source_id"] = experiment.id  # Store the source ID
+        self.experiment_sharing[experiment.label] = sharing_info
 
         root = self.mapper.map_xml(
             root,
@@ -282,9 +286,26 @@ class Migration:
         """Create a scan on the destination XNAT instance."""
         experiment = scan.parent
         subject = experiment.parent
+
+        # Check if this experiment belongs to a shared subject
         root = self._get_source_xml(
             f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}/scans/{scan.id}",
         )
+
+        # Get the experiment root to check ownership
+        exp_root = self._get_source_xml(
+            f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}",
+        )
+
+        # If this project doesn't own the experiment, skip creating the scan
+        if exp_root.attrib["project"] != self.source_info.id:
+            self._logger.info(
+                "Skipping scan %s for shared experiment %s",
+                scan.id,
+                experiment.label,
+            )
+            return
+
         root = self.mapper.map_xml(
             root,
             resource_type=XnatType.scan,
@@ -421,18 +442,18 @@ class Migration:
         destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
         for subject in source_project.subjects:
             self._create_subject(subject)
-            # for experiment in subject.experiments:
-            #     if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
-            #         datatype = experiment.fulldata["meta"]["xsi:type"]
-            #         msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
-            #         raise RuntimeError(msg)
-            #     self._create_experiment(experiment)
+            for experiment in subject.experiments:
+                if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
+                    datatype = experiment.fulldata["meta"]["xsi:type"]
+                    msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
+                    raise RuntimeError(msg)
+                self._create_experiment(experiment)
 
-            #     for scan in experiment.scans:
-            #         self._create_scan(scan)
+                for scan in experiment.scans:
+                    self._create_scan(scan)
 
-            #     for assessor in experiment.assessors:
-            #         self._create_assessor(assessor)
+                for assessor in experiment.assessors:
+                    self._create_assessor(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
@@ -515,25 +536,41 @@ class Migration:
                     )
 
         # Share experiments
-        for sharing_info in self.experiment_sharing.values():
-            dest_experiment_id = sharing_info["owner"]
-            if dest_experiment_id:
-                for project_id in sharing_info["projects"]:
-                    if project_id != self.source_info.id:
-                        try:
-                            self.destination_conn.put(f"/data/experiments/{dest_experiment_id}/projects/{project_id}")
-                            self._logger.info(
-                                "Shared experiment %s with project %s",
-                                sharing_info["label"],
-                                project_id,
-                            )
-                        except Exception as e:  # noqa: BLE001
-                            self._logger.warning(
-                                "Failed to share experiment %s with project %s: %s",
-                                sharing_info["label"],
-                                project_id,
-                                str(e),
-                            )
+        for label, sharing_info in self.experiment_sharing.items():
+            owner = sharing_info["owner"]
+
+            # Search across all mappers for the destination ID
+            dest_experiment_id = None
+            for mapper in self.mappers:
+                try:
+                    dest_experiment_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.experiment)
+                    break
+                except KeyError:
+                    continue
+
+            if dest_experiment_id is None:
+                self._logger.warning("Could not find destination ID for experiment %s", label)
+                continue
+
+            for project_id in sharing_info["projects"]:
+                try:
+                    # Use experiment ID in the URL and add label parameter
+                    self.destination_conn.put(
+                        f"/data/projects/{owner}/experiments/{dest_experiment_id}/projects/{project_id}?label={label}"
+                    )
+                    self._logger.info(
+                        "Shared experiment %s (ID: %s) with project %s",
+                        label,
+                        dest_experiment_id,
+                        project_id,
+                    )
+                except XNATResponseError as e:
+                    self._logger.warning(
+                        "Failed to share experiment %s with project %s: %s",
+                        label,
+                        project_id,
+                        str(e),
+                    )
 
         # Share assessors
         for sharing_info in self.assessor_sharing.values():
@@ -605,7 +642,7 @@ if __name__ == "__main__":
     source_projects = ["test_rsync", "project1"]
     source_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/xmigrate/archive"
     destination = "http://localhost"
-    destination_projects = ["test_rsync37", "project37"]
+    destination_projects = ["test_rsync44", "project44"]
     destination_user = "admin"
     destination_password = "admin"
     destination_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/MRI-PET-Raw-Data-Plugins-XNAT/xnat-docker-compose/xnat-data/archive"  # noqa: E501
