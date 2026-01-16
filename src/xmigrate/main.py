@@ -50,7 +50,7 @@ class Migration:
             )
             for source_info, destination_info in zip(self.all_source_info, self.all_destination_info, strict=False)
         ]
-        self.source_info = self.all_destination_info[0]
+        self.source_info = self.all_source_info[0]
         self.destination_info = self.all_destination_info[0]
         self.mapper = self.mappers[0]
 
@@ -190,7 +190,7 @@ class Migration:
         # otherwise, this project is the owner
         sharing_info["owner"] = self.destination_info.id
         sharing_info["label"] = subject.label
-        self.subject_sharing = sharing_info
+        self.subject_sharing[subject.id] = sharing_info
 
         root = self.mapper.map_xml(
             root,
@@ -480,18 +480,16 @@ class Migration:
             owner = sharing_info["owner"]
             for project_id in sharing_info["projects"]:
                 try:
-                    self.destination_conn.put(
-                        f"/data/projects/{owner}/subjects/{label}/projects/{project_id}"
-                    )
+                    self.destination_conn.put(f"/data/projects/{owner}/subjects/{label}/projects/{project_id}")
                     self._logger.info(
                         "Shared subject %s with project %s",
-                        dest_subject_label,
+                        label,
                         project_id,
                     )
                 except XNATResponseError as e:
                     self._logger.warning(
                         "Failed to share subject %s with project %s: %s",
-                        dest_subject_label,
+                        label,
                         project_id,
                         str(e),
                     )
