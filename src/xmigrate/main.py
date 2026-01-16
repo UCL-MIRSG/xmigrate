@@ -500,7 +500,7 @@ class Migration:
         resource_path = f"/archive/projects/{self.destination_info.id}"
         self._refresh_catalogue(resource_path)
 
-    def _apply_sharing(self) -> None:  # noqa: PLR0912
+    def _apply_sharing(self) -> None:  # noqa: C901, PLR0912
         """Apply sharing configurations to resources on the destination instance."""
         self._logger.info("Applying sharing configurations...")
 
