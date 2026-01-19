@@ -616,7 +616,7 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
-        # self._create_users()
+        self._create_users()
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
@@ -629,8 +629,8 @@ class Migration:
 
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
 
-            # self._get_resource_metadata(resource="subjects")
-            # self._get_resource_metadata(resource="experiments")
+            self._get_resource_metadata(resource="subjects")
+            self._get_resource_metadata(resource="experiments")
             self._create_resources()
             self._export_id_map(
                 resource="subjects",
