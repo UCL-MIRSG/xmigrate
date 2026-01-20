@@ -20,6 +20,40 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
+def check_datatypes_matching(
+    source_conn: xnat.BaseXNATSession,
+    destination_conn: xnat.BaseXNATSession,
+) -> None:
+    """
+    Check that all source datatypes are enabled on the destination.
+
+    Args:
+        source_conn: The source XNAT connection.
+        destination_conn: The destination XNAT connection.
+
+    Raises:
+        ValueError: If source has datatypes not enabled on destination.
+
+    """
+    enabled_datatypes_source = {
+        datatype["elementName"]
+        for datatype in source_conn.get("/xapi/access/displays/createable").json()
+        if not datatype["elementName"].startswith("xdat:")
+    }
+    enabled_datatypes_dest = {
+        datatype["elementName"]
+        for datatype in destination_conn.get("/xapi/access/displays/createable").json()
+        if not datatype["elementName"].startswith("xdat:")
+    }
+
+    if not enabled_datatypes_source.issubset(enabled_datatypes_dest):
+        missing_datatypes = enabled_datatypes_source - enabled_datatypes_dest
+        msg = f"Source has datatypes not enabled on destination: {missing_datatypes}"
+        raise ValueError(msg)
+
+    LOGGER.info("All source datatypes are enabled on destination")
+
+
 @dataclass
 class Migration:
     """
@@ -84,6 +118,39 @@ class Migration:
         response.raise_for_status()
         return ET.fromstring(response.text)  # noqa: S314
 
+    def _set_project_configs(self) -> None:
+        # If a project has no custom configuration, XNAT raises an error
+        try:
+            custom_configs = self.source_conn.get(f"/data/projects/{self.source_info.id}/config").json()["ResultSet"][
+                "Result"
+            ]
+        except XNATResponseError as e:
+            if "Couldn't find config for" in e.text:
+                msg = f"No custom project configuration found for project {self.source_info.id}."
+                self._logger.info(msg)
+                return
+            msg = f"Invalid response from XNAT\n: {e.text}"
+            raise RuntimeError(msg) from e
+
+        tools = [config["tool"] for config in custom_configs]
+        for tool in tools:
+            tool_configs = self.source_conn.get(f"/data/projects/{self.source_info.id}/config/{tool}").json()[
+                "ResultSet"
+            ]["Result"]
+            # There is one result per setting in the config
+            for tool_config_result in tool_configs:
+                path = tool_config_result["path"]  # name of the setting
+                contents = tool_config_result["contents"]
+                try:
+                    self.destination_conn.put(
+                        f"/data/projects/{self.destination_info.id}/config/{tool}/{path}",
+                        data=contents,
+                        headers={"Content-Type": "text/plain"},
+                    )
+                except XNATResponseError as e:
+                    msg = f"Failed to put config to destination XNAT\n: {e.text}"
+                    raise RuntimeError(msg) from e
+
     def _create_users(self) -> None:
         """Create users on the destination XNAT instance."""
         source_profiles = self.source_conn.get("/xapi/users/profiles", format="json").json()
@@ -111,6 +178,10 @@ class Migration:
                 "lastName": source_profile["lastName"],
             }
             self.destination_conn.post("/xapi/users", json=destination_profile)
+
+    def _check_datatypes(self) -> None:
+        """Check that all source datatypes are enabled on the destination."""
+        check_datatypes_matching(self.source_conn, self.destination_conn)
 
     def _get_resource_metadata(self, resource: str, output_dir: pathlib.Path = pathlib.Path("./output")) -> None:
         """
@@ -616,6 +687,8 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
+
+        self._check_datatypes()
         self._create_users()
 
         # Iterate over all projects
@@ -632,6 +705,7 @@ class Migration:
             self._get_resource_metadata(resource="subjects")
             self._get_resource_metadata(resource="experiments")
             self._create_resources()
+            self._set_project_configs()
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
