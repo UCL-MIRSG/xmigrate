@@ -52,3 +52,10 @@ Then run the migration using:
 ```sh
 xmigrate migrate
 ```
+
+You may want to check all the necessary datatypes have been added to the destination XNAT
+before running the migration with a separate command:
+
+```sh
+xmigrate check_datatypes
+```

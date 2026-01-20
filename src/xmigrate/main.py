@@ -19,6 +19,40 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
+def check_datatypes_matching(
+    source_conn: xnat.BaseXNATSession,
+    destination_conn: xnat.BaseXNATSession,
+) -> None:
+    """
+    Check that all source datatypes are enabled on the destination.
+
+    Args:
+        source_conn: The source XNAT connection.
+        destination_conn: The destination XNAT connection.
+
+    Raises:
+        ValueError: If source has datatypes not enabled on destination.
+
+    """
+    enabled_datatypes_source = {
+        datatype["elementName"]
+        for datatype in source_conn.get("/xapi/access/displays/createable").json()
+        if not datatype["elementName"].startswith("xdat:")
+    }
+    enabled_datatypes_dest = {
+        datatype["elementName"]
+        for datatype in destination_conn.get("/xapi/access/displays/createable").json()
+        if not datatype["elementName"].startswith("xdat:")
+    }
+
+    if not enabled_datatypes_source.issubset(enabled_datatypes_dest):
+        missing_datatypes = enabled_datatypes_source - enabled_datatypes_dest
+        msg = f"Source has datatypes not enabled on destination: {missing_datatypes}"
+        raise ValueError(msg)
+
+    LOGGER.info("All source datatypes are enabled on destination")
+
+
 @dataclass
 class Migration:
     """
@@ -140,6 +174,10 @@ class Migration:
                 "lastName": source_profile["lastName"],
             }
             self.destination_conn.post("/xapi/users", json=destination_profile)
+
+    def _check_datatypes(self) -> None:
+        """Check that all source datatypes are enabled on the destination."""
+        check_datatypes_matching(self.source_conn, self.destination_conn)
 
     def _get_resource_metadata(self, resource: str, output_dir: pathlib.Path = pathlib.Path("./output")) -> None:
         """
@@ -471,6 +509,7 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
+        self._check_datatypes()
         self._create_users()
 
         # Iterate over all projects
@@ -506,6 +545,7 @@ class Migration:
 if __name__ == "__main__":
     source_conn = xnat.connect("https://ucl-test-xnat.cs.ucl.ac.uk")
     destination_conn = xnat.connect("http://localhost", user="admin", password="admin")  # noqa: S106
+
     source_info = ProjectInfo(
         id="test_rsync",
         secondary_id=None,
