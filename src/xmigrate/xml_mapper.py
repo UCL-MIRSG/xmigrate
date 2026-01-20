@@ -108,6 +108,10 @@ class XMLMapper:
         }
         self.id_map = defaultdict(dict)
 
+    def get_destination_id(self, source_id: str, map_type: XnatType) -> str | None:
+        """Get the destination ID for a given source ID."""
+        return self.id_map.get(map_type, {}).get(source_id)
+
     def rewrite_uris(
         self,
         child: ET.Element,
