@@ -197,7 +197,7 @@ class Migration:
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
-        response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", params=params)
+        response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
         df = pd.DataFrame(response.json()["ResultSet"]["Result"])
         df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
@@ -489,7 +489,8 @@ class Migration:
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
         rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
-        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id
+        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+        pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
 
         command_to_run = [
             "rsync",
