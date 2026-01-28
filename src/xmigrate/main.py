@@ -489,7 +489,8 @@ class Migration:
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
         rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
-        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id
+        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id  + "/"
+        pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
 
         command_to_run = [
             "rsync",
@@ -688,8 +689,8 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
-        self._check_datatypes()
-        self._create_users()
+        # self._check_datatypes()
+        # self._create_users()
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
