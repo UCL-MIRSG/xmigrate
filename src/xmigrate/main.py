@@ -197,7 +197,7 @@ class Migration:
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
-        response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", params=params)
+        response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
         df = pd.DataFrame(response.json()["ResultSet"]["Result"])
         df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
