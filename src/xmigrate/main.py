@@ -1,11 +1,15 @@
 """Module to migrate XNAT projects between instances."""
 
+import json
 import logging
 import pathlib
+import pprint
 import subprocess
 import time
 from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
+
+from pathlib import Path
 
 import pandas as pd
 import requests  # type: ignore[import-untyped]
@@ -19,6 +23,76 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
+
+def create_custom_forms_json(src_conn, dest_conn):
+
+    source_custom_forms = source_conn.get_json('/xapi/customforms')
+    len(source_custom_forms)
+
+    with open('custom-forms/custom_forms_template.json', 'r') as file:
+        general_submission = json.load(file)
+        
+    pprint.pprint(general_submission)
+
+    for idx, inputs in enumerate(source_custom_forms):
+        
+        current_submission = general_submission
+        pprint.pprint(current_submission)
+        projects = inputs['appliesToList']
+        datatype = inputs["path"]
+        current_custom_form = inputs['contents']
+        current_custom_form_json = json.loads(current_custom_form)
+        title = current_custom_form_json["title"]
+        
+        current_submission["submission"]["data"]["xnatDatatype"]["label"] = datatype
+        current_submission["submission"]["data"]["xnatDatatype"]["value"] = datatype
+        
+        print("Projects: ", projects)
+        print("Builder", type(current_custom_form_json))
+        print("Title: ", title)
+        print("Datatypes :", datatype)
+        
+        current_dict=[]
+        
+        for _idx, mult_proj in enumerate(projects):
+            # project_data.append(mult_proj['entityId'])
+            current_proj=mult_proj['entityId']
+            print("Current Proj: ", current_proj)
+            current_dict = {"label": current_proj, "value": current_proj}
+            print("Current Dict: ", current_dict)
+            
+            current_submission["submission"]["data"]["xnatProject"].append(current_dict)
+
+            pprint.pprint(type(current_submission))
+            
+            
+    # pprint.pprint(current_submission)
+
+    x = json.dumps(current_submission)
+
+    y = {"builder": current_custom_form_json}
+
+    z = json.loads(x)
+
+    z.update(y)
+
+    pprint.pprint(json.dumps(z))
+
+    with open('custom_forms_all.json', 'w') as file:
+        json.dump(z, file, indent=4)
+        
+    with open('custom_forms_all.json', 'r') as file:
+        final = json.load(file)
+        
+    headers = {"Content-Type": "application/json;charset=UTF-8"}
+    auth = ("admin", "admin")
+    destination_conn.put('/xapi/customforms/save', final, headers=headers)
+            
+        
+        
+    
+            
+    
 
 def check_datatypes_matching(
     source_conn: xnat.BaseXNATSession,
