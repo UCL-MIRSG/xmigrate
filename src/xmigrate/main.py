@@ -156,15 +156,26 @@ class Migration:
         source_profiles = self.source_conn.get("/xapi/users/profiles", format="json").json()
         destination_profiles = self.destination_conn.get("/xapi/users/profiles", format="json").json()
 
+        idx_source_all = []
+        idx_dest_all = []
+
         # First check that existing users on the destination are identical to the source
         for source_profile, destination_profile in zip(source_profiles, destination_profiles, strict=False):
             if source_profile["username"] != destination_profile["username"]:
-                msg = f"Usernames not equal: {source_profile['username']=} {destination_profile['username']=}"
-                raise (ValueError(msg))
+                msg = (
+                    f"Skipping... Usernames not equal: {source_profile['username']=} {destination_profile['username']=}"
+                )
+                self._logger.info(msg)
+                idx_dest_all.append(destination_profiles.index(destination_profile))
+                idx_source_all.append(source_profiles.index(source_profile))
 
             if source_profile["id"] != destination_profile["id"]:
                 msg = f"IDs not equal: {source_profile['id']=} {destination_profile['id']=}"
                 raise (ValueError(msg))
+
+        for idx_dest, idx_source in zip(idx_dest_all, idx_source_all, strict=False):
+            destination_profiles.pop(idx_dest)
+            source_profiles.pop(idx_source)
 
         # Now create missing users from the source on the destination
         for source_profile in source_profiles[len(destination_profiles) :]:
