@@ -125,6 +125,7 @@ def check_datatypes(
     check_datatypes_matching(src_conn, dst_conn)
     logger.info("All source datatypes are enabled on destination")
 
+
 @app.command
 def migrate_custom_forms(
     source: str,

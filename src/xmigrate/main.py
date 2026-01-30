@@ -6,7 +6,6 @@ import pathlib
 import subprocess
 import time
 from dataclasses import dataclass, field
-from pathlib import Path
 from xml.etree import ElementTree as ET
 
 import pandas as pd
@@ -45,9 +44,9 @@ def create_custom_forms_json(
     # Loop through custom forms
     general_submission = {}
     for form_idx, source_custom_form in enumerate(source_custom_forms):
-
         # Open template for submission object
-        with open("custom-forms/custom_forms_template.json", "r") as file:
+        path = pathlib.Path() / "custom-forms" / "custom_forms_template.json"
+        with path.open(mode="r", encoding="utf-8") as file:
             general_submission[form_idx] = json.load(file)
 
         current_submission = general_submission[form_idx]
@@ -62,9 +61,9 @@ def create_custom_forms_json(
         current_submission["submission"]["data"]["xnatDatatype"]["value"] = datatype_value
 
         # Loop through projects to populate project section of builder object
-        current_dict=[]
+        current_dict = {}
         for proj_idx, project in enumerate(projects):
-            current_proj=project["entityId"]
+            current_proj = project["entityId"]
 
             # Initially populate empty project section and then append
             if proj_idx == 0:
@@ -74,7 +73,6 @@ def create_custom_forms_json(
             else:
                 current_dict = {"label": current_proj, "value": current_proj}
                 current_submission["submission"]["data"]["xnatProject"].append(current_dict)
-
 
         # Extract contents of form, convert to dict and create builder_dict
         current_custom_form = source_custom_form["contents"]
