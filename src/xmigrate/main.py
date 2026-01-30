@@ -38,14 +38,15 @@ def create_custom_forms_json(
 
     """
     source_custom_forms = source_conn.get_json("/xapi/customforms")
-    len(source_custom_forms)
+    
+    LOGGER.info(len(source_custom_forms))
+    general_submission = {}
 
-    with open("custom-forms/custom_forms_template.json", "r") as file:
-        general_submission = json.load(file)
-
-    for _idx, inputs in enumerate(source_custom_forms):
+    for idx, inputs in enumerate(source_custom_forms):
+        with open("custom-forms/custom_forms_template.json", "r") as file:
+            general_submission[idx] = json.load(file)
         ### This may need to be opened several times as it's not getting overwritten each time
-        current_submission = general_submission
+        current_submission = general_submission[idx]
         projects = inputs["appliesToList"]
         datatype = inputs["path"]
         current_custom_form = inputs["contents"]
@@ -71,23 +72,23 @@ def create_custom_forms_json(
                 current_dict = {"label": current_proj, "value": current_proj}
                 current_submission["submission"]["data"]["xnatProject"].append(current_dict)
 
-    x = json.dumps(current_submission)
+        x = json.dumps(current_submission)
 
-    y = {"builder": current_custom_form_json}
+        y = {"builder": current_custom_form_json}
 
-    z = json.loads(x)
+        z = json.loads(x)
 
-    z.update(y)
+        z.update(y)
 
-    final = json.dumps(z)
+        final = json.dumps(z)
 
-    headers = {"Content-Type": "application/json;charset=UTF-8"}
+        headers = {"Content-Type": "application/json;charset=UTF-8"}
 
-    try:
-        destination_conn.put("/xapi/customforms/save", data=final, headers=headers)
-    except XNATResponseError as e:
-        msg = f"Failed to create custom forms on destination XNAT\n: {e.text}"
-        raise RuntimeError(msg) from e
+        try:
+            destination_conn.put("/xapi/customforms/save", data=final, headers=headers)
+        except XNATResponseError as e:
+            msg = f"Failed to create custom forms on destination XNAT\n: {e.text}"
+            raise RuntimeError(msg) from e
 
 
 def check_datatypes_matching(
