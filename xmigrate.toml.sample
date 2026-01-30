@@ -16,3 +16,9 @@ source = "https://xnat.example"
 destination = "https://another-xnat.example"
 destination_user = "user"
 destination_password = "password"
+
+[tool.xmigrate.migrate_custom_forms]
+source = "https://xnat.example"
+destination = "https://another-xnat.example"
+destination_user = "user"
+destination_password = "password"

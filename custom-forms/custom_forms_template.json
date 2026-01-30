@@ -1,0 +1,18 @@
+{
+  "submission": {
+    "data": {
+      "zIndex": 10,
+      "xnatDatatype": {
+        "label": [],
+        "value": []
+      },
+      "isThisASiteWideConfiguration": "no",
+      "xnatProject": [
+        {
+          "label": [],
+          "value": []
+        }
+      ]
+    }
+  }
+}

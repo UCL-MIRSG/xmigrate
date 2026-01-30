@@ -1,5 +1,6 @@
 """Module to migrate XNAT projects between instances."""
 
+import json
 import logging
 import pathlib
 import subprocess
@@ -18,6 +19,83 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 # packages importing this module can configure logging more specifically.
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
+
+
+def create_custom_forms_json(
+    source_conn: xnat.BaseXNATSession,
+    destination_conn: xnat.BaseXNATSession,
+) -> None:
+    """
+    Extract custom forms from source and create on the destination.
+
+    Args:
+        source_conn: The source XNAT connection.
+        destination_conn: The destination XNAT connection.
+
+    Raises:
+        XNATResponseError: If failed to create custom forms on destination
+
+    """
+    # Get custom forms from source as json
+    source_custom_forms = source_conn.get_json("/xapi/customforms")
+
+    LOGGER.info("There are %d custom forms being created", len(source_custom_forms))
+
+    # Loop through custom forms
+    general_submission = {}
+    for form_idx, source_custom_form in enumerate(source_custom_forms):
+        # Open template for submission object
+        path = pathlib.Path() / "custom-forms" / "custom_forms_template.json"
+        with path.open(mode="r", encoding="utf-8") as file:
+            general_submission[form_idx] = json.load(file)
+
+        current_submission = general_submission[form_idx]
+
+        # Extract projects list, datatype
+        projects = source_custom_form["appliesToList"]
+        datatype = source_custom_form["path"]
+        datatype_value = datatype.replace("datatype/", "")
+
+        # Populate datatype section of builder object
+        current_submission["submission"]["data"]["xnatDatatype"]["label"] = datatype
+        current_submission["submission"]["data"]["xnatDatatype"]["value"] = datatype_value
+
+        # Loop through projects to populate project section of builder object
+        current_dict = {}
+        for proj_idx, project in enumerate(projects):
+            current_proj = project["entityId"]
+
+            # Initially populate empty project section and then append
+            if proj_idx == 0:
+                current_submission["submission"]["data"]["xnatProject"][proj_idx]["label"] = current_proj
+                current_submission["submission"]["data"]["xnatProject"][proj_idx]["value"] = current_proj
+
+            else:
+                current_dict = {"label": current_proj, "value": current_proj}
+                current_submission["submission"]["data"]["xnatProject"].append(current_dict)
+
+        # Extract contents of form, convert to dict and create builder_dict
+        current_custom_form = source_custom_form["contents"]
+        current_custom_form_dict = json.loads(current_custom_form)
+        builder_dict = {"builder": current_custom_form_dict}
+
+        # Construct current custom forms dict with submission and builder components
+        current_submission.update(builder_dict)
+
+        # Convert to current custom forms to json formatted string
+        current_custom_form_json = json.dumps(current_submission)
+
+        # Try a PUT API call to save the current custom form on the destination
+        current_content_json = json.loads(current_custom_form)
+        title = current_content_json["title"]
+        try:
+            headers = {"Content-Type": "application/json;charset=UTF-8"}
+            destination_conn.put("/xapi/customforms/save", data=current_custom_form_json, headers=headers)
+        except XNATResponseError as e:
+            msg = f"Failed to create the {title} custom form on destination XNAT\n: {e.text}"
+            raise RuntimeError(msg) from e
+
+        LOGGER.info("The %s custom form has been successfully created", title)
 
 
 def check_datatypes_matching(

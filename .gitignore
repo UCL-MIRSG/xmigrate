@@ -166,3 +166,5 @@ _version.py
 # template.xml
 *.xml
 xmigrate.toml
+archive
+ncita_locate
