@@ -44,7 +44,7 @@ def create_custom_forms_json(
         general_submission = json.load(file)
 
     for _idx, inputs in enumerate(source_custom_forms):
-
+        ### This may need to be opened several times as it's not getting overwritten each time
         current_submission = general_submission
         projects = inputs["appliesToList"]
         datatype = inputs["path"]
@@ -52,7 +52,7 @@ def create_custom_forms_json(
         current_custom_form_json = json.loads(current_custom_form)
 
         ### FIND MATCHING DATATYPE FROM XMLMAPPER OR ELSEWHERE
-        datatype_value = datatype.replace("datatype/", "") 
+        datatype_value = datatype.replace("datatype/", "")
 
         current_submission["submission"]["data"]["xnatDatatype"]["label"] = datatype
         current_submission["submission"]["data"]["xnatDatatype"]["value"] = datatype_value
