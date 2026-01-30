@@ -34,61 +34,70 @@ def create_custom_forms_json(
         destination_conn: The destination XNAT connection.
 
     Raises:
-        ValueError: If source has datatypes not enabled on destination.
+        XNATResponseError: If failed to create custom forms on destination
 
     """
+    # Get custom forms from source as json
     source_custom_forms = source_conn.get_json("/xapi/customforms")
-    
-    LOGGER.info(len(source_custom_forms))
+
+    LOGGER.info("There are %d custom forms being created", len(source_custom_forms))
+
+    # Loop through custom forms
     general_submission = {}
+    for form_idx, source_custom_form in enumerate(source_custom_forms):
 
-    for idx, inputs in enumerate(source_custom_forms):
+        # Open template for submission object
         with open("custom-forms/custom_forms_template.json", "r") as file:
-            general_submission[idx] = json.load(file)
-        ### This may need to be opened several times as it's not getting overwritten each time
-        current_submission = general_submission[idx]
-        projects = inputs["appliesToList"]
-        datatype = inputs["path"]
-        current_custom_form = inputs["contents"]
-        current_custom_form_json = json.loads(current_custom_form)
+            general_submission[form_idx] = json.load(file)
 
-        ### FIND MATCHING DATATYPE FROM XMLMAPPER OR ELSEWHERE
+        current_submission = general_submission[form_idx]
+
+        # Extract projects list, datatype
+        projects = source_custom_form["appliesToList"]
+        datatype = source_custom_form["path"]
         datatype_value = datatype.replace("datatype/", "")
 
+        # Populate datatype section of builder object
         current_submission["submission"]["data"]["xnatDatatype"]["label"] = datatype
         current_submission["submission"]["data"]["xnatDatatype"]["value"] = datatype_value
 
+        # Loop through projects to populate project section of builder object
         current_dict=[]
+        for proj_idx, project in enumerate(projects):
+            current_proj=project["entityId"]
 
-        for idx, mult_proj in enumerate(projects):
-            # project_data.append(mult_proj['entityId'])
-            current_proj=mult_proj['entityId']
-
-            if idx == 0:
-                current_submission['submission']['data']['xnatProject'][idx]['label'] = current_proj
-                current_submission['submission']['data']['xnatProject'][idx]['value'] = current_proj
+            # Initially populate empty project section and then append
+            if proj_idx == 0:
+                current_submission["submission"]["data"]["xnatProject"][proj_idx]["label"] = current_proj
+                current_submission["submission"]["data"]["xnatProject"][proj_idx]["value"] = current_proj
 
             else:
                 current_dict = {"label": current_proj, "value": current_proj}
                 current_submission["submission"]["data"]["xnatProject"].append(current_dict)
 
-        x = json.dumps(current_submission)
 
-        y = {"builder": current_custom_form_json}
+        # Extract contents of form, convert to dict and create builder_dict
+        current_custom_form = source_custom_form["contents"]
+        current_custom_form_dict = json.loads(current_custom_form)
+        builder_dict = {"builder": current_custom_form_dict}
 
-        z = json.loads(x)
+        # Construct current custom forms dict with submission and builder components
+        current_submission.update(builder_dict)
 
-        z.update(y)
+        # Convert to current custom forms to json formatted string
+        current_custom_form_json = json.dumps(current_submission)
 
-        final = json.dumps(z)
-
-        headers = {"Content-Type": "application/json;charset=UTF-8"}
-
+        # Try a PUT API call to save the current custom form on the destination
+        current_custom_form_json = json.loads(current_custom_form)
+        title = current_custom_form_json["title"]
         try:
-            destination_conn.put("/xapi/customforms/save", data=final, headers=headers)
+            headers = {"Content-Type": "application/json;charset=UTF-8"}
+            destination_conn.put("/xapi/customforms/save", data=current_custom_form_json, headers=headers)
         except XNATResponseError as e:
-            msg = f"Failed to create custom forms on destination XNAT\n: {e.text}"
+            msg = f"Failed to create the {title} custom form on destination XNAT\n: {e.text}"
             raise RuntimeError(msg) from e
+
+        LOGGER.info("The %d custom form has been successfully created", title)
 
 
 def check_datatypes_matching(
