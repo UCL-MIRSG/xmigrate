@@ -88,8 +88,8 @@ def create_custom_forms_json(
         current_custom_form_json = json.dumps(current_submission)
 
         # Try a PUT API call to save the current custom form on the destination
-        current_custom_form_json = json.loads(current_custom_form)
-        title = current_custom_form_json["title"]
+        current_content_json = json.loads(current_custom_form)
+        title = current_content_json["title"]
         try:
             headers = {"Content-Type": "application/json;charset=UTF-8"}
             destination_conn.put("/xapi/customforms/save", data=current_custom_form_json, headers=headers)
@@ -97,7 +97,7 @@ def create_custom_forms_json(
             msg = f"Failed to create the {title} custom form on destination XNAT\n: {e.text}"
             raise RuntimeError(msg) from e
 
-        LOGGER.info("The %d custom form has been successfully created", title)
+        LOGGER.info("The %s custom form has been successfully created", title)
 
 
 def check_datatypes_matching(
