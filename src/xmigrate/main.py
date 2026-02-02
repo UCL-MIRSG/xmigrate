@@ -428,13 +428,9 @@ class Migration:
                 )
                 continue
 
-            # Get destination subject and experiment labels
-            dest_subject = self.destination_conn.projects[self.destination_info.id].subjects[dest_subject_id]
-            dest_experiment = dest_subject.experiments[dest_experiment_id]
-
             try:
                 self.destination_conn.put(
-                    f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject.id}/experiments/{dest_experiment.id}/fields/",
+                    f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/experiments/{dest_experiment_id}/fields/",
                     json=source_form_data,
                 )
                 self._logger.info(
@@ -646,29 +642,29 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
-        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
-        pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
+        # rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
+        # rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+        # pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
 
-        command_to_run = [
-            "rsync",
-            "-azP",
-            "--ignore-existing",
-            "--exclude=*.log",
-            "--exclude=.*",
-            "--exclude=*.json",
-            "--stats",
-            "--progress",
-            "--checksum",
-            rsync_source,
-            rsync_dest,
-        ]
+        # command_to_run = [
+        #     "rsync",
+        #     "-azP",
+        #     "--ignore-existing",
+        #     "--exclude=*.log",
+        #     "--exclude=.*",
+        #     "--exclude=*.json",
+        #     "--stats",
+        #     "--progress",
+        #     "--checksum",
+        #     rsync_source,
+        #     rsync_dest,
+        # ]
 
-        try:
-            subprocess.check_output(command_to_run)  # noqa: S603
-        except subprocess.CalledProcessError as exc:
-            msg = f"An error occurred running the rsync command; the error was: {exc}"
-            raise RuntimeError(msg) from exc
+        # try:
+        #     subprocess.check_output(command_to_run)  # noqa: S603
+        # except subprocess.CalledProcessError as exc:
+        #     msg = f"An error occurred running the rsync command; the error was: {exc}"
+        #     raise RuntimeError(msg) from exc
 
         if self.rsync_only:
             return
@@ -849,7 +845,7 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
-        self._check_datatypes()
+        # self._check_datatypes()
         self._create_users()
 
         # Iterate over all projects
