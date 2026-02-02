@@ -56,11 +56,11 @@ def create_custom_forms_json(
         datatype = source_custom_form["path"]
         datatype_value = datatype.replace("datatype/", "")
 
-        # Populate datatype section of builder object
+        # Populate datatype section of submission object
         current_submission["submission"]["data"]["xnatDatatype"]["label"] = datatype
         current_submission["submission"]["data"]["xnatDatatype"]["value"] = datatype_value
 
-        # Loop through projects to populate project section of builder object
+        # Loop through projects to populate project section of submission object
         current_dict = {}
         for proj_idx, project in enumerate(projects):
             current_proj = project["entityId"]
