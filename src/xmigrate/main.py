@@ -379,6 +379,75 @@ class Migration:
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
 
+    def _create_custom_form_data(
+        self,
+        experiment: xnat.core.XNATListing,
+    ) -> None:
+        """
+        Migrate custom form data from source experiment to destination experiment.
+
+        Args:
+            experiment: The source experiment object.
+
+        """
+        subject = experiment.parent
+        project = subject.parent
+
+        # Get source custom forms and their data
+        source_custom_forms = self.source_conn.get_json("/xapi/customforms")
+        source_custom_forms_data = self.source_conn.get_json(
+            f"/xapi/custom-fields/projects/{project.id}/subjects/{subject.id}/experiments/{experiment.id}/fields"
+        )
+
+        if not source_custom_forms_data:
+            return
+
+        # Get destination custom forms to map UUIDs
+        destination_custom_forms = self.destination_conn.get_json("/xapi/customforms")
+
+        # Create mapping from source form titles to destination formUUIDs
+        form_uuid_mapping = {}
+        for dest_form in destination_custom_forms:
+            for source_form in source_custom_forms:
+                if source_form.get("title") == dest_form.get("title"):
+                    form_uuid_mapping[source_form["formUUID"]] = dest_form["formUUID"]
+                    break
+
+        # Get destination subject and experiment IDs
+        dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
+        dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
+
+        # Migrate data for each form
+        for source_form_uuid, source_form_data in source_custom_forms_data.items():
+            dest_form_uuid = form_uuid_mapping.get(source_form_uuid)
+
+            if not dest_form_uuid:
+                self._logger.warning(
+                    "Could not find matching destination form for source formUUID %s",
+                    source_form_uuid,
+                )
+                continue
+
+            # Get destination subject and experiment labels
+            dest_subject = self.destination_conn.projects[self.destination_info.id].subjects[dest_subject_id]
+            dest_experiment = dest_subject.experiments[dest_experiment_id]
+
+            try:
+                self.destination_conn.put(
+                    f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject.id}/experiments/{dest_experiment.id}/fields/",
+                    json=source_form_data,
+                )
+                self._logger.info(
+                    "Migrated custom form data for experiment %s",
+                    experiment.id,
+                )
+            except XNATResponseError as e:
+                self._logger.warning(
+                    "Failed to migrate custom form data for experiment %s: %s",
+                    experiment.id,
+                    str(e),
+                )
+
     def _create_experiment(
         self,
         experiment: xnat.core.XNATListing,
@@ -614,6 +683,8 @@ class Migration:
                     raise RuntimeError(msg)
                 self._create_experiment(experiment)
 
+                self._create_custom_form_data(experiment)
+
                 for scan in experiment.scans:
                     self._create_scan(scan)
 
@@ -816,10 +887,10 @@ class Migration:
 if __name__ == "__main__":
     # Hardcoded values from xmigrate.toml
     source = "https://ucl-test-xnat.cs.ucl.ac.uk/"
-    source_projects = ["test_rsync", "project1"]
+    source_projects = ["HitMesoUploadSite_01"]
     source_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/xmigrate/archive"
     destination = "http://localhost"
-    destination_projects = ["test_rsync42", "project42"]
+    destination_projects = ["HitMesoUploadSite_01"]
     destination_user = "admin"
     destination_password = "admin"  # noqa: S105
     destination_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/MRI-PET-Raw-Data-Plugins-XNAT/xnat-docker-compose/xnat-data/archive"  # noqa: E501
