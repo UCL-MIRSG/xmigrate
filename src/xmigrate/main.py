@@ -42,14 +42,26 @@ def create_custom_forms_json(
     LOGGER.info("There are %d custom forms being created", len(source_custom_forms))
 
     # Loop through custom forms
-    general_submission = {}
-    for form_idx, source_custom_form in enumerate(source_custom_forms):
-        # Open template for submission object
-        path = pathlib.Path() / "custom-forms" / "custom_forms_template.json"
-        with path.open(mode="r", encoding="utf-8") as file:
-            general_submission[form_idx] = json.load(file)
-
-        current_submission = general_submission[form_idx]
+    for _form_idx, source_custom_form in enumerate(source_custom_forms):
+        # Create empty submission object
+        current_submission =  {
+            "submission": {
+                "data": {
+                    "zIndex": 10,
+                    "xnatDatatype": {
+                        "label": [],
+                        "value": []
+                    },
+                    "isThisASiteWideConfiguration": "no",
+                    "xnatProject": [
+                        {
+                            "label": [],
+                            "value": []
+                        }
+                    ]
+                }
+            }
+        }
 
         # Extract projects list, datatype
         projects = source_custom_form["appliesToList"]
