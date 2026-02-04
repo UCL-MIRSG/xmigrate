@@ -44,47 +44,52 @@ def create_custom_forms_json(
     # Loop through custom forms
     for _form_idx, source_custom_form in enumerate(source_custom_forms):
         # Create empty submission object
-        current_submission =  {
+        current_submission = {
             "submission": {
                 "data": {
-                    "zIndex": 10,
-                    "xnatDatatype": {
-                        "label": [],
-                        "value": []
-                    },
-                    "isThisASiteWideConfiguration": "no",
-                    "xnatProject": [
-                        {
-                            "label": [],
-                            "value": []
-                        }
-                    ]
+                    "zIndex": [],
+                    "xnatDatatype": {"label": [], "value": []},
+                    "isThisASiteWideConfiguration": [],
+                    "xnatProject": [{"label": [], "value": []}],
                 }
             }
         }
 
-        # Extract projects list, datatype
+        # Extract projects list, datatype, scope and formDisplayOrder
         projects = source_custom_form["appliesToList"]
         datatype = source_custom_form["path"]
         datatype_value = datatype.replace("datatype/", "")
+        scope = source_custom_form["scope"]
+        zindex = source_custom_form["formDisplayOrder"]
+
+        # Populate zIndex and isThisASiteWideConfiguration
+        current_submission["submission"]["data"]["zIndex"] = zindex
+        if scope == "Site":
+            current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "yes"
+        else:
+            current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "no"
 
         # Populate datatype section of submission object
-        current_submission["submission"]["data"]["xnatDatatype"]["label"] = datatype
-        current_submission["submission"]["data"]["xnatDatatype"]["value"] = datatype_value
+        xnat_datatype_dict: dict[str, str] = {"label": datatype, "value": datatype_value}
+
+        current_submission["submission"]["data"]["xnatDatatype"] = xnat_datatype_dict
 
         # Loop through projects to populate project section of submission object
-        current_dict = {}
+        current_dict: dict[str, str] = {}
+        xnat_project_list: list[dict[str, str]] = [{"label": "", "value": ""}]
         for proj_idx, project in enumerate(projects):
             current_proj = project["entityId"]
 
             # Initially populate empty project section and then append
             if proj_idx == 0:
-                current_submission["submission"]["data"]["xnatProject"][proj_idx]["label"] = current_proj
-                current_submission["submission"]["data"]["xnatProject"][proj_idx]["value"] = current_proj
+                xnat_project_list[proj_idx]["label"] = current_proj
+                xnat_project_list[proj_idx]["value"] = current_proj
 
             else:
                 current_dict = {"label": current_proj, "value": current_proj}
-                current_submission["submission"]["data"]["xnatProject"].append(current_dict)
+                xnat_project_list.append(current_dict)
+
+        current_submission["submission"]["data"]["xnatProject"] = xnat_project_list
 
         # Extract contents of form, convert to dict and create builder_dict
         current_custom_form = source_custom_form["contents"]
