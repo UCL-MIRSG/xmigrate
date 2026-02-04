@@ -326,6 +326,121 @@ class Migration:
         df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
         df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
 
+    def _create_custom_forms_data(
+        self,
+        resource_type: xnat.core.XNATListing,
+    ) -> None:
+        """
+        Migrate custom form data from source resource_type to destination resource_type.
+
+        Args:
+            resource_type: The source resource_type object.
+
+        """
+        # Get source custom forms
+        source_custom_forms = self.source_conn.get_json("/xapi/customforms")
+
+        # Get source custom forms data
+        if type(resource_type).__name__ == "ProjectData":
+            api_get_string = f"/xapi/custom-fields/projects/{resource_type.id}/fields"
+            api_put_string = f"/xapi/custom-fields/projects/{self.destination_info.id}/fields"
+
+        elif type(resource_type).__name__ == "SubjectData":
+            project = resource_type.parent
+            api_get_string = f"/xapi/custom-fields/projects/{project.id}/subjects/{resource_type.id}/fields"
+
+            dest_subject_id = self.mapper.get_destination_id(resource_type.id, XnatType.subject)
+            api_put_string = (
+                f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/fields"
+            )
+
+        elif "SessionData" in type(resource_type).__name__:
+            subject = resource_type.parent
+            project = subject.parent
+            api_get_string = (
+                f"/xapi/custom-fields/projects/{project.id}/subjects/{subject.id}/experiments/{resource_type.id}/fields"
+            )
+
+            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
+            dest_experiment_id = self.mapper.get_destination_id(resource_type.id, XnatType.experiment)
+
+            api_put_string = (
+                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
+                f"subjects/{dest_subject_id}/"
+                f"experiments/{dest_experiment_id}/fields"
+            )
+
+        elif "ScanData" in type(resource_type).__name__:
+            experiment = resource_type.parent
+            subject = experiment.parent
+            project = subject.parent
+            api_get_string = (
+                f"/xapi/custom-fields/projects/{project.id}/"
+                f"subjects/{subject.id}/"
+                f"experiments/{experiment.id}/"
+                f"scans/{resource_type.id}/fields"
+            )
+
+            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
+            dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
+            dest_scan_id = self.mapper.get_destination_id(resource_type.id, XnatType.scan)
+
+            api_put_string = (
+                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
+                f"subjects/{dest_subject_id}/"
+                f"experiments/{dest_experiment_id}/"
+                f"scans/{dest_scan_id}/fields"
+            )
+
+        else:
+            msg = (
+                f"Resource {type(resource_type).__name__} doesn't match suggested resource types: "
+                "ProjectData, SubjectData or include SessionData"
+            )
+            raise ValueError(msg)
+
+        source_custom_forms_data = self.source_conn.get_json(api_get_string)
+
+        if not source_custom_forms_data:
+            return
+
+        # Get destination custom forms to map UUIDs
+        destination_custom_forms = self.destination_conn.get_json("/xapi/customforms")
+
+        # Create mapping from source form titles to destination formUUIDs
+        form_uuid_mapping = {}
+        for dest_form in destination_custom_forms:
+            for source_form in source_custom_forms:
+                if source_form.get("title") == dest_form.get("title"):
+                    form_uuid_mapping[source_form["formUUID"]] = dest_form["formUUID"]
+                    break
+
+        # Migrate data for each form
+        for source_form_uuid, source_form_data in source_custom_forms_data.items():
+            dest_form_uuid = form_uuid_mapping.get(source_form_uuid)
+
+            if not dest_form_uuid:
+                self._logger.warning(
+                    "Could not find matching destination form for source formUUID %s",
+                    source_form_uuid,
+                )
+                continue
+
+            try:
+                self.destination_conn.put(api_put_string, json=source_form_data)
+                self._logger.info(
+                    "Migrated custom form data for %s %s",
+                    type(resource_type).__name__,
+                    resource_type.id,
+                )
+            except XNATResponseError as e:
+                self._logger.warning(
+                    "Failed to migrate custom form data for experiment %s %s: %s",
+                    type(resource_type).__name__,
+                    resource_type.id,
+                    str(e),
+                )
+
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
         root = self._get_source_xml(
@@ -396,142 +511,6 @@ class Migration:
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
 
-    def _create_custom_forms_data(  # noqa: PLR0912, PLR0915
-        self,
-        resource_type: xnat.core.XNATListing,
-    ) -> None:
-        """
-        Migrate custom form data from source resource_type to destination resource_type.
-
-        Args:
-            resource_type: The source resource_type object.
-
-        """
-        # Get source custom forms
-        source_custom_forms = self.source_conn.get_json("/xapi/customforms")
-
-        # Get source custom forms data
-        if type(resource_type).__name__ == "ProjectData":
-            api_get_string = f"/xapi/custom-fields/projects/{resource_type.id}/fields"
-            api_put_string = f"/xapi/custom-fields/projects/{self.destination_info.id}/fields"
-
-        elif type(resource_type).__name__ == "SubjectData":
-            project = resource_type.parent
-            api_get_string = f"/xapi/custom-fields/projects/{project}/subjects/{resource_type.id}/fields"
-
-            dest_subject_id = self.mapper.get_destination_id(resource_type.id, XnatType.subject)
-            api_put_string = (
-                f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/fields"
-            )
-
-        elif "SessionData" in type(resource_type).__name__:
-            subject = resource_type.parent
-            project = subject.parent
-            api_get_string = (
-                f"/xapi/custom-fields/projects/{project.id}/subjects/{subject.id}/experiments/{resource_type.id}/fields"
-            )
-
-            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
-            dest_experiment_id = self.mapper.get_destination_id(resource_type.id, XnatType.experiment)
-
-            api_put_string = (
-                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
-                f"subjects/{dest_subject_id}/"
-                f"experiments/{dest_experiment_id}/fields"
-            )
-
-        elif "ScanData" in type(resource_type).__name__:
-            experiment = resource_type.parent
-            subject = experiment.parent
-            project = subject.parent
-            api_get_string = (
-                f"/xapi/custom-fields/projects/{project.id}/"
-                f"subjects/{subject.id}/"
-                f"experiments/{experiment.id}/"
-                f"scans/{resource_type.id}/fields"
-            )
-
-            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
-            dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
-            dest_scan_id = self.mapper.get_destination_id(resource_type.id, XnatType.scan)
-
-            api_put_string = (
-                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
-                f"subjects/{dest_subject_id}/"
-                f"experiments/{dest_experiment_id}/"
-                f"scans/{dest_scan_id}/fields"
-            )
-
-        elif "RoiCollection" in type(resource_type).__name__:
-            experiment = resource_type.parent
-            subject = experiment.parent
-            project = subject.parent
-            api_get_string = (
-                f"/xapi/custom-fields/projects/{project.id}/"
-                f"subjects/{subject.id}/"
-                f"experiments/{experiment.id}/"
-                f"assesors/{resource_type.id}/fields"
-            )
-
-            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
-            dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
-            dest_assessor_id = self.mapper.get_destination_id(resource_type.id, XnatType.assessor)
-
-            api_put_string = (
-                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
-                f"subjects/{dest_subject_id}/"
-                f"experiments/{dest_experiment_id}/"
-                f"assessors/{dest_assessor_id}/fields"
-            )
-
-        else:
-            msg = (
-                f"Resource {type(resource_type).__name__} doesn't match suggested resource types: "
-                "ProjectData, SubjectData or include SessionData"
-            )
-            raise ValueError(msg)
-
-        source_custom_forms_data = self.source_conn.get_json(api_get_string)
-
-        if not source_custom_forms_data:
-            return
-
-        # Get destination custom forms to map UUIDs
-        destination_custom_forms = self.destination_conn.get_json("/xapi/customforms")
-
-        # Create mapping from source form titles to destination formUUIDs
-        form_uuid_mapping = {}
-        for dest_form in destination_custom_forms:
-            for source_form in source_custom_forms:
-                if source_form.get("title") == dest_form.get("title"):
-                    form_uuid_mapping[source_form["formUUID"]] = dest_form["formUUID"]
-                    break
-
-        # Migrate data for each form
-        for source_form_uuid, source_form_data in source_custom_forms_data.items():
-            dest_form_uuid = form_uuid_mapping.get(source_form_uuid)
-
-            if not dest_form_uuid:
-                self._logger.warning(
-                    "Could not find matching destination form for source formUUID %s",
-                    source_form_uuid,
-                )
-                continue
-
-            try:
-                self.destination_conn.put(api_put_string, json=source_form_data)
-                self._logger.info(
-                    "Migrated custom form data for %s %s",
-                    type(resource_type).__name__,
-                    resource_type.id,
-                )
-            except XNATResponseError as e:
-                self._logger.warning(
-                    "Failed to migrate custom form data for experiment %s %s: %s",
-                    type(resource_type).__name__,
-                    resource_type.id,
-                    str(e),
-                )
 
     def _create_experiment(
         self,
@@ -778,7 +757,6 @@ class Migration:
 
                 for assessor in experiment.assessors:
                     self._create_assessor(assessor)
-                    self._create_custom_forms_data(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
@@ -938,7 +916,7 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
-        self._check_datatypes()
+        # self._check_datatypes()
         self._create_users()
 
         # Iterate over all projects
