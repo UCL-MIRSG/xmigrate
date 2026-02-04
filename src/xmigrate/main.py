@@ -511,7 +511,6 @@ class Migration:
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
 
-
     def _create_experiment(
         self,
         experiment: xnat.core.XNATListing,
@@ -916,7 +915,7 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
-        # self._check_datatypes()
+        self._check_datatypes()
         self._create_users()
 
         # Iterate over all projects
