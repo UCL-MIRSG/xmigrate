@@ -396,7 +396,7 @@ class Migration:
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
 
-    def _create_custom_forms_data(
+    def _create_custom_forms_data(  # noqa: PLR0912, PLR0915
         self,
         resource_type: xnat.core.XNATListing,
     ) -> None:
@@ -438,6 +438,50 @@ class Migration:
                 f"/xapi/custom-fields/projects/{self.destination_info.id}/"
                 f"subjects/{dest_subject_id}/"
                 f"experiments/{dest_experiment_id}/fields"
+            )
+
+        elif "ScanData" in type(resource_type).__name__:
+            experiment = resource_type.parent
+            subject = experiment.parent
+            project = subject.parent
+            api_get_string = (
+                f"/xapi/custom-fields/projects/{project.id}/"
+                f"subjects/{subject.id}/"
+                f"experiments/{experiment.id}/"
+                f"scans/{resource_type.id}/fields"
+            )
+
+            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
+            dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
+            dest_scan_id = self.mapper.get_destination_id(resource_type.id, XnatType.scan)
+
+            api_put_string = (
+                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
+                f"subjects/{dest_subject_id}/"
+                f"experiments/{dest_experiment_id}/"
+                f"scans/{dest_scan_id}/fields"
+            )
+
+        elif "RoiCollection" in type(resource_type).__name__:
+            experiment = resource_type.parent
+            subject = experiment.parent
+            project = subject.parent
+            api_get_string = (
+                f"/xapi/custom-fields/projects/{project.id}/"
+                f"subjects/{subject.id}/"
+                f"experiments/{experiment.id}/"
+                f"assesors/{resource_type.id}/fields"
+            )
+
+            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
+            dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
+            dest_assessor_id = self.mapper.get_destination_id(resource_type.id, XnatType.assessor)
+
+            api_put_string = (
+                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
+                f"subjects/{dest_subject_id}/"
+                f"experiments/{dest_experiment_id}/"
+                f"assessors/{dest_assessor_id}/fields"
             )
 
         else:
