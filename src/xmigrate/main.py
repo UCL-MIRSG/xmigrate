@@ -420,15 +420,15 @@ class Migration:
             api_get_string = f"/xapi/custom-fields/projects/{project}/subjects/{resource_type.id}/fields"
 
             dest_subject_id = self.mapper.get_destination_id(resource_type.id, XnatType.subject)
-            api_put_string = f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/fields"
+            api_put_string = (
+                f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/fields"
+            )
 
         elif "SessionData" in type(resource_type).__name__:
             subject = resource_type.parent
             project = subject.parent
             api_get_string = (
-                f"/xapi/custom-fields/projects/{project.id}/"
-                f"subjects/{subject.id}/"
-                f"experiments/{resource_type.id}/fields"
+                f"/xapi/custom-fields/projects/{project.id}/subjects/{subject.id}/experiments/{resource_type.id}/fields"
             )
 
             dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
@@ -441,8 +441,9 @@ class Migration:
             )
 
         else:
-            msg = (f"Resource {type(resource_type).__name__} doesn't match suggested resource types: "
-                    "ProjectData, SubjectData or include SessionData"
+            msg = (
+                f"Resource {type(resource_type).__name__} doesn't match suggested resource types: "
+                "ProjectData, SubjectData or include SessionData"
             )
             raise ValueError(msg)
 
@@ -461,7 +462,6 @@ class Migration:
                 if source_form.get("title") == dest_form.get("title"):
                     form_uuid_mapping[source_form["formUUID"]] = dest_form["formUUID"]
                     break
-
 
         # Migrate data for each form
         for source_form_uuid, source_form_data in source_custom_forms_data.items():
