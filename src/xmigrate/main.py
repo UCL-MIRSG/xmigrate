@@ -396,25 +396,57 @@ class Migration:
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
 
-    def _create_custom_form_data(
+    def _create_custom_forms_data(
         self,
-        experiment: xnat.core.XNATListing,
+        resource_type: xnat.core.XNATListing,
     ) -> None:
         """
-        Migrate custom form data from source experiment to destination experiment.
+        Migrate custom form data from source resource_type to destination resource_type.
 
         Args:
-            experiment: The source experiment object.
+            resource_type: The source resource_type object.
 
         """
-        subject = experiment.parent
-        project = subject.parent
-
-        # Get source custom forms and their data
+        # Get source custom forms
         source_custom_forms = self.source_conn.get_json("/xapi/customforms")
-        source_custom_forms_data = self.source_conn.get_json(
-            f"/xapi/custom-fields/projects/{project.id}/subjects/{subject.id}/experiments/{experiment.id}/fields"
-        )
+
+        # Get source custom forms data
+        if type(resource_type).__name__ == "ProjectData":
+            api_get_string = f"/xapi/custom-fields/projects/{resource_type.id}/fields"
+            api_put_string = f"/xapi/custom-fields/projects/{self.destination_info.id}/fields"
+
+        elif type(resource_type).__name__ == "SubjectData":
+            project = resource_type.parent
+            api_get_string = f"/xapi/custom-fields/projects/{project}/subjects/{resource_type.id}/fields"
+
+            dest_subject_id = self.mapper.get_destination_id(resource_type.id, XnatType.subject)
+            api_put_string = f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/fields"
+
+        elif "SessionData" in type(resource_type).__name__:
+            subject = resource_type.parent
+            project = subject.parent
+            api_get_string = (
+                f"/xapi/custom-fields/projects/{project.id}/"
+                f"subjects/{subject.id}/"
+                f"experiments/{resource_type.id}/fields"
+            )
+
+            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
+            dest_experiment_id = self.mapper.get_destination_id(resource_type.id, XnatType.experiment)
+
+            api_put_string = (
+                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
+                f"subjects/{dest_subject_id}/"
+                f"experiments/{dest_experiment_id}/fields"
+            )
+
+        else:
+            msg = (f"Resource {type(resource_type).__name__} doesn't match suggested resource types: "
+                    "ProjectData, SubjectData or include SessionData"
+            )
+            raise ValueError(msg)
+
+        source_custom_forms_data = self.source_conn.get_json(api_get_string)
 
         if not source_custom_forms_data:
             return
@@ -430,9 +462,6 @@ class Migration:
                     form_uuid_mapping[source_form["formUUID"]] = dest_form["formUUID"]
                     break
 
-        # Get destination subject and experiment IDs
-        dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
-        dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
 
         # Migrate data for each form
         for source_form_uuid, source_form_data in source_custom_forms_data.items():
@@ -446,18 +475,17 @@ class Migration:
                 continue
 
             try:
-                self.destination_conn.put(
-                    f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/experiments/{dest_experiment_id}/fields/",
-                    json=source_form_data,
-                )
+                self.destination_conn.put(api_put_string, json=source_form_data)
                 self._logger.info(
-                    "Migrated custom form data for experiment %s",
-                    experiment.id,
+                    "Migrated custom form data for %s %s",
+                    type(resource_type).__name__,
+                    resource_type.id,
                 )
             except XNATResponseError as e:
                 self._logger.warning(
-                    "Failed to migrate custom form data for experiment %s: %s",
-                    experiment.id,
+                    "Failed to migrate custom form data for experiment %s %s: %s",
+                    type(resource_type).__name__,
+                    resource_type.id,
                     str(e),
                 )
 
@@ -686,23 +714,27 @@ class Migration:
         if self.rsync_only:
             return
 
+        self._create_custom_forms_data(source_project)
+
         destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
         for subject in source_project.subjects:
             self._create_subject(subject)
+            self._create_custom_forms_data(subject)
             for experiment in subject.experiments:
                 if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
                     datatype = experiment.fulldata["meta"]["xsi:type"]
                     msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
                     raise RuntimeError(msg)
                 self._create_experiment(experiment)
-
-                self._create_custom_form_data(experiment)
+                self._create_custom_forms_data(experiment)
 
                 for scan in experiment.scans:
                     self._create_scan(scan)
+                    self._create_custom_forms_data(scan)
 
                 for assessor in experiment.assessors:
                     self._create_assessor(assessor)
+                    self._create_custom_forms_data(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
