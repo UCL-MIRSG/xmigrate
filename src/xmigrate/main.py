@@ -421,8 +421,9 @@ class Migration:
 
             if not dest_form_uuid:
                 self._logger.warning(
-                    "Could not find matching destination form for source formUUID %s",
+                    "Could not find matching destination form for source formUUID %s in resource %s",
                     source_form_uuid,
+                    type(resource_type).__name__,
                 )
                 continue
 
