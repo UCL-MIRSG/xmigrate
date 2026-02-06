@@ -340,9 +340,9 @@ class Migration:
         # Get source custom forms
         source_custom_forms = self.source_conn.get_json("/xapi/customforms")
 
-        fulluri = resource_type.fulluri.split("/")
-        idx = len(fulluri) - 2
-        resource_type_name = fulluri[idx]
+        fulluri = resource_type.fulluri.split("/") # e.g. /data/archive/projects/<project_name>
+        idx = len(fulluri) - 2 # Index for the 2nd to last element of the fulluri
+        resource_type_name = fulluri[idx] # e.g. extracts projects as a string from fulluri
 
         # Get source custom forms data
         if resource_type_name == "projects":
@@ -409,13 +409,13 @@ class Migration:
 
             dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
             dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
-            dest_scan_id = self.mapper.get_destination_id(resource_type.id, XnatType.scan)
+            dest_assessor_id = self.mapper.get_destination_id(resource_type.id, XnatType.assessor)
 
             api_put_string = (
                 f"/xapi/custom-fields/projects/{self.destination_info.id}/"
                 f"subjects/{dest_subject_id}/"
                 f"experiments/{dest_experiment_id}/"
-                f"assessors/{dest_scan_id}/fields"
+                f"assessors/{dest_assessor_id}/fields"
             )
         else:
             msg = (
@@ -978,14 +978,14 @@ class Migration:
 
 if __name__ == "__main__":
     # Hardcoded values from xmigrate.toml
-    source = "https://ucl-test-xnat.cs.ucl.ac.uk/"
-    source_projects = ["HitMesoUploadSite_01"]
-    source_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/xmigrate/archive"
-    destination = "http://localhost"
-    destination_projects = ["HitMesoUploadSite_01"]
-    destination_user = "admin"
-    destination_password = "admin"  # noqa: S105
-    destination_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/MRI-PET-Raw-Data-Plugins-XNAT/xnat-docker-compose/xnat-data/archive"  # noqa: E501
+    source = "https://xnat.example"
+    source_projects = ["proj1", "proj2"]
+    source_rsync = "/original/local/path/"
+    destination = "https://another-xnat.example"
+    destination_projects = ["proj1", "proj2"]
+    destination_user = "username"
+    destination_password = "password"  # noqa: S105
+    destination_rsync = "/new/local/path/"
     rsync_only = False
 
     source_conn = xnat.connect(source)
