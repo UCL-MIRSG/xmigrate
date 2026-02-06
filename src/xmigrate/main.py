@@ -433,12 +433,16 @@ class Migration:
         destination_custom_forms = self.destination_conn.get_json("/xapi/customforms")
 
         # Create mapping from source form titles to destination formUUIDs
-        form_uuid_mapping = {}
-        for dest_form in destination_custom_forms:
-            for source_form in source_custom_forms:
-                if source_form.get("title") == dest_form.get("title"):
-                    form_uuid_mapping[source_form["formUUID"]] = dest_form["formUUID"]
-                    break
+        destination_title_to_uuid = {
+            form.get("title"): form.get("formUUID")
+            for form in destination_custom_forms
+        }
+
+        form_uuid_mapping = {
+            source_form["formUUID"]: destination_title_to_uuid[source_form.get("title")]
+            for source_form in source_custom_forms
+            if source_form.get("title") in destination_title_to_uuid
+        }
 
         # Migrate data for each form
         for source_form_uuid, source_form_data in source_custom_forms_data.items():
