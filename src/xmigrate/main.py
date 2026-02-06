@@ -66,6 +66,14 @@ def create_custom_forms_json(
         current_submission["submission"]["data"]["zIndex"] = zindex
         if scope == "Site":
             current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "yes"
+            projects = []
+            # fetch projects response and build list of IDs
+            dest_projects_resp = destination_conn.get("/data/projects").json()
+            projects = [
+                project["ID"]
+                for project in dest_projects_resp["ResultSet"]["Result"]
+            ]
+
         else:
             current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "no"
 
@@ -78,7 +86,7 @@ def create_custom_forms_json(
         current_dict: dict[str, str] = {}
         xnat_project_list: list[dict[str, str]] = [{"label": "", "value": ""}]
         for proj_idx, project in enumerate(projects):
-            current_proj = project["entityId"]
+            current_proj = project if scope == "Site" else project["entityId"]
 
             # Initially populate empty project section and then append
             if proj_idx == 0:
