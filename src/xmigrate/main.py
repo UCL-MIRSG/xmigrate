@@ -326,7 +326,51 @@ class Migration:
         df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
         df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
 
-    def _create_custom_forms_data(  # noqa: PLR0912, PLR0915
+    def _extract_resource_type_name(self, resource_type: xnat.core.XNATListing) -> str:
+        fulluri_str = resource_type.fulluri
+        fulluri_list = fulluri_str.split("/")  # e.g. /data/archive/projects/<project_name>
+        idx = len(fulluri_list) - 2  # Index for the 2nd to last element of the fulluri
+        resources_type_name = fulluri_list[idx]  # e.g. extracts "projects" as a string from fulluri
+        len_resources_type_name = len(resources_type_name)
+        return resources_type_name[0 : len_resources_type_name - 1]  # e.g. "project" as string
+
+    def _construct_api(self, path_segment: str, api_call_str: str, resource_type: xnat.core.XNATListing) -> str:
+        if api_call_str == "GET":
+            full_api_str = f"/xapi/custom-fields/{path_segment}/fields"
+        if api_call_str == "PUT":
+            path_segment_list = path_segment.split("/")
+
+            resource_type_name = self._extract_resource_type_name(resource_type)
+            xnat_type = getattr(XnatType, resource_type_name)
+
+            all_resources_ids = [self.mapper.get_destination_id(resource_type.id, xnat_type)]
+            current_resource = resource_type
+            for _idx in range(1, 5):
+                current_resource = current_resource.parent
+                if type(current_resource) is xnat.session.XNATSession:
+                    break
+
+                resource_type_name = self._extract_resource_type_name(current_resource)
+
+                xnat_type = getattr(XnatType, resource_type_name)
+                all_resources_ids.append(self.mapper.get_destination_id(current_resource.id, xnat_type))
+
+            if isinstance(all_resources_ids, str):
+                all_resources_ids = [all_resources_ids]
+
+            all_resources_ids.reverse()
+
+            counter = 0
+            for idx, _str in enumerate(path_segment_list):
+                if idx % 2 != 0:
+                    path_segment_list[idx] = all_resources_ids[counter]
+                    counter = counter + 1
+
+            full_api_str = "/" + "/".join(path_segment_list)
+
+        return full_api_str
+
+    def _create_custom_forms_data(
         self,
         resource_type: xnat.core.XNATListing,
     ) -> None:
@@ -340,91 +384,23 @@ class Migration:
         # Get source custom forms
         source_custom_forms = self.source_conn.get_json("/xapi/customforms")
 
-        fulluri = resource_type.fulluri.split("/") # e.g. /data/archive/projects/<project_name>
-        idx = len(fulluri) - 2 # Index for the 2nd to last element of the fulluri
-        resource_type_name = fulluri[idx] # e.g. extracts projects as a string from fulluri
-
-        # Get source custom forms data
-        if resource_type_name == "projects":
-            api_get_string = f"/xapi/custom-fields/projects/{resource_type.id}/fields"
-            api_put_string = f"/xapi/custom-fields/projects/{self.destination_info.id}/fields"
-
-        elif resource_type_name == "subjects":
-            project = resource_type.parent
-            api_get_string = f"/xapi/custom-fields/projects/{project.id}/subjects/{resource_type.id}/fields"
-
-            dest_subject_id = self.mapper.get_destination_id(resource_type.id, XnatType.subject)
-            api_put_string = (
-                f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/fields"
-            )
-
-        elif resource_type_name == "experiments":
-            subject = resource_type.parent
-            project = subject.parent
-            api_get_string = (
-                f"/xapi/custom-fields/projects/{project.id}/subjects/{subject.id}/experiments/{resource_type.id}/fields"
-            )
-
-            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
-            dest_experiment_id = self.mapper.get_destination_id(resource_type.id, XnatType.experiment)
-
-            api_put_string = (
-                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
-                f"subjects/{dest_subject_id}/"
-                f"experiments/{dest_experiment_id}/fields"
-            )
-
-        elif resource_type_name == "scans":
-            experiment = resource_type.parent
-            subject = experiment.parent
-            project = subject.parent
-            api_get_string = (
-                f"/xapi/custom-fields/projects/{project.id}/"
-                f"subjects/{subject.id}/"
-                f"experiments/{experiment.id}/"
-                f"scans/{resource_type.id}/fields"
-            )
-
-            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
-            dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
-            dest_scan_id = self.mapper.get_destination_id(resource_type.id, XnatType.scan)
-
-            api_put_string = (
-                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
-                f"subjects/{dest_subject_id}/"
-                f"experiments/{dest_experiment_id}/"
-                f"scans/{dest_scan_id}/fields"
-            )
-
-        elif resource_type_name == "assessors":
-            experiment = resource_type.parent
-            subject = experiment.parent
-            project = subject.parent
-            api_get_string = (
-                f"/xapi/custom-fields/projects/{project.id}/"
-                f"subjects/{subject.id}/"
-                f"experiments/{experiment.id}/"
-                f"assessors/{resource_type.id}/fields"
-            )
-
-            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
-            dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
-            dest_assessor_id = self.mapper.get_destination_id(resource_type.id, XnatType.assessor)
-
-            api_put_string = (
-                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
-                f"subjects/{dest_subject_id}/"
-                f"experiments/{dest_experiment_id}/"
-                f"assessors/{dest_assessor_id}/fields"
-            )
+        resource_type_name = self._extract_resource_type_name(resource_type)
+        fulluri_str = resource_type.fulluri
+        if resource_type_name in {"scan", "assessor"}:
+            path_segment = fulluri_str.removeprefix("/data/")
         else:
-            msg = (
-                f"Resource {type(resource_type).__name__} doesn't match suggested resource types: "
-                "ProjectData, SubjectData or include SessionData"
-            )
-            raise ValueError(msg)
+            path_segment = fulluri_str.removeprefix("/data/archive/")
 
-        source_custom_forms_data = self.source_conn.get_json(api_get_string)
+        api_get_string = self._construct_api(path_segment, "GET", resource_type)
+        api_put_string = self._construct_api(path_segment, "PUT", resource_type)
+
+        try:
+            source_custom_forms_data = self.source_conn.get_json(api_get_string)
+        except ValueError:
+            self._logger.exception(
+                "Resource %s doesn't match suggested resource types",
+                resource_type_name,
+            )
 
         if not source_custom_forms_data:
             return
@@ -434,8 +410,7 @@ class Migration:
 
         # Create mapping from source form titles to destination formUUIDs
         destination_title_to_uuid = {
-            form.get("title"): form.get("formUUID")
-            for form in destination_custom_forms
+            dest_form.get("title"): dest_form.get("formUUID") for dest_form in destination_custom_forms
         }
 
         form_uuid_mapping = {
@@ -452,7 +427,7 @@ class Migration:
                 self._logger.warning(
                     "Could not find matching destination form for source formUUID %s in resource %s",
                     source_form_uuid,
-                    type(resource_type).__name__,
+                    resource_type_name,
                 )
                 continue
 
@@ -460,13 +435,13 @@ class Migration:
                 self.destination_conn.put(api_put_string, json=source_form_data)
                 self._logger.info(
                     "Migrated custom form data for %s %s",
-                    type(resource_type).__name__,
+                    resource_type_name,
                     resource_type.id,
                 )
             except XNATResponseError as e:
                 self._logger.warning(
-                    "Failed to migrate custom form data for experiment %s %s: %s",
-                    type(resource_type).__name__,
+                    "Failed to migrate custom form data for %s %s: %s",
+                    resource_type_name,
                     resource_type.id,
                     str(e),
                 )
@@ -786,6 +761,7 @@ class Migration:
 
                 for assessor in experiment.assessors:
                     self._create_assessor(assessor)
+                    self._create_custom_forms_data(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
