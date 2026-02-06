@@ -326,7 +326,7 @@ class Migration:
         df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
         df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
 
-    def _create_custom_forms_data(
+    def _create_custom_forms_data(  # noqa: PLR0912, PLR0915
         self,
         resource_type: xnat.core.XNATListing,
     ) -> None:
@@ -340,12 +340,16 @@ class Migration:
         # Get source custom forms
         source_custom_forms = self.source_conn.get_json("/xapi/customforms")
 
+        fulluri = resource_type.fulluri.split("/")
+        idx = len(fulluri) - 2
+        resource_type_name = fulluri[idx]
+
         # Get source custom forms data
-        if type(resource_type).__name__ == "ProjectData":
+        if resource_type_name == "projects":
             api_get_string = f"/xapi/custom-fields/projects/{resource_type.id}/fields"
             api_put_string = f"/xapi/custom-fields/projects/{self.destination_info.id}/fields"
 
-        elif type(resource_type).__name__ == "SubjectData":
+        elif resource_type_name == "subjects":
             project = resource_type.parent
             api_get_string = f"/xapi/custom-fields/projects/{project.id}/subjects/{resource_type.id}/fields"
 
@@ -354,7 +358,7 @@ class Migration:
                 f"/xapi/custom-fields/projects/{self.destination_info.id}/subjects/{dest_subject_id}/fields"
             )
 
-        elif "SessionData" in type(resource_type).__name__:
+        elif resource_type_name == "experiments":
             subject = resource_type.parent
             project = subject.parent
             api_get_string = (
@@ -370,7 +374,7 @@ class Migration:
                 f"experiments/{dest_experiment_id}/fields"
             )
 
-        elif "ScanData" in type(resource_type).__name__:
+        elif resource_type_name == "scans":
             experiment = resource_type.parent
             subject = experiment.parent
             project = subject.parent
@@ -392,6 +396,27 @@ class Migration:
                 f"scans/{dest_scan_id}/fields"
             )
 
+        elif resource_type_name == "assessors":
+            experiment = resource_type.parent
+            subject = experiment.parent
+            project = subject.parent
+            api_get_string = (
+                f"/xapi/custom-fields/projects/{project.id}/"
+                f"subjects/{subject.id}/"
+                f"experiments/{experiment.id}/"
+                f"assessors/{resource_type.id}/fields"
+            )
+
+            dest_subject_id = self.mapper.get_destination_id(subject.id, XnatType.subject)
+            dest_experiment_id = self.mapper.get_destination_id(experiment.id, XnatType.experiment)
+            dest_scan_id = self.mapper.get_destination_id(resource_type.id, XnatType.scan)
+
+            api_put_string = (
+                f"/xapi/custom-fields/projects/{self.destination_info.id}/"
+                f"subjects/{dest_subject_id}/"
+                f"experiments/{dest_experiment_id}/"
+                f"assessors/{dest_scan_id}/fields"
+            )
         else:
             msg = (
                 f"Resource {type(resource_type).__name__} doesn't match suggested resource types: "
