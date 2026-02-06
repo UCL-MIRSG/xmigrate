@@ -108,6 +108,8 @@ def migrate(  # noqa: PLR0913
     )
 
     migration.run()
+    src_conn.close()
+    dst_conn.close()
     logger.info("Migration run finished.")
 
 
@@ -138,6 +140,8 @@ def migrate_custom_forms(
     dst_conn = xnat.connect(destination, destination_user, destination_password)
 
     create_custom_forms_json(src_conn, dst_conn)
+    src_conn.close()
+    dst_conn.close()
     logger.info("Created custom forms on destination")
 
 
