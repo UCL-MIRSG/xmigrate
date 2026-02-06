@@ -69,10 +69,7 @@ def create_custom_forms_json(
             projects = []
             # fetch projects response and build list of IDs
             dest_projects_resp = destination_conn.get("/data/projects").json()
-            projects = [
-                project["ID"]
-                for project in dest_projects_resp["ResultSet"]["Result"]
-            ]
+            projects = [project["ID"] for project in dest_projects_resp["ResultSet"]["Result"]]
 
         else:
             current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "no"
