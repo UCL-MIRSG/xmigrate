@@ -366,7 +366,8 @@ class Migration:
                     path_segment_list[idx] = all_resources_ids[counter]
                     counter = counter + 1
 
-            full_api_str = "/" + "/".join(path_segment_list)
+            new_path_segment = "/".join(path_segment_list)
+            full_api_str = f"/xapi/custom-fields/{new_path_segment}/fields"
 
         return full_api_str
 
@@ -410,13 +411,13 @@ class Migration:
 
         # Create mapping from source form titles to destination formUUIDs
         destination_title_to_uuid = {
-            dest_form.get("title"): dest_form.get("formUUID") for dest_form in destination_custom_forms
+            json.loads(dest_form["contents"])["title"]: dest_form["formUUID"] for dest_form in destination_custom_forms
         }
 
         form_uuid_mapping = {
-            source_form["formUUID"]: destination_title_to_uuid[source_form.get("title")]
+            source_form["formUUID"]: destination_title_to_uuid[json.loads(source_form["contents"])["title"]]
             for source_form in source_custom_forms
-            if source_form.get("title") in destination_title_to_uuid
+            if json.loads(source_form["contents"])["title"] in destination_title_to_uuid
         }
 
         # Migrate data for each form
@@ -431,8 +432,11 @@ class Migration:
                 )
                 continue
 
+            dest_form_data = {}
+            dest_form_data[dest_form_uuid] = source_form_data
+
             try:
-                self.destination_conn.put(api_put_string, json=source_form_data)
+                self.destination_conn.put(api_put_string, json=dest_form_data)
                 self._logger.info(
                     "Migrated custom form data for %s %s",
                     resource_type_name,
