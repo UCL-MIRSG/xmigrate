@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
 
 import pandas as pd
-import requests  # type: ignore[import-untyped]
 import xnat
 from xnat.exceptions import XNATResponseError
 
@@ -963,71 +962,3 @@ class Migration:
         end = time.time()
 
         self._logger.info("Duration = %d", end - start)
-
-
-if __name__ == "__main__":
-    # Hardcoded values from xmigrate.toml
-    source = "https://xnat.example"
-    source_projects = ["proj1", "proj2"]
-    source_rsync = "/original/local/path/"
-    destination = "https://another-xnat.example"
-    destination_projects = ["proj1", "proj2"]
-    destination_user = "username"
-    destination_password = "password"  # noqa: S105
-    destination_rsync = "/new/local/path/"
-    rsync_only = False
-
-    source_conn = xnat.connect(source)
-    destination_conn = xnat.connect(destination, destination_user, destination_password)
-
-    # Get archive paths
-    try:
-        src_archive = source_conn.get("/xapi/siteConfig/archivePath").text
-    except (requests.exceptions.RequestException, OSError):
-        src_archive = None
-
-    try:
-        dst_archive = destination_conn.get("/xapi/siteConfig/archivePath").text
-    except (requests.exceptions.RequestException, OSError):
-        dst_archive = None
-
-    # Use destination_projects or fallback to source_projects
-    destination_secondary_ids = destination_projects
-    destination_project_names = destination_projects
-
-    # Create lists of ProjectInfo objects
-    all_source_info = [
-        ProjectInfo(
-            id=src_proj,
-            secondary_id=None,
-            project_name=None,
-            archive_path=src_archive,
-            rsync_path=source_rsync,
-        )
-        for src_proj in source_projects
-    ]
-
-    all_destination_info = [
-        ProjectInfo(
-            id=dst_proj,
-            secondary_id=dst_sec_id,
-            project_name=dst_proj_name,
-            archive_path=dst_archive,
-            rsync_path=destination_rsync,
-        )
-        for dst_proj, dst_sec_id, dst_proj_name in zip(
-            destination_projects,
-            destination_secondary_ids,
-            destination_project_names,
-            strict=True,
-        )
-    ]
-
-    migration = Migration(
-        source_conn=source_conn,
-        destination_conn=destination_conn,
-        all_source_info=all_source_info,
-        all_destination_info=all_destination_info,
-        rsync_only=rsync_only,
-    )
-    migration.run()
