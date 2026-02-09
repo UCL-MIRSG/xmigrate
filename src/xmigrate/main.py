@@ -1,5 +1,6 @@
 """Module to migrate XNAT projects between instances."""
 
+import json
 import logging
 import pathlib
 import subprocess
@@ -8,7 +9,6 @@ from dataclasses import dataclass, field
 from xml.etree import ElementTree as ET
 
 import pandas as pd
-import requests  # type: ignore[import-untyped]
 import xnat
 from xnat.exceptions import XNATResponseError
 
@@ -18,6 +18,105 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 # packages importing this module can configure logging more specifically.
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
+
+
+def create_custom_forms_json(
+    source_conn: xnat.BaseXNATSession,
+    destination_conn: xnat.BaseXNATSession,
+) -> None:
+    """
+    Extract custom forms from source and create on the destination.
+
+    Args:
+        source_conn: The source XNAT connection.
+        destination_conn: The destination XNAT connection.
+
+    Raises:
+        XNATResponseError: If failed to create custom forms on destination
+
+    """
+    # Get custom forms from source as json
+    source_custom_forms = source_conn.get_json("/xapi/customforms")
+
+    LOGGER.info("There are %d custom forms being created", len(source_custom_forms))
+
+    # Loop through custom forms
+    for _form_idx, source_custom_form in enumerate(source_custom_forms):
+        # Create empty submission object
+        current_submission = {
+            "submission": {
+                "data": {
+                    "zIndex": [],
+                    "xnatDatatype": {"label": [], "value": []},
+                    "isThisASiteWideConfiguration": [],
+                    "xnatProject": [{"label": [], "value": []}],
+                }
+            }
+        }
+
+        # Extract projects list, datatype, scope and formDisplayOrder
+        projects = source_custom_form["appliesToList"]
+        datatype = source_custom_form["path"]
+        datatype_value = datatype.replace("datatype/", "")
+        scope = source_custom_form["scope"]
+        zindex = source_custom_form["formDisplayOrder"]
+
+        # Populate zIndex and isThisASiteWideConfiguration
+        current_submission["submission"]["data"]["zIndex"] = zindex
+        if scope == "Site":
+            current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "yes"
+            projects = []
+            # fetch projects response and build list of IDs
+            dest_projects_resp = destination_conn.get("/data/projects").json()
+            projects = [project["ID"] for project in dest_projects_resp["ResultSet"]["Result"]]
+
+        else:
+            current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "no"
+
+        # Populate datatype section of submission object
+        xnat_datatype_dict: dict[str, str] = {"label": datatype, "value": datatype_value}
+
+        current_submission["submission"]["data"]["xnatDatatype"] = xnat_datatype_dict
+
+        # Loop through projects to populate project section of submission object
+        current_dict: dict[str, str] = {}
+        xnat_project_list: list[dict[str, str]] = [{"label": "", "value": ""}]
+        for proj_idx, project in enumerate(projects):
+            current_proj = project if scope == "Site" else project["entityId"]
+
+            # Initially populate empty project section and then append
+            if proj_idx == 0:
+                xnat_project_list[proj_idx]["label"] = current_proj
+                xnat_project_list[proj_idx]["value"] = current_proj
+
+            else:
+                current_dict = {"label": current_proj, "value": current_proj}
+                xnat_project_list.append(current_dict)
+
+        current_submission["submission"]["data"]["xnatProject"] = xnat_project_list
+
+        # Extract contents of form, convert to dict and create builder_dict
+        current_custom_form = source_custom_form["contents"]
+        current_custom_form_dict = json.loads(current_custom_form)
+        builder_dict = {"builder": current_custom_form_dict}
+
+        # Construct current custom forms dict with submission and builder components
+        current_submission.update(builder_dict)
+
+        # Convert to current custom forms to json formatted string
+        current_custom_form_json = json.dumps(current_submission)
+
+        # Try a PUT API call to save the current custom form on the destination
+        current_content_json = json.loads(current_custom_form)
+        title = current_content_json["title"]
+        try:
+            headers = {"Content-Type": "application/json;charset=UTF-8"}
+            destination_conn.put("/xapi/customforms/save", data=current_custom_form_json, headers=headers)
+        except XNATResponseError as e:
+            msg = f"Failed to create the {title} custom form on destination XNAT\n: {e.text}"
+            raise RuntimeError(msg) from e
+
+        LOGGER.info("The %s custom form has been successfully created", title)
 
 
 def check_datatypes_matching(
@@ -230,6 +329,137 @@ class Migration:
         output_dir.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
         df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
+
+    def _extract_resource_type_name(self, resource_type: xnat.core.XNATListing) -> str:
+        fulluri_str = resource_type.fulluri
+        fulluri_list = fulluri_str.split("/")  # e.g. /data/archive/projects/<project_name>
+        idx = len(fulluri_list) - 2  # Index for the 2nd to last element of the fulluri
+        resources_type_name = fulluri_list[idx]  # e.g. extracts "projects" as a string from fulluri
+        len_resources_type_name = len(resources_type_name)
+        return resources_type_name[0 : len_resources_type_name - 1]  # e.g. "project" as string
+
+    def _construct_api(self, path_segment: str, api_call_str: str, resource_type: xnat.core.XNATListing) -> str:
+        if api_call_str == "GET":
+            full_api_str = f"/xapi/custom-fields/{path_segment}/fields"
+        if api_call_str == "PUT":
+            path_segment_list = path_segment.split("/")
+
+            resource_type_name = self._extract_resource_type_name(resource_type)
+            xnat_type = getattr(XnatType, resource_type_name)
+
+            all_resources_ids = [self.mapper.get_destination_id(resource_type.id, xnat_type)]
+            current_resource = resource_type
+            for _idx in range(1, 5):
+                current_resource = current_resource.parent
+                if type(current_resource) is xnat.session.XNATSession:
+                    break
+
+                resource_type_name = self._extract_resource_type_name(current_resource)
+
+                xnat_type = getattr(XnatType, resource_type_name)
+                all_resources_ids.append(self.mapper.get_destination_id(current_resource.id, xnat_type))
+
+            if isinstance(all_resources_ids, str):
+                all_resources_ids = [all_resources_ids]
+
+            all_resources_ids.reverse()
+
+            counter = 0
+            for idx, _str in enumerate(path_segment_list):
+                if idx % 2 != 0:
+                    path_segment_list[idx] = all_resources_ids[counter]
+                    counter = counter + 1
+
+            new_path_segment = "/".join(path_segment_list)
+            full_api_str = f"/xapi/custom-fields/{new_path_segment}/fields"
+
+        return full_api_str
+
+    def _create_custom_forms_data(
+        self,
+        resource_type: xnat.core.XNATListing,
+    ) -> None:
+        """
+        Migrate custom form data from source resource_type to destination resource_type.
+
+        Args:
+            resource_type: The source resource_type object.
+
+        """
+        # Get source custom forms
+        source_custom_forms = self.source_conn.get_json("/xapi/customforms")
+
+        resource_type_name = self._extract_resource_type_name(resource_type)
+        fulluri_str = resource_type.fulluri
+        if resource_type_name in {"scan", "assessor"}:
+            path_segment = fulluri_str.removeprefix("/data/")
+        else:
+            path_segment = fulluri_str.removeprefix("/data/archive/")
+
+        api_get_string = self._construct_api(path_segment, "GET", resource_type)
+        api_put_string = self._construct_api(path_segment, "PUT", resource_type)
+
+        try:
+            source_custom_forms_data = self.source_conn.get_json(api_get_string)
+        except ValueError:
+            self._logger.exception(
+                "Resource %s doesn't match suggested resource types",
+                resource_type_name,
+            )
+
+        if not source_custom_forms_data:
+            return
+
+        # Get destination custom forms to map UUIDs
+        destination_custom_forms = self.destination_conn.get_json("/xapi/customforms")
+
+        titles = []
+        titles = [json.loads(dest_form["contents"])["title"] for dest_form in destination_custom_forms]
+
+        if len(titles) != len(set(titles)):
+            msg = "Duplicate custom form title"
+            raise ValueError(msg)
+
+        # Create mapping from source form titles to destination formUUIDs
+        destination_title_to_uuid = {
+            json.loads(dest_form["contents"])["title"]: dest_form["formUUID"] for dest_form in destination_custom_forms
+        }
+
+        form_uuid_mapping = {
+            source_form["formUUID"]: destination_title_to_uuid[json.loads(source_form["contents"])["title"]]
+            for source_form in source_custom_forms
+            if json.loads(source_form["contents"])["title"] in destination_title_to_uuid
+        }
+
+        # Migrate data for each form
+        for source_form_uuid, source_form_data in source_custom_forms_data.items():
+            dest_form_uuid = form_uuid_mapping.get(source_form_uuid)
+
+            if not dest_form_uuid:
+                self._logger.warning(
+                    "Could not find matching destination form for source formUUID %s in resource %s",
+                    source_form_uuid,
+                    resource_type_name,
+                )
+                continue
+
+            dest_form_data = {}
+            dest_form_data[dest_form_uuid] = source_form_data
+
+            try:
+                self.destination_conn.put(api_put_string, json=dest_form_data)
+                self._logger.info(
+                    "Migrated custom form data for %s %s",
+                    resource_type_name,
+                    resource_type.id,
+                )
+            except XNATResponseError as e:
+                self._logger.warning(
+                    "Failed to migrate custom form data for %s %s: %s",
+                    resource_type_name,
+                    resource_type.id,
+                    str(e),
+                )
 
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
@@ -526,21 +756,27 @@ class Migration:
         if self.rsync_only:
             return
 
+        self._create_custom_forms_data(source_project)
+
         destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
         for subject in source_project.subjects:
             self._create_subject(subject)
+            self._create_custom_forms_data(subject)
             for experiment in subject.experiments:
                 if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
                     datatype = experiment.fulldata["meta"]["xsi:type"]
                     msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
                     raise RuntimeError(msg)
                 self._create_experiment(experiment)
+                self._create_custom_forms_data(experiment)
 
                 for scan in experiment.scans:
                     self._create_scan(scan)
+                    self._create_custom_forms_data(scan)
 
                 for assessor in experiment.assessors:
                     self._create_assessor(assessor)
+                    self._create_custom_forms_data(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
@@ -733,71 +969,3 @@ class Migration:
         end = time.time()
 
         self._logger.info("Duration = %d", end - start)
-
-
-if __name__ == "__main__":
-    # Hardcoded values from xmigrate.toml
-    source = "https://ucl-test-xnat.cs.ucl.ac.uk/"
-    source_projects = ["test_rsync", "project1"]
-    source_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/xmigrate/archive"
-    destination = "http://localhost"
-    destination_projects = ["test_rsync42", "project42"]
-    destination_user = "admin"
-    destination_password = "admin"  # noqa: S105
-    destination_rsync = "/Users/ruaridhgollifer/repos/github.com/UCL-MIRSG/MRI-PET-Raw-Data-Plugins-XNAT/xnat-docker-compose/xnat-data/archive"  # noqa: E501
-    rsync_only = False
-
-    source_conn = xnat.connect(source)
-    destination_conn = xnat.connect(destination, destination_user, destination_password)
-
-    # Get archive paths
-    try:
-        src_archive = source_conn.get("/xapi/siteConfig/archivePath").text
-    except (requests.exceptions.RequestException, OSError):
-        src_archive = None
-
-    try:
-        dst_archive = destination_conn.get("/xapi/siteConfig/archivePath").text
-    except (requests.exceptions.RequestException, OSError):
-        dst_archive = None
-
-    # Use destination_projects or fallback to source_projects
-    destination_secondary_ids = destination_projects
-    destination_project_names = destination_projects
-
-    # Create lists of ProjectInfo objects
-    all_source_info = [
-        ProjectInfo(
-            id=src_proj,
-            secondary_id=None,
-            project_name=None,
-            archive_path=src_archive,
-            rsync_path=source_rsync,
-        )
-        for src_proj in source_projects
-    ]
-
-    all_destination_info = [
-        ProjectInfo(
-            id=dst_proj,
-            secondary_id=dst_sec_id,
-            project_name=dst_proj_name,
-            archive_path=dst_archive,
-            rsync_path=destination_rsync,
-        )
-        for dst_proj, dst_sec_id, dst_proj_name in zip(
-            destination_projects,
-            destination_secondary_ids,
-            destination_project_names,
-            strict=True,
-        )
-    ]
-
-    migration = Migration(
-        source_conn=source_conn,
-        destination_conn=destination_conn,
-        all_source_info=all_source_info,
-        all_destination_info=all_destination_info,
-        rsync_only=rsync_only,
-    )
-    migration.run()

@@ -59,3 +59,36 @@ before running the migration with a separate command:
 ```sh
 xmigrate check_datatypes
 ```
+
+Since the custom forms only need to be created once rather than per project then
+you can run a separate command to create the custom forms:
+
+```sh
+xmigrate migrate_custom_forms
+```
+
+N.B.
+Currently, the submission object of the custom forms PUT API call is hardcoded:
+
+```python
+current_submission =  {
+            "submission": {
+                "data": {
+                    "zIndex": [],
+                    "xnatDatatype": {
+                        "label": [],
+                        "value": []
+                    },
+                    "isThisASiteWideConfiguration": [],
+                    "xnatProject": [
+                        {
+                            "label": [],
+                            "value": []
+                        }
+                    ]
+                }
+            }
+        }
+```
+
+If the custom forms API changes then this will also need to be changed.

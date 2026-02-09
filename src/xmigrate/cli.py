@@ -7,7 +7,7 @@ import xnat
 from cyclopts import App, config
 
 # Adjust imports to where Migration and ProjectInfo live in this repo
-from xmigrate.main import Migration, ProjectInfo, check_datatypes_matching
+from xmigrate.main import Migration, ProjectInfo, check_datatypes_matching, create_custom_forms_json
 
 app = App(
     name="xmigrate",
@@ -56,59 +56,60 @@ def migrate(  # noqa: PLR0913
     destination_secondary_ids = destination_secondary_ids if destination_secondary_ids is not None else source_projects
     destination_project_names = destination_project_names if destination_project_names is not None else source_projects
 
-    src_conn = xnat.connect(source)
-    dst_conn = xnat.connect(destination, destination_user, destination_password)
+    with (
+        xnat.connect(source) as src_conn,
+        xnat.connect(destination, destination_user, destination_password) as dst_conn,
+    ):
+        try:
+            src_archive = src_conn.get("/xapi/siteConfig/archivePath").text
+        except (requests.exceptions.RequestException, OSError) as e:
+            logger.warning("Failed to fetch source archive path: %s", e)
+            src_archive = None
 
-    try:
-        src_archive = src_conn.get("/xapi/siteConfig/archivePath").text
-    except (requests.exceptions.RequestException, OSError) as e:
-        logger.warning("Failed to fetch source archive path: %s", e)
-        src_archive = None
+        try:
+            dst_archive = dst_conn.get("/xapi/siteConfig/archivePath").text
+        except (requests.exceptions.RequestException, OSError) as e:
+            logger.warning("Failed to fetch destination archive path: %s", e)
+            dst_archive = None
 
-    try:
-        dst_archive = dst_conn.get("/xapi/siteConfig/archivePath").text
-    except (requests.exceptions.RequestException, OSError) as e:
-        logger.warning("Failed to fetch destination archive path: %s", e)
-        dst_archive = None
+        # Create a list of ProjectInfo objects, one for each project
+        all_source_info = [
+            ProjectInfo(
+                id=src_proj,
+                secondary_id=None,
+                project_name=None,
+                archive_path=src_archive,
+                rsync_path=source_rsync,
+            )
+            for src_proj in source_projects
+        ]
 
-    # Create a list of ProjectInfo objects, one for each project
-    all_source_info = [
-        ProjectInfo(
-            id=src_proj,
-            secondary_id=None,
-            project_name=None,
-            archive_path=src_archive,
-            rsync_path=source_rsync,
+        all_destination_info = [
+            ProjectInfo(
+                id=dst_proj,
+                secondary_id=dst_sec_id,
+                project_name=dst_proj_name,
+                archive_path=dst_archive,
+                rsync_path=destination_rsync,
+            )
+            for dst_proj, dst_sec_id, dst_proj_name in zip(
+                destination_projects,
+                destination_secondary_ids,
+                destination_project_names,
+                strict=True,
+            )
+        ]
+
+        migration = Migration(
+            source_conn=src_conn,
+            destination_conn=dst_conn,
+            all_source_info=all_source_info,
+            all_destination_info=all_destination_info,
+            rsync_only=rsync_only,
         )
-        for src_proj in source_projects
-    ]
 
-    all_destination_info = [
-        ProjectInfo(
-            id=dst_proj,
-            secondary_id=dst_sec_id,
-            project_name=dst_proj_name,
-            archive_path=dst_archive,
-            rsync_path=destination_rsync,
-        )
-        for dst_proj, dst_sec_id, dst_proj_name in zip(
-            destination_projects,
-            destination_secondary_ids,
-            destination_project_names,
-            strict=True,
-        )
-    ]
-
-    migration = Migration(
-        source_conn=src_conn,
-        destination_conn=dst_conn,
-        all_source_info=all_source_info,
-        all_destination_info=all_destination_info,
-        rsync_only=rsync_only,
-    )
-
-    migration.run()
-    logger.info("Migration run finished.")
+        migration.run()
+        logger.info("Migration run finished.")
 
 
 @app.command
@@ -119,11 +120,28 @@ def check_datatypes(
     destination_password: str,
 ) -> None:
     """Check datatypes are enabled on the destination."""
-    src_conn = xnat.connect(source)
-    dst_conn = xnat.connect(destination, destination_user, destination_password)
+    with (
+        xnat.connect(source) as src_conn,
+        xnat.connect(destination, destination_user, destination_password) as dst_conn,
+    ):
+        check_datatypes_matching(src_conn, dst_conn)
+        logger.info("All source datatypes are enabled on destination")
 
-    check_datatypes_matching(src_conn, dst_conn)
-    logger.info("All source datatypes are enabled on destination")
+
+@app.command
+def migrate_custom_forms(
+    source: str,
+    destination: str,
+    destination_user: str,
+    destination_password: str,
+) -> None:
+    """Check datatypes are enabled on the destination."""
+    with (
+        xnat.connect(source) as src_conn,
+        xnat.connect(destination, destination_user, destination_password) as dst_conn,
+    ):
+        create_custom_forms_json(src_conn, dst_conn)
+        logger.info("Created custom forms on destination")
 
 
 @app.default
