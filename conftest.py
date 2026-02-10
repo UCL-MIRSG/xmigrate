@@ -1,6 +1,7 @@
 """Conftest for tests."""
 
 import logging
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -13,24 +14,26 @@ from test_dummy import XnatpyRequestsMocker
 TEST_SERVER = "http://localhost"
 TESTS_DIR = Path(__file__).parent / "tests"
 
-def create_mock_post(original_put, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN201
+
+def create_mock_post(original_post: xnat.session.XNATSession.post, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN201
     """Create a mock put function that returns different datatypes on successive calls."""
     call_count = [0]
 
     def mock_put(session_self, path: str, **kwargs):  # noqa: ANN001, ANN003, ANN202
         if "/xapi" in path:
             call_count[0] += 1
-            response = original_put(session_self, path, **kwargs)
+            response = original_post(session_self, path, **kwargs)
             if call_count[0] == 1:
                 response.json = lambda: source_datatypes
             else:
                 response.json = lambda: dest_datatypes
             return response
-        return original_put(session_self, path, **kwargs)
+        return original_post(session_self, path, **kwargs)
 
     return mock_put
 
-def create_mock_get(original_get, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN201
+
+def create_mock_get(original_get: xnat.session.XNATSession.get, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN201
     """Create a mock get function that returns different datatypes on successive calls."""
     call_count = [0]
 
@@ -49,7 +52,7 @@ def create_mock_get(original_get, source_datatypes: dict, dest_datatypes: dict):
 
 
 @pytest.fixture
-def xnatpy_mock() -> XnatpyRequestsMocker:  # pyright: ignore[reportInvalidTypeForm]
+def xnatpy_mock() -> Generator:  # pyright: ignore[reportInvalidTypeForm]
     """xnatpy_mock."""
     with XnatpyRequestsMocker() as mocker:
         yield mocker
@@ -71,7 +74,7 @@ def test_server_connection(test_server_url: str) -> XNATSession:  # pyright: ign
 @pytest.fixture
 def xnatpy_connections(
     mocker: MockerFixture, xnatpy_mock: XnatpyRequestsMocker, request: pytest.FixtureRequest
-) -> tuple[XNATSession, XNATSession]:  # pyright: ignore[reportInvalidTypeForm]  # noqa: E501
+) -> Generator:  # pyright: ignore[reportInvalidTypeForm]
     """Create both source and destination connections with different datatypes."""
     threading_patch = mocker.patch("xnat.session.threading")
     # Patch build_model to skip schema parsing
@@ -128,9 +131,9 @@ def xnatpy_connections(
 
     # Now create both connections
     with (
-        xnat.connect(server=xnatpy_mock.base_uri, user="test", password="secret") as source_conn,
-        xnat.connect(server=xnatpy_mock.base_uri, user="test", password="secret") as dest_conn,
-    ):  # noqa: S106
+        xnat.connect(server=xnatpy_mock.base_uri, user="test", password="secret") as source_conn,  # noqa: S106
+        xnat.connect(server=xnatpy_mock.base_uri, user="test", password="secret") as dest_conn,  # noqa: S106
+    ):
         yield source_conn, dest_conn
 
     mocker.stop(threading_patch)

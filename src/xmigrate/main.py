@@ -123,6 +123,14 @@ def create_users(
     source_conn: xnat.BaseXNATSession,
     destination_conn: xnat.BaseXNATSession,
 ) -> None:
+    """
+    Create users on destination.
+
+    Args:
+        source_conn (xnat.BaseXNATSession): _description_
+        destination_conn (xnat.BaseXNATSession): _description_
+
+    """
     source_profiles = source_conn.get("/xapi/users/profiles", format="json").json()
     destination_profiles = destination_conn.get("/xapi/users/profiles", format="json").json()
 
