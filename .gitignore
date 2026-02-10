@@ -169,4 +169,4 @@ xmigrate.toml
 archive
 ncita_locate
 
-**/test_dummy.py
+test_dummy.py
