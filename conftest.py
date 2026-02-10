@@ -1,4 +1,5 @@
 """Conftest for tests."""
+
 import logging
 from pathlib import Path
 
@@ -7,17 +8,18 @@ import xnat
 from pytest_mock import MockerFixture
 from xnat.session import XNATSession
 
-from tests.test_dummy import XnatpyRequestsMocker
+from test_dummy import XnatpyRequestsMocker
 
 TEST_SERVER = "http://localhost"
 TESTS_DIR = Path(__file__).parent / "tests"
+
 
 def create_mock_get(original_get, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN201
     """Create a mock get function that returns different datatypes on successive calls."""
     call_count = [0]
 
     def mock_get(session_self, path: str, **kwargs):  # noqa: ANN001, ANN003, ANN202
-        if "/xapi/access/displays/createable" in path:
+        if "/xapi" in path:
             call_count[0] += 1
             response = original_get(session_self, path, **kwargs)
             if call_count[0] == 1:
@@ -31,7 +33,7 @@ def create_mock_get(original_get, source_datatypes: dict, dest_datatypes: dict):
 
 
 @pytest.fixture
-def xnatpy_mock() -> XnatpyRequestsMocker: # pyright: ignore[reportInvalidTypeForm]
+def xnatpy_mock() -> XnatpyRequestsMocker:  # pyright: ignore[reportInvalidTypeForm]
     """xnatpy_mock."""
     with XnatpyRequestsMocker() as mocker:
         yield mocker
@@ -44,13 +46,16 @@ def test_server_url() -> str:
 
 
 @pytest.fixture(scope="session")
-def test_server_connection(test_server_url: str) -> XNATSession: # pyright: ignore[reportInvalidTypeForm]
+def test_server_connection(test_server_url: str) -> XNATSession:  # pyright: ignore[reportInvalidTypeForm]
     """Test server connection."""
     with xnat.connect(test_server_url) as connection:
         yield connection
 
+
 @pytest.fixture
-def xnatpy_connections(mocker: MockerFixture, xnatpy_mock: XnatpyRequestsMocker, request: pytest.FixtureRequest) -> tuple[XNATSession, XNATSession]: # pyright: ignore[reportInvalidTypeForm]  # noqa: E501
+def xnatpy_connections(
+    mocker: MockerFixture, xnatpy_mock: XnatpyRequestsMocker, request: pytest.FixtureRequest
+) -> tuple[XNATSession, XNATSession]:  # pyright: ignore[reportInvalidTypeForm]  # noqa: E501
     """Create both source and destination connections with different datatypes."""
     threading_patch = mocker.patch("xnat.session.threading")
     # Patch build_model to skip schema parsing
@@ -75,31 +80,37 @@ def xnatpy_connections(mocker: MockerFixture, xnatpy_mock: XnatpyRequestsMocker,
         },
     )
 
-    # Use fixture parameter if provided, otherwise use defaults
+    # Extract parameters
     if hasattr(request, "param"):
-        source_datatypes, dest_datatypes = request.param
+        source_data, dest_data = request.param
+        data_type = "users" if "username" in source_data[0] else "datatypes"
     else:
-        source_datatypes = [
+        source_data = [
             {"elementName": "xnat:mrSessionData"},
             {"elementName": "xnat:petmrSessionData"},
         ]
-
-        dest_datatypes = [
+        dest_data = [
             {"elementName": "xnat:mrSessionData"},
             {"elementName": "xnat:petmrSessionData"},
         ]
+        data_type = "datatypes"
 
-    # Patch get to return different data based on which connection calls it
-    original_get = xnat.session.XNATSession.get
-    mock_get = create_mock_get(original_get, source_datatypes, dest_datatypes)
-    mocker.patch.object(xnat.session.XNATSession, "get", new=mock_get)
-
-    # Register endpoint once for the mock to handle
-    xnatpy_mock.get("/xapi/access/displays/createable", json=source_datatypes)
+    if data_type == "datatypes":
+        original_get = xnat.session.XNATSession.get
+        mock_get = create_mock_get(original_get, source_data, dest_data)
+        mocker.patch.object(xnat.session.XNATSession, "get", mock_get)
+        xnatpy_mock.get("/xapi/access/displays/createable", json=source_data)
+    else:  # users
+        original_get = xnat.session.XNATSession.get
+        mock_get = create_mock_get(original_get, source_data, dest_data)
+        mocker.patch.object(xnat.session.XNATSession, "get", mock_get)
+        xnatpy_mock.get("/xapi/users/profiles", json=source_data)
 
     # Now create both connections
-    with xnat.connect(server=xnatpy_mock.base_uri, user="test", password="secret") as source_conn,\
-        xnat.connect(server=xnatpy_mock.base_uri, user="test", password="secret") as dest_conn:  # noqa: S106
-            yield source_conn, dest_conn
+    with (
+        xnat.connect(server=xnatpy_mock.base_uri, user="test", password="secret") as source_conn,
+        xnat.connect(server=xnatpy_mock.base_uri, user="test", password="secret") as dest_conn,
+    ):  # noqa: S106
+        yield source_conn, dest_conn
 
     mocker.stop(threading_patch)
