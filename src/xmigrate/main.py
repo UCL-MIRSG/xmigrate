@@ -149,7 +149,7 @@ def create_users(
     for source_profile in source_profiles[len(destination_profiles) :]:
         LOGGER.info("Creating user: %s", source_profile["username"])
         destination_profile = {
-            "username": source_profile["username"].remove_suffix("#EXT#"),
+            "username": source_profile["username"].removesuffix("#EXT#"),
             "enabled": source_profile["enabled"],
             "email": source_profile["email"],
             "verified": source_profile["verified"],

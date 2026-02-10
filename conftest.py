@@ -13,6 +13,22 @@ from test_dummy import XnatpyRequestsMocker
 TEST_SERVER = "http://localhost"
 TESTS_DIR = Path(__file__).parent / "tests"
 
+def create_mock_post(original_put, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN201
+    """Create a mock put function that returns different datatypes on successive calls."""
+    call_count = [0]
+
+    def mock_put(session_self, path: str, **kwargs):  # noqa: ANN001, ANN003, ANN202
+        if "/xapi" in path:
+            call_count[0] += 1
+            response = original_put(session_self, path, **kwargs)
+            if call_count[0] == 1:
+                response.json = lambda: source_datatypes
+            else:
+                response.json = lambda: dest_datatypes
+            return response
+        return original_put(session_self, path, **kwargs)
+
+    return mock_put
 
 def create_mock_get(original_get, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN201
     """Create a mock get function that returns different datatypes on successive calls."""
@@ -105,6 +121,10 @@ def xnatpy_connections(
         mock_get = create_mock_get(original_get, source_data, dest_data)
         mocker.patch.object(xnat.session.XNATSession, "get", mock_get)
         xnatpy_mock.get("/xapi/users/profiles", json=source_data)
+        original_post = xnat.session.XNATSession.post
+        mock_post = create_mock_post(original_post, source_data, dest_data)
+        mocker.patch.object(xnat.session.XNATSession, "post", mock_post)
+        xnatpy_mock.post("/xapi/users", json=source_data)
 
     # Now create both connections
     with (
