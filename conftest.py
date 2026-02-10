@@ -12,26 +12,23 @@ from tests.test_dummy import XnatpyRequestsMocker
 TEST_SERVER = "http://localhost"
 TESTS_DIR = Path(__file__).parent / "tests"
 
-class MockGetDatatypes:
-    """Mock get method that returns different datatypes on successive calls."""
+def create_mock_get(original_get, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN201
+    """Create a mock get function that returns different datatypes on successive calls."""
+    call_count = [0]
 
-    def __init__(self, original_get, source_datatypes: dict, dest_datatypes: dict):  # noqa: ANN001, ANN204, D107
-        self.original_get = original_get
-        self.source_datatypes = source_datatypes
-        self.dest_datatypes = dest_datatypes
-        self.call_count = 0
-
-    def __call__(self, self_obj, path: str, **kwargs):  # noqa: ANN001, ANN003, ANN204
-        """Call function."""
+    def mock_get(session_self, path: str, **kwargs):  # noqa: ANN001, ANN003, ANN202
         if "/xapi/access/displays/createable" in path:
-            self.call_count += 1
-            response = self.original_get(self_obj, path, **kwargs)
-            if self.call_count == 1:
-                response.json = lambda: self.source_datatypes
+            call_count[0] += 1
+            response = original_get(session_self, path, **kwargs)
+            if call_count[0] == 1:
+                response.json = lambda: source_datatypes
             else:
-                response.json = lambda: self.dest_datatypes
+                response.json = lambda: dest_datatypes
             return response
-        return self.original_get(self_obj, path, **kwargs)
+        return original_get(session_self, path, **kwargs)
+
+    return mock_get
+
 
 @pytest.fixture
 def xnatpy_mock() -> XnatpyRequestsMocker: # pyright: ignore[reportInvalidTypeForm]
@@ -94,9 +91,8 @@ def xnatpy_connections(mocker: MockerFixture, xnatpy_mock: XnatpyRequestsMocker,
 
     # Patch get to return different data based on which connection calls it
     original_get = xnat.session.XNATSession.get
-    mock_get = MockGetDatatypes(original_get, source_datatypes, dest_datatypes)
-
-    mocker.patch.object(xnat.session.XNATSession, "get", mock_get)
+    mock_get = create_mock_get(original_get, source_datatypes, dest_datatypes)
+    mocker.patch.object(xnat.session.XNATSession, "get", new=mock_get)
 
     # Register endpoint once for the mock to handle
     xnatpy_mock.get("/xapi/access/displays/createable", json=source_datatypes)
