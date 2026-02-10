@@ -168,3 +168,5 @@ _version.py
 xmigrate.toml
 archive
 ncita_locate
+
+tests/test_dummy.py
