@@ -119,6 +119,30 @@ def create_custom_forms_json(
         LOGGER.info("The %s custom form has been successfully created", title)
 
 
+def get_resource_metadata(
+    source_conn: xnat.BaseXNATSession,
+    project_id: str,
+    resource: str,
+    output_dir: pathlib.Path = pathlib.Path("./output"),
+) -> None:
+    """
+    Retrieve resource metadata and write to CSV.
+
+    This can be used to set the correct insert_user, insert_date, and last_modified metadata
+    on the destination after migration.
+
+    Args:
+        resource (str): The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
+        output_dir (pathlib.Path): The directory to write the CSV file to.
+
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
+    response = source_conn.get(f"/data/projects/{project_id}/{resource}", query=params)
+    df = pd.DataFrame(response.json()["ResultSet"]["Result"])
+    df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
+
+
 def create_users(
     source_conn: xnat.BaseXNATSession,
     destination_conn: xnat.BaseXNATSession,
@@ -313,16 +337,8 @@ class Migration:
         This can be used to set the correct insert_user, insert_date, and last_modified metadata
         on the destination after migration.
 
-        Args:
-            resource (str): The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
-            output_dir (pathlib.Path): The directory to write the CSV file to.
-
         """
-        output_dir.mkdir(parents=True, exist_ok=True)
-        params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
-        response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
-        df = pd.DataFrame(response.json()["ResultSet"]["Result"])
-        df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
+        get_resource_metadata(self.source_conn, self.source_info.id, resource, output_dir)
 
     def _export_id_map(
         self,

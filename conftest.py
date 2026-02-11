@@ -103,6 +103,7 @@ def xnatpy_connections(
     if hasattr(request, "param"):
         source_data, dest_data = request.param
         data_type = "users" if "username" in source_data[0] else "datatypes"
+        data_type = "resource_metadata" if "insert_date" in source_data[0] else "datatypes"
     else:
         source_data = [
             {"elementName": "xnat:mrSessionData"},
@@ -119,7 +120,7 @@ def xnatpy_connections(
         mock_get = create_mock_get(original_get, source_data, dest_data)
         mocker.patch.object(xnat.session.XNATSession, "get", mock_get)
         xnatpy_mock.get("/xapi/access/displays/createable", json=source_data)
-    else:  # users
+    elif data_type == "users":  # users
         original_get = xnat.session.XNATSession.get
         mock_get = create_mock_get(original_get, source_data, dest_data)
         mocker.patch.object(xnat.session.XNATSession, "get", mock_get)
@@ -128,6 +129,8 @@ def xnatpy_connections(
         mock_post = create_mock_post(original_post, source_data, dest_data)
         mocker.patch.object(xnat.session.XNATSession, "post", mock_post)
         xnatpy_mock.post("/xapi/users", json=source_data)
+    elif data_type == "resource_metadata":
+        xnatpy_mock.get("/data/projects/", query=source_data)  # {project_id}/{resource}
 
     # Now create both connections
     with (

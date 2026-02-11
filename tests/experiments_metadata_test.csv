@@ -1,0 +1,3 @@
+xsiType,xnat:subjectassessordata/id,insert_date,project,ID,label,insert_user,last_modified,URI
+xnat:ctSessionData,UCL_TEST_XNAT_E00240,2026-02-02 14:54:42.62,HitMesoUploadSite_01,UCL_TEST_XNAT_E00240,0522c0072,mirsg_service,2026-02-02 14:54:42.62,/data/experiments/UCL_TEST_XNAT_E00240
+xnat:petSessionData,UCL_TEST_XNAT_E00238,2026-02-02 14:54:25.02,HitMesoUploadSite_01,UCL_TEST_XNAT_E00238,0522c0013,mirsg_service,2026-02-02 14:54:25.02,/data/experiments/UCL_TEST_XNAT_E00238
