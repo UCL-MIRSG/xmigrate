@@ -289,6 +289,18 @@ class Migration:
             }
             self.destination_conn.post("/xapi/users", json=destination_profile)
 
+        # Set site-wide permission roles for users
+        for source_profile in source_profiles:
+            username = source_profile["username"].remove_suffix("#EXT#")
+            if username not in destination_profiles:
+                msg = f"Username {username} not in destination."
+                raise ValueError(msg)
+            api_get_string = f"/xapi/users/{username}/roles"
+            roles = self.source_conn.get(api_get_string).json()
+
+            for role in roles:
+                self.destination_conn.put(f"/xapi/users/rmapajw/roles/{role}")
+
     def _check_datatypes(self) -> None:
         """Check that all source datatypes are enabled on the destination."""
         check_datatypes_matching(self.source_conn, self.destination_conn)
