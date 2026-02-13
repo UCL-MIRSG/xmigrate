@@ -725,6 +725,21 @@ class Migration:
                 map_type=XnatType.assessor,
             )
 
+    def _assign_user_permissions_per_project(self, source_project: str) -> None:
+        api_get_string = f"/data/projects/{source_project}/users"
+        source_project_ownership = self.source_conn.get(api_get_string).json()["ResultSet"]["Result"]
+        dest_project = self.mapper.get_destination_id(source_project, XnatType.project)
+        destination_profiles = self.destination_conn.get("/xapi/users/profiles", format="json").json()
+
+        for user in source_project_ownership:
+            username = user["login"]
+            ownership_type = user["displayname"]
+            if username not in destination_profiles:
+                msg = f"Username {username} not in destination."
+                raise ValueError(msg)
+            api_put_string = f"/data/projects/{dest_project}/users/{ownership_type}/{username}"
+            self.destination_conn.put(api_put_string)
+
     def _create_resources(self) -> None:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
@@ -757,6 +772,7 @@ class Migration:
             return
 
         self._create_custom_forms_data(source_project)
+        self._assign_user_permissions_per_project(source_project)
 
         destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
         for subject in source_project.subjects:
