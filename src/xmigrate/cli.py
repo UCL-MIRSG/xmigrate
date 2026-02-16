@@ -1,7 +1,7 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
-import logging
 import json
+import logging
 import os
 import pathlib
 
@@ -139,7 +139,7 @@ def instance_level(
         dst_uri = dst_conn._original_uri  # noqa: SLF001
         combo_key = src_uri + "_" + dst_uri
         instance_level_funcs = ["check_datatypes_matching", "create_users", "create_custom_forms_json"]
-        path=pathlib.Path() / "output" / "function_calls.json"
+        path = pathlib.Path() / "output" / "function_calls.json"
 
         if os.path.isfile(path):  # noqa: PTH113
             logger.info("function_calls.json file exists")
@@ -157,13 +157,13 @@ def instance_level(
 
             else:
                 all_func_calls[combo_key] = []
-                remaining_funcs = instance_level_funcs
+                remaining_funcs = set(instance_level_funcs)
                 logger.info("New src and dst combo to be added to existing data")
 
         else:
             all_func_calls = {}
             all_func_calls[combo_key] = []
-            remaining_funcs = instance_level_funcs
+            remaining_funcs = set(instance_level_funcs)
             logger.info("New src and dst combo to be added to new file")
 
         func_str = check_datatypes_matching.__name__
