@@ -1,6 +1,9 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
+import json
+import os
+import pathlib
 
 import requests  # type: ignore[import-untyped]
 import xnat
@@ -132,12 +135,60 @@ def instance_level(
         xnat.connect(source) as src_conn,
         xnat.connect(destination, destination_user, destination_password) as dst_conn,
     ):
-        check_datatypes_matching(src_conn, dst_conn)
-        logger.info("All source datatypes are enabled on destination")
-        create_users(src_conn, dst_conn)
-        logger.info("Created users and set site-wide user roles on destination")
-        create_custom_forms_json(src_conn, dst_conn)
-        logger.info("Created custom forms on destination")
+        src_uri = src_conn._original_uri  # noqa: SLF001
+        dst_uri = dst_conn._original_uri  # noqa: SLF001
+        combo_key = src_uri + "_" + dst_uri
+        instance_level_funcs = ["check_datatypes_matching", "create_users", "create_custom_forms_json"]
+        path=pathlib.Path() / "output" / "function_calls.json"
+
+        if os.path.isfile(path):  # noqa: PTH113
+            logger.info("function_calls.json file exists")
+            with open(path) as file:  # noqa: PTH123
+                all_func_calls = json.load(file)
+
+            if combo_key in all_func_calls:
+                if set(all_func_calls[combo_key]) == set(instance_level_funcs):
+                    logger.info("Returning as all instance_level functions have been executed for this src and dst")
+                    return
+
+                remaining_funcs = set(instance_level_funcs) - set(all_func_calls[combo_key])
+                msg = f"Functions still needing to be run: {remaining_funcs}"
+                logger.info(msg)
+
+            else:
+                all_func_calls[combo_key] = []
+                remaining_funcs = instance_level_funcs
+                logger.info("New src and dst combo to be added to existing data")
+
+        else:
+            all_func_calls = {}
+            all_func_calls[combo_key] = []
+            remaining_funcs = instance_level_funcs
+            logger.info("New src and dst combo to be added to new file")
+
+        func_str = check_datatypes_matching.__name__
+        if func_str in remaining_funcs:
+            check_datatypes_matching(src_conn, dst_conn)
+            all_func_calls["combo_key"].append(func_str)
+            with open(path, "w") as file:  # noqa: PTH123
+                json.dump(all_func_calls, file, indent=4)
+            logger.info("All source datatypes are enabled on destination")
+
+        func_str = create_users.__name__
+        if func_str in remaining_funcs:
+            create_users(src_conn, dst_conn)
+            all_func_calls[combo_key].append(func_str)
+            with open(path, "w") as file:  # noqa: PTH123
+                json.dump(all_func_calls, file, indent=4)
+            logger.info("Created users and set site-wide user roles on destination")
+
+        func_str = create_custom_forms_json.__name__
+        if func_str in remaining_funcs:
+            create_custom_forms_json(src_conn, dst_conn)
+            all_func_calls[combo_key].append(func_str)
+            with open(path, "w") as file:  # noqa: PTH123
+                json.dump(all_func_calls, file, indent=4)
+            logger.info("Created custom forms on destination")
 
 
 @app.default
