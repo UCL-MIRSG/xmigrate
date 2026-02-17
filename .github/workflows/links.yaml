@@ -1,5 +1,5 @@
 ---
-name: Links
+name: links
 
 on:
   push:
@@ -10,13 +10,11 @@ on:
 
 jobs:
   links:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
-      - name: Checkout source
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - uses: ./actions/links
+      - name: Check links
+        uses: UCL-MIRSG/.github/actions/links@85567ca1b931922d97eeaead990f5422693147d5 # v0
         with:
           app-id: ${{ vars.LINKS_APP_ID }}
           app-pem: ${{ secrets.LINKS_PRIVATE_KEY }}
