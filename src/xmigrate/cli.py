@@ -1,9 +1,6 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
-import json
 import logging
-import os
-import pathlib
 
 import requests  # type: ignore[import-untyped]
 import xnat
