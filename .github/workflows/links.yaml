@@ -10,12 +10,16 @@ on:
 
 jobs:
   links:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
+    timeout-minutes: 2
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Link Checker
-        id: lychee
-        uses: lycheeverse/lychee-action@v2
+      - uses: ./actions/links
         with:
-          fail: false
+          app-id: ${{ vars.LINKS_APP_ID }}
+          app-pem: ${{ secrets.LINKS_PRIVATE_KEY }}
+          lychee-args:
+            --no-progress --verbose . --exclude
+            https://github.com/orgs/UCL-MIRSG/projects/3
