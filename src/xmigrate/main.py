@@ -21,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def check_users(source_profiles: list, destination_profiles: list) -> tuple[list, list]:
-    """Create users on the destination XNAT instance."""
+    """Check users on the destination XNAT instance."""
     idx_source_all = []
     idx_dest_all = []
 
