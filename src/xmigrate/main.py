@@ -309,7 +309,7 @@ class Migration:
             roles = self.source_conn.get(api_get_string).json()
 
             for role in roles:
-                self.destination_conn.put(f"/xapi/users/rmapajw/roles/{role}")
+                self.destination_conn.put(f"/xapi/users/{username}/roles/{role}")
 
     def _check_datatypes(self) -> None:
         """Check that all source datatypes are enabled on the destination."""
