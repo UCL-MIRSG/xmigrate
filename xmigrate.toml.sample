@@ -11,7 +11,7 @@ destination_project_names = '["Destination Project 11", "Destination Project 12"
 destination_rsync = "/new/local/path/"
 rsync_only = true # optional as default is false
 
-[tool.xmigrate.instance_level]
+[tool.xmigrate.migrate_site]
 source = "https://xnat.example"
 destination = "https://another-xnat.example"
 destination_user = "user"

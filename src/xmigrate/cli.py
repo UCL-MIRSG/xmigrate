@@ -116,7 +116,7 @@ def migrate(  # noqa: PLR0913
 
 
 @app.command
-def instance_level(
+def migrate_site(
     source: str,
     destination: str,
     destination_user: str,
