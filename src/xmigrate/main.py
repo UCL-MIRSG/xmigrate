@@ -306,56 +306,6 @@ class Migration:
                     msg = f"Failed to put config to destination XNAT\n: {e.text}"
                     raise RuntimeError(msg) from e
 
-    def _create_users(self) -> None:
-        """Create users on the destination XNAT instance."""
-        source_profiles = self.source_conn.get("/xapi/users/profiles", format="json").json()
-        destination_profiles = self.destination_conn.get("/xapi/users/profiles", format="json").json()
-
-        idx_source_all = []
-        idx_dest_all = []
-
-        # First check that existing users on the destination are identical to the source
-        for source_profile, destination_profile in zip(source_profiles, destination_profiles, strict=False):
-            if source_profile["username"] != destination_profile["username"]:
-                msg = (
-                    f"Skipping... Usernames not equal: {source_profile['username']=} {destination_profile['username']=}"
-                )
-                self._logger.info(msg)
-                idx_dest_all.append(destination_profiles.index(destination_profile))
-                idx_source_all.append(source_profiles.index(source_profile))
-
-            if source_profile["id"] != destination_profile["id"]:
-                msg = f"IDs not equal: {source_profile['id']=} {destination_profile['id']=}"
-                raise (ValueError(msg))
-
-        for idx_dest, idx_source in zip(idx_dest_all, idx_source_all, strict=False):
-            destination_profiles.pop(idx_dest)
-            source_profiles.pop(idx_source)
-
-        # Now create missing users from the source on the destination
-        for source_profile in source_profiles[len(destination_profiles) :]:
-            self._logger.info("Creating user: %s", source_profile["username"])
-            destination_profile = {
-                "username": source_profile["username"].removesuffix("#EXT#"),
-                "enabled": source_profile["enabled"],
-                "email": source_profile["email"],
-                "verified": source_profile["verified"],
-                "firstName": source_profile["firstName"],
-                "lastName": source_profile["lastName"],
-            }
-            self.destination_conn.post("/xapi/users", json=destination_profile)
-
-        # Set site-wide permission roles for users
-        for source_profile in source_profiles:
-            username = source_profile["username"].removesuffix("#EXT#")
-            if not any(profile["username"] == username for profile in destination_profiles):
-                msg = f"Username {username} not in destination."
-                raise ValueError(msg)
-            api_get_string = f"/xapi/users/{username}/roles"
-            roles = self.source_conn.get(api_get_string).json()
-
-            for role in roles:
-                self.destination_conn.put(f"/xapi/users/rmapajw/roles/{role}")
 
     def _check_datatypes(self) -> None:
         """Check that all source datatypes are enabled on the destination."""
@@ -845,32 +795,32 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
-        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
-        pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
+        # rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
+        # rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+        # pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
 
-        command_to_run = [
-            "rsync",
-            "-azP",
-            "--ignore-existing",
-            "--exclude=*.log",
-            "--exclude=.*",
-            "--exclude=*.json",
-            "--stats",
-            "--progress",
-            "--checksum",
-            rsync_source,
-            rsync_dest,
-        ]
+        # command_to_run = [
+        #     "rsync",
+        #     "-azP",
+        #     "--ignore-existing",
+        #     "--exclude=*.log",
+        #     "--exclude=.*",
+        #     "--exclude=*.json",
+        #     "--stats",
+        #     "--progress",
+        #     "--checksum",
+        #     rsync_source,
+        #     rsync_dest,
+        # ]
 
-        try:
-            subprocess.check_output(command_to_run)  # noqa: S603
-        except subprocess.CalledProcessError as exc:
-            msg = f"An error occurred running the rsync command; the error was: {exc}"
-            raise RuntimeError(msg) from exc
+        # try:
+        #     subprocess.check_output(command_to_run)  # noqa: S603
+        # except subprocess.CalledProcessError as exc:
+        #     msg = f"An error occurred running the rsync command; the error was: {exc}"
+        #     raise RuntimeError(msg) from exc
 
-        if self.rsync_only:
-            return
+        # if self.rsync_only:
+        #     return
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project()
