@@ -298,14 +298,13 @@ class Migration:
                 contents = tool_config_result["contents"]
                 try:
                     self.destination_conn.put(
-                        f"/data/projects/{self.destination_info.id}/config/{tool}/{path}",
+                        f"/data/projects/{self.destination_info.id}/config/{tool}{path}",
                         data=contents,
                         headers={"Content-Type": "text/plain"},
                     )
                 except XNATResponseError as e:
                     msg = f"Failed to put config to destination XNAT\n: {e.text}"
                     raise RuntimeError(msg) from e
-
 
     def _check_datatypes(self) -> None:
         """Check that all source datatypes are enabled on the destination."""
@@ -795,32 +794,32 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        # rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
-        # rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
-        # pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
+        rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
+        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+        pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
 
-        # command_to_run = [
-        #     "rsync",
-        #     "-azP",
-        #     "--ignore-existing",
-        #     "--exclude=*.log",
-        #     "--exclude=.*",
-        #     "--exclude=*.json",
-        #     "--stats",
-        #     "--progress",
-        #     "--checksum",
-        #     rsync_source,
-        #     rsync_dest,
-        # ]
+        command_to_run = [
+            "rsync",
+            "-azP",
+            "--ignore-existing",
+            "--exclude=*.log",
+            "--exclude=.*",
+            "--exclude=*.json",
+            "--stats",
+            "--progress",
+            "--checksum",
+            rsync_source,
+            rsync_dest,
+        ]
 
-        # try:
-        #     subprocess.check_output(command_to_run)  # noqa: S603
-        # except subprocess.CalledProcessError as exc:
-        #     msg = f"An error occurred running the rsync command; the error was: {exc}"
-        #     raise RuntimeError(msg) from exc
+        try:
+            subprocess.check_output(command_to_run)  # noqa: S603
+        except subprocess.CalledProcessError as exc:
+            msg = f"An error occurred running the rsync command; the error was: {exc}"
+            raise RuntimeError(msg) from exc
 
-        # if self.rsync_only:
-        #     return
+        if self.rsync_only:
+            return
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project()
