@@ -280,7 +280,7 @@ class Migration:
         for source_profile in source_profiles[len(destination_profiles) :]:
             self._logger.info("Creating user: %s", source_profile["username"])
             destination_profile = {
-                "username": source_profile["username"].remove_suffix("#EXT#"),
+                "username": source_profile["username"].removesuffix("#EXT#"),
                 "enabled": source_profile["enabled"],
                 "email": source_profile["email"],
                 "verified": source_profile["verified"],
@@ -291,8 +291,8 @@ class Migration:
 
         # Set site-wide permission roles for users
         for source_profile in source_profiles:
-            username = source_profile["username"].remove_suffix("#EXT#")
-            if username not in destination_profiles:
+            username = source_profile["username"].removesuffix("#EXT#")
+            if not any(profile["username"] == username for profile in destination_profiles):
                 msg = f"Username {username} not in destination."
                 raise ValueError(msg)
             api_get_string = f"/xapi/users/{username}/roles"
@@ -737,20 +737,53 @@ class Migration:
                 map_type=XnatType.assessor,
             )
 
-    def _assign_user_permissions_per_project(self, source_project: str) -> None:
-        api_get_string = f"/data/projects/{source_project}/users"
+    def _assign_user_permissions_per_project(self) -> None:
+        api_get_string = f"/data/projects/{self.source_info.id}/users"
         source_project_ownership = self.source_conn.get(api_get_string).json()["ResultSet"]["Result"]
-        dest_project = self.mapper.get_destination_id(source_project, XnatType.project)
+        dest_project = self.mapper.get_destination_id(self.source_info.id, XnatType.project)
         destination_profiles = self.destination_conn.get("/xapi/users/profiles", format="json").json()
+
+        source_name = self.source_conn._original_uri.split(".")[0].split("//")[1]  # noqa: SLF001
+        folder_path = pathlib.Path() / "output" / source_name
+        folder_path.mkdir(parents=True, exist_ok=True)
+        dest_project_id = self.destination_info.id
+
+        path = folder_path / "user_permissions_per_project.json"
+        if path.is_file():
+            msg = f"user_permissions_per_project.json file exists for {source_name}. Checking progress..."
+            self._logger.info(msg)
+            with open(path) as file:  # noqa: PTH123
+                dest_project_ownership = json.load(file)
+
+            if dest_project_id not in list(dest_project_ownership.keys()):
+                msg = f"User permissions not yet migrated for project {dest_project_id} in {source_name}."
+                self._logger.info(msg)
+            elif source_project_ownership == dest_project_ownership[dest_project_id]:
+                msg = f"User permissions already migrated for project {dest_project_id} in {source_name}."
+                self._logger.info(msg)
+                return
 
         for user in source_project_ownership:
             username = user["login"]
             ownership_type = user["displayname"]
-            if username not in destination_profiles:
+            if not any(profile["username"] == username for profile in destination_profiles):
                 msg = f"Username {username} not in destination."
                 raise ValueError(msg)
             api_put_string = f"/data/projects/{dest_project}/users/{ownership_type}/{username}"
             self.destination_conn.put(api_put_string)
+
+        if path.is_file():
+            msg = f"Updating user_permissions_per_project.json for {dest_project_id} in {source_name}."
+            self._logger.info(msg)
+        else:
+            msg = f"Creating user_permissions_per_project.json for {dest_project_id} in {source_name}."
+            self._logger.info(msg)
+            dest_project_ownership = {}
+
+        dest_project_ownership[self.destination_info.id] = source_project_ownership
+
+        with open(path, "w") as file:  # noqa: PTH123
+            json.dump(dest_project_ownership, file, indent=4)
 
     def _create_resources(self) -> None:
         """Create all resources on the destination XNAT instance."""
