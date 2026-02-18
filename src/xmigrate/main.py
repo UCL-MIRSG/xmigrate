@@ -54,7 +54,7 @@ def create_users(source_conn: xnat.BaseXNATSession, destination_conn: xnat.BaseX
     for source_profile in source_profiles[len(destination_profiles) :]:
         LOGGER.info("Creating user: %s", source_profile["username"])
         destination_profile = {
-            "username": source_profile["username"].remove_suffix("#EXT#"),
+            "username": source_profile["username"].removesuffix("#EXT#"),
             "enabled": source_profile["enabled"],
             "email": source_profile["email"],
             "verified": source_profile["verified"],
@@ -65,8 +65,8 @@ def create_users(source_conn: xnat.BaseXNATSession, destination_conn: xnat.BaseX
 
     # Set site-wide permission roles for users
     for source_profile in source_profiles:
-        username = source_profile["username"].remove_suffix("#EXT#")
-        if username not in destination_profiles:
+        username = source_profile["username"].removesuffix("#EXT#")
+        if not any(profile["username"] == username for profile in destination_profiles):
             msg = f"Username {username} not in destination."
             raise ValueError(msg)
         api_get_string = f"/xapi/users/{username}/roles"
