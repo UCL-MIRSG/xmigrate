@@ -1,0 +1,22 @@
+---
+name: links
+
+on:
+  push:
+    branches:
+      - main
+      - renovate/**
+  pull_request:
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Check links
+        uses: UCL-MIRSG/.github/actions/links@85567ca1b931922d97eeaead990f5422693147d5 # v0
+        with:
+          app-id: ${{ vars.LINKS_APP_ID }}
+          app-pem: ${{ secrets.LINKS_PRIVATE_KEY }}
+          lychee-args: --no-progress --verbose . --exclude
+            https://github.com/orgs/UCL-MIRSG/projects/3
