@@ -845,6 +845,7 @@ class Migration:
         for subject in source_project.subjects:
             if subject.id not in subjects_id_map_list:
                 self._create_subject(subject)
+                self._create_custom_forms_data(subject)
                 self._export_id_map(
                     resource="subjects",
                     id_map=self.mapper.id_map[XnatType.subject],
@@ -859,7 +860,6 @@ class Migration:
                     map_type=XnatType.subject,
                 )
 
-            self._create_custom_forms_data(subject)
             for experiment in subject.experiments:
                 if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
                     datatype = experiment.fulldata["meta"]["xsi:type"]
@@ -868,6 +868,7 @@ class Migration:
 
                 if experiment.id not in experiments_id_map_list:
                     self._create_experiment(experiment)
+                    self._create_custom_forms_data(experiment)
                     self._export_id_map(
                         resource="experiments",
                         id_map=self.mapper.id_map[XnatType.experiment],
@@ -885,15 +886,47 @@ class Migration:
                         map_type=XnatType.experiment,
                     )
 
-                self._create_custom_forms_data(experiment)
-
                 for scan in experiment.scans:
-                    self._create_scan(scan)
-                    self._create_custom_forms_data(scan)
+                    if (
+                        scan.id
+                        in self.destination_conn.projects[self.destination_info.id]
+                        .subjects[subject.label]
+                        .experiments[experiment.label]
+                        .scans
+                    ):
+                        msg = f"Skipping creation of scan {scan.id} as already exists on destination."
+                        self._logger.info(msg)
+                        self.mapper.update_id_map(
+                            source=scan.id,
+                            destination=scan.id,  # Scan IDs must be preserved
+                            map_type=XnatType.scan,
+                        )
+                    else:
+                        self._create_scan(scan)
+                        self._create_custom_forms_data(scan)
 
                 for assessor in experiment.assessors:
-                    self._create_assessor(assessor)
-                    self._create_custom_forms_data(assessor)
+                    if (
+                        assessor.label
+                        in self.destination_conn.projects[self.destination_info.id]
+                        .subjects[subject.label]
+                        .experiments[experiment.label]
+                        .assessors
+                    ):
+                        msg = f"Skipping creation of scan {scan.id} as already exists on destination."
+                        self._logger.info(msg)
+                        self.mapper.update_id_map(
+                            source=assessor.id,
+                            destination=self.destination_conn.projects[self.destination_info.id]
+                            .subjects[subject.label]
+                            .experiments[experiment.label]
+                            .assessors[assessor.label]
+                            .id,
+                            map_type=XnatType.assessor,
+                        )
+                    else:
+                        self._create_assessor(assessor)
+                        self._create_custom_forms_data(assessor)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
