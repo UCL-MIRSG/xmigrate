@@ -306,10 +306,6 @@ class Migration:
                     msg = f"Failed to put config to destination XNAT\n: {e.text}"
                     raise RuntimeError(msg) from e
 
-    def _check_datatypes(self) -> None:
-        """Check that all source datatypes are enabled on the destination."""
-        check_datatypes_matching(self.source_conn, self.destination_conn)
-
     def _get_resource_metadata(self, resource: str, output_dir: pathlib.Path = pathlib.Path("./output")) -> None:
         """
         Retrieve resource metadata and write to CSV.
