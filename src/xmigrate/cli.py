@@ -7,7 +7,7 @@ import xnat
 from cyclopts import App, config
 
 # Adjust imports to where Migration and ProjectInfo live in this repo
-from xmigrate.main import Migration, ProjectInfo, check_datatypes_matching, create_custom_forms_json
+from xmigrate.main import Migration, ProjectInfo, check_datatypes_matching, create_custom_forms_json, create_users
 
 app = App(
     name="xmigrate",
@@ -113,35 +113,28 @@ def migrate(  # noqa: PLR0913
 
 
 @app.command
-def check_datatypes(
+def migrate_site(
     source: str,
     destination: str,
     destination_user: str,
     destination_password: str,
 ) -> None:
-    """Check datatypes are enabled on the destination."""
+    """
+    Migrate site level data from source to destination XNAT instances.
+
+    Example:
+        xmigrate migrate_site
+
+        Command can be run with the arguments within an xmigrate.toml config file.
+
+    """
     with (
         xnat.connect(source) as src_conn,
         xnat.connect(destination, destination_user, destination_password) as dst_conn,
     ):
         check_datatypes_matching(src_conn, dst_conn)
-        logger.info("All source datatypes are enabled on destination")
-
-
-@app.command
-def migrate_custom_forms(
-    source: str,
-    destination: str,
-    destination_user: str,
-    destination_password: str,
-) -> None:
-    """Check datatypes are enabled on the destination."""
-    with (
-        xnat.connect(source) as src_conn,
-        xnat.connect(destination, destination_user, destination_password) as dst_conn,
-    ):
+        create_users(src_conn, dst_conn)
         create_custom_forms_json(src_conn, dst_conn)
-        logger.info("Created custom forms on destination")
 
 
 @app.default
