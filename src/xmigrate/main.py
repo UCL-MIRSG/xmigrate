@@ -790,32 +790,32 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        # rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
-        # rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
-        # pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
+        rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
+        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+        pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
 
-        # command_to_run = [
-        #     "rsync",
-        #     "-azP",
-        #     "--ignore-existing",
-        #     "--exclude=*.log",
-        #     "--exclude=.*",
-        #     "--exclude=*.json",
-        #     "--stats",
-        #     "--progress",
-        #     "--checksum",
-        #     rsync_source,
-        #     rsync_dest,
-        # ]
+        command_to_run = [
+            "rsync",
+            "-azP",
+            "--ignore-existing",
+            "--exclude=*.log",
+            "--exclude=.*",
+            "--exclude=*.json",
+            "--stats",
+            "--progress",
+            "--checksum",
+            rsync_source,
+            rsync_dest,
+        ]
 
-        # try:
-        #     subprocess.check_output(command_to_run)  # noqa: S603
-        # except subprocess.CalledProcessError as exc:
-        #     msg = f"An error occurred running the rsync command; the error was: {exc}"
-        #     raise RuntimeError(msg) from exc
+        try:
+            subprocess.check_output(command_to_run)  # noqa: S603
+        except subprocess.CalledProcessError as exc:
+            msg = f"An error occurred running the rsync command; the error was: {exc}"
+            raise RuntimeError(msg) from exc
 
-        # if self.rsync_only:
-        #     return
+        if self.rsync_only:
+            return
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project()
