@@ -322,7 +322,7 @@ class Migration:
         params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
         response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
         df = pd.DataFrame(response.json()["ResultSet"]["Result"])
-        df.to_csv(output_dir / f"{resource}_metadata_{self.destination_info.id}.csv", index=False)
+        df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
     def _export_id_map(
         self,
@@ -341,7 +341,7 @@ class Migration:
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
-        df.to_csv(output_dir / f"{resource}_id_map_{self.destination_info.id}.csv", index=False)
+        df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
 
     def _extract_resource_type_name(self, resource_type: xnat.core.XNATListing) -> str:
         fulluri_str = resource_type.fulluri
@@ -790,39 +790,39 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_conn.projects[self.source_info.id]
-        rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
-        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
-        pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
+        # rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
+        # rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+        # pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
 
-        command_to_run = [
-            "rsync",
-            "-azP",
-            "--ignore-existing",
-            "--exclude=*.log",
-            "--exclude=.*",
-            "--exclude=*.json",
-            "--stats",
-            "--progress",
-            "--checksum",
-            rsync_source,
-            rsync_dest,
-        ]
+        # command_to_run = [
+        #     "rsync",
+        #     "-azP",
+        #     "--ignore-existing",
+        #     "--exclude=*.log",
+        #     "--exclude=.*",
+        #     "--exclude=*.json",
+        #     "--stats",
+        #     "--progress",
+        #     "--checksum",
+        #     rsync_source,
+        #     rsync_dest,
+        # ]
 
-        try:
-            subprocess.check_output(command_to_run)  # noqa: S603
-        except subprocess.CalledProcessError as exc:
-            msg = f"An error occurred running the rsync command; the error was: {exc}"
-            raise RuntimeError(msg) from exc
+        # try:
+        #     subprocess.check_output(command_to_run)  # noqa: S603
+        # except subprocess.CalledProcessError as exc:
+        #     msg = f"An error occurred running the rsync command; the error was: {exc}"
+        #     raise RuntimeError(msg) from exc
 
-        if self.rsync_only:
-            return
+        # if self.rsync_only:
+        #     return
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project()
 
         destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
         source_name = self.source_conn._original_uri.split(".")[0].split("//")[1]  # noqa: SLF001
-        subj_path = f"output/{source_name}/subjects_id_map_{self.destination_info.id}.csv"
+        subj_path = f"output/{source_name}/{self.destination_info.id}/subjects_id_map.csv"
         subj_full_path = pathlib.Path() / subj_path
         if subj_full_path.is_file():
             subjects_id_map = pd.read_csv(subj_path)
@@ -830,7 +830,7 @@ class Migration:
         else:
             subjects_id_map_list = []
 
-        exp_path = f"output/{source_name}/experiments_id_map_{self.destination_info.id}.csv"
+        exp_path = f"output/{source_name}/{self.destination_info.id}/experiments_id_map.csv"
         exp_full_path = pathlib.Path() / exp_path
         if exp_full_path.is_file():
             experiments_id_map = pd.read_csv(exp_path)
@@ -845,7 +845,7 @@ class Migration:
                 self._export_id_map(
                     resource="subjects",
                     id_map=self.mapper.id_map[XnatType.subject],
-                    output_dir=pathlib.Path(f"./output/{source_name}"),
+                    output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
                 )
             else:
                 msg = f"Skipping creation of subject {subject.id} as already exists on destination."
@@ -868,7 +868,7 @@ class Migration:
                     self._export_id_map(
                         resource="experiments",
                         id_map=self.mapper.id_map[XnatType.experiment],
-                        output_dir=pathlib.Path(f"./output/{source_name}"),
+                        output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
                     )
                 else:
                     msg = f"Skipping creation of experiment {experiment.id} as already exists on destination."
@@ -1094,15 +1094,15 @@ class Migration:
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
 
             source_name = self.source_conn._original_uri.split(".")[0].split("//")[1]  # noqa: SLF001
-            path = f"output/{source_name}"
-            full_path = f"output/{source_name}/subjects_metadata_{self.destination_info.id}.csv"
+            path = f"output/{source_name}/{self.destination_info.id}"
+            full_path = f"output/{source_name}/{self.destination_info.id}/subjects_metadata.csv"
             metadata_path_subjects = pathlib.Path() / full_path
             if metadata_path_subjects.is_file():
                 self._logger.info("Skipping _get_resource_metadata as subjects_metadata.csv file exists")
             else:
                 self._get_resource_metadata(resource="subjects", output_dir=pathlib.Path(path))
 
-            full_path = f"output/{source_name}/experiments_metadata_{self.destination_info.id}.csv"
+            full_path = f"output/{source_name}/{self.destination_info.id}/experiments_metadata.csv"
             metadata_path_experiments = pathlib.Path() / full_path
             if metadata_path_experiments.is_file():
                 self._logger.info("Skipping _get_resource_metadata as experiments_metadata.csv file exists")
@@ -1113,12 +1113,12 @@ class Migration:
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
-                output_dir=pathlib.Path(f"./output/{source_name}"),
+                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
             )
             self._export_id_map(
                 resource="experiments",
                 id_map=self.mapper.id_map[XnatType.experiment],
-                output_dir=pathlib.Path(f"./output/{source_name}"),
+                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
             )
             self._refresh_catalogues()
 
