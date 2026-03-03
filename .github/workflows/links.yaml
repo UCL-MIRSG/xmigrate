@@ -18,5 +18,6 @@ jobs:
         with:
           app-id: ${{ vars.LINKS_APP_ID }}
           app-pem: ${{ secrets.LINKS_PRIVATE_KEY }}
-          lychee-args: --no-progress --verbose . --exclude
+          lychee-args:
+            --no-progress --verbose . --exclude
             https://github.com/orgs/UCL-MIRSG/projects/3

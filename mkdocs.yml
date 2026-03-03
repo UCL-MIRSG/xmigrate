@@ -1,9 +1,10 @@
-site_name: "xmigrate"
-site_description: "Documentation website for xmigrate"
-site_author: "MIRSG Authors"
-copyright: "Copyright © 2025 MIRSG Authors"
-repo_url: "https://github.com/UCL-MIRSG/xmigrate/"
-repo_name: "UCL-MIRSG/xmigrate"
+---
+site_name: xmigrate
+site_description: Documentation website for xmigrate
+site_author: MIRSG Authors
+copyright: Copyright © 2025 MIRSG Authors
+repo_url: https://github.com/UCL-MIRSG/xmigrate/
+repo_name: UCL-MIRSG/xmigrate
 edit_uri: edit/main/docs/
 
 validation:
@@ -12,11 +13,11 @@ validation:
   unrecognized_links: warn
 
 theme:
-  name: "material"
+  name: material
   features:
     - content.action.edit
   palette:
-    - media: "(prefers-color-scheme)"
+    - media: (prefers-color-scheme)
       toggle:
         icon: material/brightness-auto
         name: Switch to light mode
@@ -48,11 +49,12 @@ plugins:
       handlers:
         python:
           inventories:
-            - "https://docs.python.org/3/objects.inv"
+            - https://docs.python.org/3/objects.inv
           options:
             docstring_style: google
             show_submodules: true
-          paths: [src]
+          paths:
+            - src
   - include-markdown:
       opening_tag: "{!"
       closing_tag: "!}"
@@ -60,4 +62,4 @@ plugins:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: "https://github.com/UCL-MIRSG"
+      link: https://github.com/UCL-MIRSG
