@@ -23,19 +23,19 @@ LOGGER = logging.getLogger(__name__)
 def check_users(source_profiles: list, destination_profiles: list) -> tuple[list, list]:
     """Check users on the destination XNAT instance."""
     idx_source_all = []
-    idx_dest_all = []
+    idx_destination_all = []
 
     for source_profile, destination_profile in zip(source_profiles, destination_profiles, strict=False):
         if source_profile["username"] != destination_profile["username"]:
             msg = f"Skipping... Usernames not equal: {source_profile['username']=} {destination_profile['username']=}"
             LOGGER.info(msg)
-            idx_dest_all.append(destination_profiles.index(destination_profile))
+            idx_destination_all.append(destination_profiles.index(destination_profile))
             idx_source_all.append(source_profiles.index(source_profile))
 
         if source_profile["id"] != destination_profile["id"]:
             msg = f"IDs not equal: {source_profile['id']=} {destination_profile['id']=}"
             raise (ValueError(msg))
-    return idx_dest_all, idx_source_all
+    return idx_destination_all, idx_source_all
 
 
 def create_users(source_conn: xnat.BaseXNATSession, destination_conn: xnat.BaseXNATSession) -> None:
@@ -44,9 +44,9 @@ def create_users(source_conn: xnat.BaseXNATSession, destination_conn: xnat.BaseX
     destination_profiles = destination_conn.get("/xapi/users/profiles", format="json").json()
 
     # First check that existing users on the destination are identical to the source
-    idx_dest_all, idx_source_all = check_users(source_profiles, destination_profiles)
+    idx_destination_all, idx_source_all = check_users(source_profiles, destination_profiles)
 
-    for idx_dest, idx_source in zip(idx_dest_all, idx_source_all, strict=False):
+    for idx_dest, idx_source in zip(idx_destination_all, idx_source_all, strict=False):
         destination_profiles.pop(idx_dest)
         source_profiles.pop(idx_source)
 
@@ -123,8 +123,8 @@ def create_custom_forms_json(
             current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "yes"
             projects = []
             # fetch projects response and build list of IDs
-            dest_projects_resp = destination_conn.get("/data/projects").json()
-            projects = [project["ID"] for project in dest_projects_resp["ResultSet"]["Result"]]
+            destination_projects_resp = destination_conn.get("/data/projects").json()
+            projects = [project["ID"] for project in destination_projects_resp["ResultSet"]["Result"]]
 
         else:
             current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "no"
@@ -427,7 +427,7 @@ class Migration:
         destination_custom_forms = self.destination_conn.get_json("/xapi/customforms")
 
         titles = []
-        titles = [json.loads(dest_form["contents"])["title"] for dest_form in destination_custom_forms]
+        titles = [json.loads(destination_form["contents"])["title"] for destination_form in destination_custom_forms]
 
         if len(titles) != len(set(titles)):
             msg = "Duplicate custom form title"
@@ -435,7 +435,8 @@ class Migration:
 
         # Create mapping from source form titles to destination formUUIDs
         destination_title_to_uuid = {
-            json.loads(dest_form["contents"])["title"]: dest_form["formUUID"] for dest_form in destination_custom_forms
+            json.loads(destination_form["contents"])["title"]: destination_form["formUUID"]
+            for destination_form in destination_custom_forms
         }
 
         form_uuid_mapping = {
@@ -446,9 +447,9 @@ class Migration:
 
         # Migrate data for each form
         for source_form_uuid, source_form_data in source_custom_forms_data.items():
-            dest_form_uuid = form_uuid_mapping.get(source_form_uuid)
+            destination_form_uuid = form_uuid_mapping.get(source_form_uuid)
 
-            if not dest_form_uuid:
+            if not destination_form_uuid:
                 self._logger.warning(
                     "Could not find matching destination form for source formUUID %s in resource %s",
                     source_form_uuid,
@@ -456,11 +457,11 @@ class Migration:
                 )
                 continue
 
-            dest_form_data = {}
-            dest_form_data[dest_form_uuid] = source_form_data
+            destination_form_data = {}
+            destination_form_data[destination_form_uuid] = source_form_data
 
             try:
-                self.destination_conn.put(api_put_string, json=dest_form_data)
+                self.destination_conn.put(api_put_string, json=destination_form_data)
                 self._logger.info(
                     "Migrated custom form data for %s %s",
                     resource_type_name,
@@ -741,7 +742,7 @@ class Migration:
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
         api_get_string = f"/data/projects/{source_project}/users"
         source_project_ownership = self.source_conn.get(api_get_string).json()["ResultSet"]["Result"]
-        dest_project = self.mapper.get_destination_id(source_project, XnatType.project)
+        destination_project = self.mapper.get_destination_id(source_project, XnatType.project)
         destination_profiles = self.destination_conn.get("/xapi/users/profiles", format="json").json()
 
         for user in source_project_ownership:
@@ -750,7 +751,7 @@ class Migration:
             if username not in destination_profiles:
                 msg = f"Username {username} not in destination."
                 raise ValueError(msg)
-            api_put_string = f"/data/projects/{dest_project}/users/{ownership_type}/{username}"
+            api_put_string = f"/data/projects/{destination_project}/users/{ownership_type}/{username}"
             self.destination_conn.put(api_put_string)
 
     def _create_resources(self) -> None:
@@ -857,22 +858,22 @@ class Migration:
             owner = sharing_info["owner"]
 
             # Search across all mappers for the destination ID
-            dest_subject_id = None
+            destination_subject_id = None
             for mapper in self.mappers:
                 try:
-                    dest_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
+                    destination_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
                     break
                 except KeyError:
                     continue
 
-            if dest_subject_id is None:
+            if destination_subject_id is None:
                 self._logger.warning("Could not find destination ID for subject %s", label)
                 continue
 
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_conn.put(
-                        f"/data/projects/{owner}/subjects/{dest_subject_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}"
                     )
                     self._logger.info(
                         "Shared subject %s with project %s",
@@ -892,15 +893,17 @@ class Migration:
             owner = sharing_info["owner"]
 
             # Search across all mappers for the destination ID
-            dest_experiment_id = None
+            destination_experiment_id = None
             for mapper in self.mappers:
                 try:
-                    dest_experiment_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.experiment)
+                    destination_experiment_id = mapper.get_destination_id(
+                        sharing_info["source_id"], XnatType.experiment
+                    )
                     break
                 except KeyError:
                     continue
 
-            if dest_experiment_id is None:
+            if destination_experiment_id is None:
                 self._logger.warning("Could not find destination ID for experiment %s", label)
                 continue
 
@@ -908,12 +911,12 @@ class Migration:
                 try:
                     # Use experiment ID in the URL and add label parameter
                     self.destination_conn.put(
-                        f"/data/projects/{owner}/experiments/{dest_experiment_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}"
                     )
                     self._logger.info(
                         "Shared experiment %s (ID: %s) with project %s",
                         label,
-                        dest_experiment_id,
+                        destination_experiment_id,
                         project_id,
                     )
                 except XNATResponseError as e:
@@ -929,22 +932,22 @@ class Migration:
             owner = sharing_info["owner"]
 
             # Search across all mappers for the destination ID
-            dest_assessor_id = None
+            destination_assessor_id = None
             for mapper in self.mappers:
                 try:
-                    dest_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
+                    destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
                     break
                 except KeyError:
                     continue
 
-            if dest_assessor_id is None:
+            if destination_assessor_id is None:
                 self._logger.warning("Could not find destination ID for assessor %s", label)
                 continue
 
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_conn.put(
-                        f"/data/projects/{owner}/assessors/{dest_assessor_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/assessors/{destination_assessor_id}/projects/{project_id}?label={label}"
                     )
                     self._logger.info(
                         "Shared assessor %s with project %s",
