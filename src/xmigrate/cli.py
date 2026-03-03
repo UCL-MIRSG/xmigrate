@@ -57,17 +57,17 @@ def migrate(  # noqa: PLR0913
     destination_project_names = destination_project_names if destination_project_names is not None else source_projects
 
     with (
-        xnat.connect(source) as source_conn,
-        xnat.connect(destination, destination_user, destination_password) as destination_conn,
+        xnat.connect(source) as source_connection,
+        xnat.connect(destination, destination_user, destination_password) as destination_connection,
     ):
         try:
-            source_archive = source_conn.get("/xapi/siteConfig/archivePath").text
+            source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
             logger.warning("Failed to fetch source archive path: %s", e)
             source_archive = None
 
         try:
-            destination_archive = destination_conn.get("/xapi/siteConfig/archivePath").text
+            destination_archive = destination_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
             logger.warning("Failed to fetch destination archive path: %s", e)
             destination_archive = None
@@ -101,8 +101,8 @@ def migrate(  # noqa: PLR0913
         ]
 
         migration = Migration(
-            source_conn=source_conn,
-            destination_conn=destination_conn,
+            source_connection=source_connection,
+            destination_connection=destination_connection,
             all_source_info=all_source_info,
             all_destination_info=all_destination_info,
             rsync_only=rsync_only,
@@ -129,12 +129,12 @@ def migrate_site(
 
     """
     with (
-        xnat.connect(source) as source_conn,
-        xnat.connect(destination, destination_user, destination_password) as destination_conn,
+        xnat.connect(source) as source_connection,
+        xnat.connect(destination, destination_user, destination_password) as destination_connection,
     ):
-        check_datatypes_matching(source_conn, destination_conn)
-        create_users(source_conn, destination_conn)
-        create_custom_forms_json(source_conn, destination_conn)
+        check_datatypes_matching(source_connection, destination_connection)
+        create_users(source_connection, destination_connection)
+        create_custom_forms_json(source_connection, destination_connection)
 
 
 @app.default

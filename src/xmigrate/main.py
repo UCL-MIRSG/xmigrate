@@ -38,10 +38,10 @@ def check_users(source_profiles: list, destination_profiles: list) -> tuple[list
     return idx_destination_all, idx_source_all
 
 
-def create_users(source_conn: xnat.BaseXNATSession, destination_conn: xnat.BaseXNATSession) -> None:
+def create_users(source_connection: xnat.BaseXNATSession, destination_connection: xnat.BaseXNATSession) -> None:
     """Create users on the destination XNAT instance."""
-    source_profiles = source_conn.get("/xapi/users/profiles", format="json").json()
-    destination_profiles = destination_conn.get("/xapi/users/profiles", format="json").json()
+    source_profiles = source_connection.get("/xapi/users/profiles", format="json").json()
+    destination_profiles = destination_connection.get("/xapi/users/profiles", format="json").json()
 
     # First check that existing users on the destination are identical to the source
     idx_destination_all, idx_source_all = check_users(source_profiles, destination_profiles)
@@ -61,7 +61,7 @@ def create_users(source_conn: xnat.BaseXNATSession, destination_conn: xnat.BaseX
             "firstName": source_profile["firstName"],
             "lastName": source_profile["lastName"],
         }
-        destination_conn.post("/xapi/users", json=destination_profile)
+        destination_connection.post("/xapi/users", json=destination_profile)
 
     # Set site-wide permission roles for users
     for source_profile in source_profiles:
@@ -70,29 +70,29 @@ def create_users(source_conn: xnat.BaseXNATSession, destination_conn: xnat.BaseX
             msg = f"Username {username} not in destination."
             raise ValueError(msg)
         api_get_string = f"/xapi/users/{username}/roles"
-        roles = source_conn.get(api_get_string).json()
+        roles = source_connection.get(api_get_string).json()
 
         for role in roles:
-            destination_conn.put(f"/xapi/users/{username}/roles/{role}")
+            destination_connection.put(f"/xapi/users/{username}/roles/{role}")
 
 
 def create_custom_forms_json(
-    source_conn: xnat.BaseXNATSession,
-    destination_conn: xnat.BaseXNATSession,
+    source_connection: xnat.BaseXNATSession,
+    destination_connection: xnat.BaseXNATSession,
 ) -> None:
     """
     Extract custom forms from source and create on the destination.
 
     Args:
-        source_conn: The source XNAT connection.
-        destination_conn: The destination XNAT connection.
+        source_connection: The source XNAT connection.
+        destination_connection: The destination XNAT connection.
 
     Raises:
         XNATResponseError: If failed to create custom forms on destination
 
     """
     # Get custom forms from source as json
-    source_custom_forms = source_conn.get_json("/xapi/customforms")
+    source_custom_forms = source_connection.get_json("/xapi/customforms")
 
     LOGGER.info("There are %d custom forms being created", len(source_custom_forms))
 
@@ -123,7 +123,7 @@ def create_custom_forms_json(
             current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "yes"
             projects = []
             # fetch projects response and build list of IDs
-            destination_projects_resp = destination_conn.get("/data/projects").json()
+            destination_projects_resp = destination_connection.get("/data/projects").json()
             projects = [project["ID"] for project in destination_projects_resp["ResultSet"]["Result"]]
 
         else:
@@ -167,7 +167,7 @@ def create_custom_forms_json(
         title = current_content_json["title"]
         try:
             headers = {"Content-Type": "application/json;charset=UTF-8"}
-            destination_conn.put("/xapi/customforms/save", data=current_custom_form_json, headers=headers)
+            destination_connection.put("/xapi/customforms/save", data=current_custom_form_json, headers=headers)
         except XNATResponseError as e:
             msg = f"Failed to create the {title} custom form on destination XNAT\n: {e.text}"
             raise RuntimeError(msg) from e
@@ -176,15 +176,15 @@ def create_custom_forms_json(
 
 
 def check_datatypes_matching(
-    source_conn: xnat.BaseXNATSession,
-    destination_conn: xnat.BaseXNATSession,
+    source_connection: xnat.BaseXNATSession,
+    destination_connection: xnat.BaseXNATSession,
 ) -> None:
     """
     Check that all source datatypes are enabled on the destination.
 
     Args:
-        source_conn: The source XNAT connection.
-        destination_conn: The destination XNAT connection.
+        source_connection: The source XNAT connection.
+        destination_connection: The destination XNAT connection.
 
     Raises:
         ValueError: If source has datatypes not enabled on destination.
@@ -192,12 +192,12 @@ def check_datatypes_matching(
     """
     enabled_datatypes_source = {
         datatype["elementName"]
-        for datatype in source_conn.get("/xapi/access/displays/createable").json()
+        for datatype in source_connection.get("/xapi/access/displays/createable").json()
         if not datatype["elementName"].startswith("xdat:")
     }
     enabled_datatypes_dest = {
         datatype["elementName"]
-        for datatype in destination_conn.get("/xapi/access/displays/createable").json()
+        for datatype in destination_connection.get("/xapi/access/displays/createable").json()
         if not datatype["elementName"].startswith("xdat:")
     }
 
@@ -215,8 +215,8 @@ class Migration:
     Class to handle migration of XNAT projects.
 
     Args:
-        source_conn (xnat.BaseXNATSession): The source XNAT connection.
-        destination_conn (xnat.BaseXNATSession): The destination XNAT connection.
+        source_connection (xnat.BaseXNATSession): The source XNAT connection.
+        destination_connection (xnat.BaseXNATSession): The destination XNAT connection.
         all_source_info (list[ProjectInfo]): The source projects information.
         all_destination_info (list[ProjectInfo]): The destination projects information.
         rsync_only (bool): Conditional for whether to run rsync only.
@@ -226,8 +226,8 @@ class Migration:
     # Instance logger (not included in dataclass init or repr)
     _logger: logging.Logger = field(default=LOGGER, init=False, repr=False)
 
-    source_conn: xnat.BaseXNATSession
-    destination_conn: xnat.BaseXNATSession
+    source_connection: xnat.BaseXNATSession
+    destination_connection: xnat.BaseXNATSession
     all_source_info: list[ProjectInfo]
     all_destination_info: list[ProjectInfo]
     rsync_only: bool = False
@@ -266,7 +266,7 @@ class Migration:
             ET.Element: The root XML element of the item.
 
         """
-        response = self.source_conn.get(
+        response = self.source_connection.get(
             uri,
             query=dict(format="xml"),  # noqa: C408
         )
@@ -276,9 +276,9 @@ class Migration:
     def _set_project_configs(self) -> None:
         # If a project has no custom configuration, XNAT raises an error
         try:
-            custom_configs = self.source_conn.get(f"/data/projects/{self.source_info.id}/config").json()["ResultSet"][
-                "Result"
-            ]
+            custom_configs = self.source_connection.get(f"/data/projects/{self.source_info.id}/config").json()[
+                "ResultSet"
+            ]["Result"]
         except XNATResponseError as e:
             if "Couldn't find config for" in e.text:
                 msg = f"No custom project configuration found for project {self.source_info.id}."
@@ -289,7 +289,7 @@ class Migration:
 
         tools = [config["tool"] for config in custom_configs]
         for tool in tools:
-            tool_configs = self.source_conn.get(f"/data/projects/{self.source_info.id}/config/{tool}").json()[
+            tool_configs = self.source_connection.get(f"/data/projects/{self.source_info.id}/config/{tool}").json()[
                 "ResultSet"
             ]["Result"]
             # There is one result per setting in the config
@@ -297,7 +297,7 @@ class Migration:
                 path = tool_config_result["path"]  # name of the setting
                 contents = tool_config_result["contents"]
                 try:
-                    self.destination_conn.put(
+                    self.destination_connection.put(
                         f"/data/projects/{self.destination_info.id}/config/{tool}/{path}",
                         data=contents,
                         headers={"Content-Type": "text/plain"},
@@ -320,7 +320,7 @@ class Migration:
         """
         output_dir.mkdir(parents=True, exist_ok=True)
         params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
-        response = self.source_conn.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
+        response = self.source_connection.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
         df = pd.DataFrame(response.json()["ResultSet"]["Result"])
         df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
@@ -400,7 +400,7 @@ class Migration:
 
         """
         # Get source custom forms
-        source_custom_forms = self.source_conn.get_json("/xapi/customforms")
+        source_custom_forms = self.source_connection.get_json("/xapi/customforms")
 
         resource_type_name = self._extract_resource_type_name(resource_type)
         fulluri_str = resource_type.fulluri
@@ -413,7 +413,7 @@ class Migration:
         api_put_string = self._construct_api(path_segment, "PUT", resource_type)
 
         try:
-            source_custom_forms_data = self.source_conn.get_json(api_get_string)
+            source_custom_forms_data = self.source_connection.get_json(api_get_string)
         except ValueError:
             self._logger.exception(
                 "Resource %s doesn't match suggested resource types",
@@ -424,7 +424,7 @@ class Migration:
             return
 
         # Get destination custom forms to map UUIDs
-        destination_custom_forms = self.destination_conn.get_json("/xapi/customforms")
+        destination_custom_forms = self.destination_connection.get_json("/xapi/customforms")
 
         titles = []
         titles = [json.loads(destination_form["contents"])["title"] for destination_form in destination_custom_forms]
@@ -461,7 +461,7 @@ class Migration:
             destination_form_data[destination_form_uuid] = source_form_data
 
             try:
-                self.destination_conn.put(api_put_string, json=destination_form_data)
+                self.destination_connection.put(api_put_string, json=destination_form_data)
                 self._logger.info(
                     "Migrated custom form data for %s %s",
                     resource_type_name,
@@ -486,13 +486,13 @@ class Migration:
         )
         xml_bytes = ET.tostring(root, encoding="utf-8")
 
-        if self.destination_info.id not in self.destination_conn.projects:
-            self.destination_conn.post(
+        if self.destination_info.id not in self.destination_connection.projects:
+            self.destination_connection.post(
                 "/data/projects",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_conn.projects.clearcache()
+        self.destination_connection.projects.clearcache()
         self.mapper.update_id_map(
             source=self.source_info.id,
             destination=self.destination_info.id,
@@ -528,18 +528,18 @@ class Migration:
         )
         xml_bytes = ET.tostring(root, encoding="utf-8")
 
-        if subject.label not in self.destination_conn.projects[self.destination_info.id].subjects:
-            self.destination_conn.post(
+        if subject.label not in self.destination_connection.projects[self.destination_info.id].subjects:
+            self.destination_connection.post(
                 f"/data/projects/{self.destination_info.id}/subjects",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_conn.projects[self.destination_info.id].subjects.clearcache()
+        self.destination_connection.projects[self.destination_info.id].subjects.clearcache()
 
         try:
             self.mapper.update_id_map(
                 source=subject.id,
-                destination=self.destination_conn.projects[self.destination_info.id].subjects[subject.label],
+                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label],
                 map_type=XnatType.subject,
             )
         except (KeyError, AttributeError):
@@ -576,18 +576,18 @@ class Migration:
         xml_bytes = ET.tostring(root, encoding="utf-8")
         if (
             experiment.label
-            not in self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments
+            not in self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments
         ):
-            self.destination_conn.post(
+            self.destination_connection.post(
                 f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments.clearcache()
+        self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments.clearcache()
         try:
             self.mapper.update_id_map(
                 source=experiment.id,
-                destination=self.destination_conn.projects[self.destination_info.id]
+                destination=self.destination_connection.projects[self.destination_info.id]
                 .subjects[subject.label]
                 .experiments[experiment.label]
                 .id,
@@ -595,10 +595,12 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.exp_failed_count = self.exp_failed_count + 1
-            self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments.clearcache()
+            self.destination_connection.projects[self.destination_info.id].subjects[
+                subject.label
+            ].experiments.clearcache()
             self.mapper.update_id_map(
                 source=experiment.id,
-                destination=self.destination_conn.projects[self.destination_info.id]
+                destination=self.destination_connection.projects[self.destination_info.id]
                 .subjects[subject.label]
                 .experiments[experiment.label]
                 .id,
@@ -639,17 +641,17 @@ class Migration:
         xml_bytes = ET.tostring(root, encoding="utf-8")
         if (
             scan.id
-            not in self.destination_conn.projects[self.destination_info.id]
+            not in self.destination_connection.projects[self.destination_info.id]
             .subjects[subject.label]
             .experiments[experiment.label]
             .scans
         ):
-            self.destination_conn.post(
+            self.destination_connection.post(
                 f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/scans",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[
+        self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments[
             experiment.label
         ].scans.clearcache()
         try:
@@ -660,7 +662,7 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.scan_failed_count = self.scan_failed_count + 1
-            self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[
+            self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments[
                 experiment.label
             ].scans.clearcache()
             self.mapper.update_id_map(
@@ -701,23 +703,23 @@ class Migration:
         xml_bytes = ET.tostring(root, encoding="utf-8")
         if (
             assessor.label
-            not in self.destination_conn.projects[self.destination_info.id]
+            not in self.destination_connection.projects[self.destination_info.id]
             .subjects[subject.label]
             .experiments[experiment.label]
             .assessors
         ):
-            self.destination_conn.post(
+            self.destination_connection.post(
                 f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[
+        self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments[
             experiment.label
         ].assessors.clearcache()
         try:
             self.mapper.update_id_map(
                 source=assessor.id,
-                destination=self.destination_conn.projects[self.destination_info.id]
+                destination=self.destination_connection.projects[self.destination_info.id]
                 .subjects[subject.label]
                 .experiments[experiment.label]
                 .assessors[assessor.label]
@@ -726,12 +728,12 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.assess_failed_count = self.assess_failed_count + 1
-            self.destination_conn.projects[self.destination_info.id].subjects[subject.label].experiments[
+            self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments[
                 experiment.label
             ].assessors.clearcache()
             self.mapper.update_id_map(
                 source=assessor.id,
-                destination=self.destination_conn.projects[self.destination_info.id]
+                destination=self.destination_connection.projects[self.destination_info.id]
                 .subjects[subject.label]
                 .experiments[experiment.label]
                 .assessors[assessor.label]
@@ -741,9 +743,9 @@ class Migration:
 
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
         api_get_string = f"/data/projects/{source_project}/users"
-        source_project_ownership = self.source_conn.get(api_get_string).json()["ResultSet"]["Result"]
+        source_project_ownership = self.source_connection.get(api_get_string).json()["ResultSet"]["Result"]
         destination_project = self.mapper.get_destination_id(source_project, XnatType.project)
-        destination_profiles = self.destination_conn.get("/xapi/users/profiles", format="json").json()
+        destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
         for user in source_project_ownership:
             username = user["login"]
@@ -752,12 +754,12 @@ class Migration:
                 msg = f"Username {username} not in destination."
                 raise ValueError(msg)
             api_put_string = f"/data/projects/{destination_project}/users/{ownership_type}/{username}"
-            self.destination_conn.put(api_put_string)
+            self.destination_connection.put(api_put_string)
 
     def _create_resources(self) -> None:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
-        source_project = self.source_conn.projects[self.source_info.id]
+        source_project = self.source_connection.projects[self.source_info.id]
         rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
         rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
         pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
@@ -788,7 +790,7 @@ class Migration:
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project)
 
-        destination_datatypes = self.destination_conn.get("/xapi/schemas/datatypes").json()
+        destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
         for subject in source_project.subjects:
             self._create_subject(subject)
             self._create_custom_forms_data(subject)
@@ -816,7 +818,7 @@ class Migration:
 
     def _refresh_catalogue(self, resource_path: str) -> None:
         """Refresh a catalogue on the destination XNAT instance."""
-        self.destination_conn.services.refresh_catalog(
+        self.destination_connection.services.refresh_catalog(
             resource_path,
             checksum=True,
             delete=True,
@@ -826,7 +828,7 @@ class Migration:
 
     def _refresh_catalogues(self) -> None:
         """Refresh all catalogues for the destination XNAT project."""
-        for subject in self.destination_conn.projects[self.destination_info.id].subjects:
+        for subject in self.destination_connection.projects[self.destination_info.id].subjects:
             for experiment in subject.experiments:
                 for scan in experiment.scans:
                     resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/scans/{scan.id}"  # noqa: E501
@@ -839,7 +841,7 @@ class Migration:
                 resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}"  # noqa: E501
                 self._refresh_catalogue(resource_path)
                 # Regenerate OHIF session data
-                self.destination_conn.post(
+                self.destination_connection.post(
                     f"/xapi/viewer/projects/{self.destination_info.id}/experiments/{experiment.id}",
                 )
 
@@ -872,7 +874,7 @@ class Migration:
 
             for project_id in sharing_info["projects"]:
                 try:
-                    self.destination_conn.put(
+                    self.destination_connection.put(
                         f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}"
                     )
                     self._logger.info(
@@ -910,7 +912,7 @@ class Migration:
             for project_id in sharing_info["projects"]:
                 try:
                     # Use experiment ID in the URL and add label parameter
-                    self.destination_conn.put(
+                    self.destination_connection.put(
                         f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}"
                     )
                     self._logger.info(
@@ -946,7 +948,7 @@ class Migration:
 
             for project_id in sharing_info["projects"]:
                 try:
-                    self.destination_conn.put(
+                    self.destination_connection.put(
                         f"/data/projects/{owner}/assessors/{destination_assessor_id}/projects/{project_id}?label={label}"
                     )
                     self._logger.info(
