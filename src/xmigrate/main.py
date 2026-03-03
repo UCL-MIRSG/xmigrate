@@ -46,8 +46,8 @@ def create_users(source_connection: xnat.BaseXNATSession, destination_connection
     # First check that existing users on the destination are identical to the source
     idx_destination_all, idx_source_all = check_users(source_profiles, destination_profiles)
 
-    for idx_dest, idx_source in zip(idx_destination_all, idx_source_all, strict=False):
-        destination_profiles.pop(idx_dest)
+    for idx_destination, idx_source in zip(idx_destination_all, idx_source_all, strict=False):
+        destination_profiles.pop(idx_destination)
         source_profiles.pop(idx_source)
 
     # Now create missing users from the source on the destination
@@ -195,14 +195,14 @@ def check_datatypes_matching(
         for datatype in source_connection.get("/xapi/access/displays/createable").json()
         if not datatype["elementName"].startswith("xdat:")
     }
-    enabled_datatypes_dest = {
+    enabled_datatypes_destination = {
         datatype["elementName"]
         for datatype in destination_connection.get("/xapi/access/displays/createable").json()
         if not datatype["elementName"].startswith("xdat:")
     }
 
-    if not enabled_datatypes_source.issubset(enabled_datatypes_dest):
-        missing_datatypes = enabled_datatypes_source - enabled_datatypes_dest
+    if not enabled_datatypes_source.issubset(enabled_datatypes_destination):
+        missing_datatypes = enabled_datatypes_source - enabled_datatypes_destination
         msg = f"Source has datatypes not enabled on destination: {missing_datatypes}"
         raise ValueError(msg)
 
@@ -760,9 +760,9 @@ class Migration:
         """Create all resources on the destination XNAT instance."""
         self._create_project()
         source_project = self.source_connection.projects[self.source_info.id]
-        rsync_dest = self.destination_info.rsync_path + "/" + self.destination_info.id
+        rsync_destination = self.destination_info.rsync_path + "/" + self.destination_info.id
         rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
-        pathlib.Path(rsync_dest).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
         command_to_run = [
             "rsync",
@@ -775,7 +775,7 @@ class Migration:
             "--progress",
             "--checksum",
             rsync_source,
-            rsync_dest,
+            rsync_destination,
         ]
 
         try:
