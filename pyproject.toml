@@ -9,15 +9,15 @@ requires = [
 dev = [
     "build",
     "mypy",
-    "pre-commit",
+    "prek",
     "ruff",
     "tox",
     "twine",
 ]
 docs = [
-    "mkdocs",
     "mkdocs-include-markdown-plugin",
     "mkdocs-material",
+    "mkdocs<2",
     "mkdocstrings",
     "mkdocstrings-python",
 ]
