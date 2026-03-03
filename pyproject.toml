@@ -9,7 +9,7 @@ requires = [
 dev = [
     "build",
     "mypy",
-    "pre-commit",
+    "prek",
     "ruff",
     "tox",
     "twine",
