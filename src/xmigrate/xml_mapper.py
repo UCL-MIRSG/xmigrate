@@ -153,8 +153,8 @@ class XMLMapper:
 
         """
         # Accept either a string ID or an XNATListing-like object; store the string id.
-        dest_val = getattr(destination, "id", destination)
-        self.id_map[self.ids_to_map[map_type]][source] = str(dest_val)
+        destination_val = getattr(destination, "id", destination)
+        self.id_map[self.ids_to_map[map_type]][source] = str(destination_val)
 
     def map_xml(  # noqa: PLR0912
         self,
