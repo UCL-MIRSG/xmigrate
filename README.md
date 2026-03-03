@@ -45,7 +45,8 @@ uv sync
 
 ### Running `xmigrate`
 
-First, configure `xmigrate` using `xmigrate.toml`. See `xmigrate.toml.sample` for an example.
+First, configure `xmigrate` using `xmigrate.toml`. See `xmigrate.toml.sample`
+for an example.
 
 Then run the migration using:
 
@@ -53,8 +54,8 @@ Then run the migration using:
 xmigrate migrate
 ```
 
-You may want to check all the necessary datatypes have been added to the destination XNAT
-before running the migration with a separate command:
+You may want to check all the necessary datatypes have been added to the
+destination XNAT before running the migration with a separate command:
 
 ```sh
 xmigrate check_datatypes
@@ -67,8 +68,8 @@ you can run a separate command to create the custom forms:
 xmigrate migrate_custom_forms
 ```
 
-N.B.
-Currently, the submission object of the custom forms PUT API call is hardcoded:
+N.B. Currently, the submission object of the custom forms PUT API call is
+hardcoded:
 
 ```python
 current_submission =  {
