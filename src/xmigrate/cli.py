@@ -2,16 +2,16 @@
 
 import logging
 
+import cyclopts
 import requests  # type: ignore[import-untyped]
 import xnat
-from cyclopts import App, config
 
 # Adjust imports to where Migration and ProjectInfo live in this repo
 from xmigrate.main import Migration, ProjectInfo, check_datatypes_matching, create_custom_forms_json, create_users
 
-app = App(
+app = cyclopts.App(
     name="xmigrate",
-    config=config.Toml(
+    config=cyclopts.config.Toml(
         "xmigrate.toml",
         root_keys=["tool", "xmigrate"],
         search_parents=True,

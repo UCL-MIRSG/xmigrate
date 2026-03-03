@@ -1,9 +1,9 @@
 """Module for mapping XML tags and attributes between XNAT instances."""
 
+import collections
+import dataclasses
 import enum
 import xml.etree.ElementTree as ET
-from collections import defaultdict
-from dataclasses import dataclass
 
 
 class XnatType(enum.StrEnum):
@@ -40,7 +40,7 @@ def register_namespaces() -> None:
         ET.register_namespace(member.name, member.value)
 
 
-@dataclass
+@dataclasses.dataclass
 class ProjectInfo:  # noqa: D101
     id: str
     secondary_id: str
@@ -49,7 +49,7 @@ class ProjectInfo:  # noqa: D101
     rsync_path: str
 
 
-@dataclass
+@dataclasses.dataclass
 class XMLMapper:
     """
     Class for mapping XML tags and attributes between XNAT instances.
@@ -64,7 +64,7 @@ class XMLMapper:
         tags_to_delete (list): A list of XML tags to delete during mapping.
         tags_to_remap (dict): A mapping of XML tags to XNAT types for remapping.
         ids_to_map (dict): A mapping of XNAT types for ID remapping.
-        id_map (defaultdict): A mapping of old IDs to new IDs for various XNAT types.
+        id_map (collections.defaultdict): A mapping of old IDs to new IDs for various XNAT types.
 
     """
 
@@ -106,7 +106,7 @@ class XMLMapper:
             XnatType.reconstruction: XnatType.reconstruction,
             XnatType.scan: XnatType.scan,
         }
-        self.id_map = defaultdict(dict)
+        self.id_map = collections.defaultdict(dict)
 
     def get_destination_id(self, source_id: str, map_type: XnatType) -> str | None:
         """Get the destination ID for a given source ID."""
