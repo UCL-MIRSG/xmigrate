@@ -1,12 +1,12 @@
 """Module to migrate XNAT projects between instances."""
 
+import dataclasses
 import json
 import logging
 import pathlib
 import subprocess
 import time
-from dataclasses import dataclass, field
-from xml.etree import ElementTree as ET
+import xml.etree.ElementTree as ET
 
 import pandas as pd
 import xnat
@@ -209,7 +209,7 @@ def check_datatypes_matching(
     LOGGER.info("All source datatypes are enabled on destination")
 
 
-@dataclass
+@dataclasses.dataclass
 class Migration:
     """
     Class to handle migration of XNAT projects.
@@ -224,7 +224,7 @@ class Migration:
     """
 
     # Instance logger (not included in dataclass init or repr)
-    _logger: logging.Logger = field(default=LOGGER, init=False, repr=False)
+    _logger: logging.Logger = dataclasses.field(default=LOGGER, init=False, repr=False)
 
     source_connection: xnat.BaseXNATSession
     destination_connection: xnat.BaseXNATSession
