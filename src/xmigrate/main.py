@@ -6,6 +6,7 @@ import logging
 import pathlib
 import subprocess
 import time
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 import pandas as pd
@@ -54,7 +55,7 @@ def create_users(source_connection: xnat.BaseXNATSession, destination_connection
     for source_profile in source_profiles[len(destination_profiles) :]:
         LOGGER.info("Creating user: %s", source_profile["username"])
         destination_profile = {
-            "username": source_profile["username"].remove_suffix("#EXT#"),
+            "username": source_profile["username"].removesuffix("#EXT#"),
             "enabled": source_profile["enabled"],
             "email": source_profile["email"],
             "verified": source_profile["verified"],
@@ -65,8 +66,8 @@ def create_users(source_connection: xnat.BaseXNATSession, destination_connection
 
     # Set site-wide permission roles for users
     for source_profile in source_profiles:
-        username = source_profile["username"].remove_suffix("#EXT#")
-        if username not in destination_profiles:
+        username = source_profile["username"].removesuffix("#EXT#")
+        if not any(profile["username"] == username for profile in destination_profiles):
             msg = f"Username {username} not in destination."
             raise ValueError(msg)
         api_get_string = f"/xapi/users/{username}/roles"
@@ -499,6 +500,30 @@ class Migration:
             map_type=XnatType.project,
         )
 
+    def _check_subject_exists(
+        self,
+        subject: xnat.core.XNATListing,
+        subjects_id_map_list: list,
+        source_name: str,
+    ) -> None:
+        """Check if subject exists on the destination XNAT instance."""
+        if subject.id not in subjects_id_map_list:
+            self._create_subject(subject)
+            self._create_custom_forms_data(subject)
+            self._export_id_map(
+                resource="subjects",
+                id_map=self.mapper.id_map[XnatType.subject],
+                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
+            )
+        else:
+            msg = f"Skipping creation of subject {subject.id} as already exists on destination."
+            self._logger.info(msg)
+            self.mapper.update_id_map(
+                source=subject.id,
+                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label],
+                map_type=XnatType.subject,
+            )
+
     def _create_subject(
         self,
         subject: xnat.core.XNATListing,
@@ -544,6 +569,39 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
+
+    def _check_experiment_exists(
+        self,
+        experiment: xnat.core.XNATListing,
+        subject: xnat.core.XNATListing,
+        experiments_id_map_list: list,
+        source_name: str,
+        destination_datatypes: dict,
+    ) -> None:
+        if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
+            datatype = experiment.fulldata["meta"]["xsi:type"]
+            msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
+            raise RuntimeError(msg)
+
+        if experiment.id not in experiments_id_map_list:
+            self._create_experiment(experiment)
+            self._create_custom_forms_data(experiment)
+            self._export_id_map(
+                resource="experiments",
+                id_map=self.mapper.id_map[XnatType.experiment],
+                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
+            )
+        else:
+            msg = f"Skipping creation of experiment {experiment.id} as already exists on destination."
+            self._logger.info(msg)
+            self.mapper.update_id_map(
+                source=experiment.id,
+                destination=self.destination_connection.projects[self.destination_info.id]
+                .subjects[subject.label]
+                .experiments[experiment.label]
+                .id,
+                map_type=XnatType.experiment,
+            )
 
     def _create_experiment(
         self,
@@ -606,6 +664,30 @@ class Migration:
                 .id,
                 map_type=XnatType.experiment,
             )
+
+    def _check_scan_exists(
+        self,
+        scan: xnat.core.XNATListing,
+        experiment: xnat.core.XNATListing,
+        subject: xnat.core.XNATListing,
+    ) -> None:
+        if (
+            scan.id
+            in self.destination_connection.projects[self.destination_info.id]
+            .subjects[subject.label]
+            .experiments[experiment.label]
+            .scans
+        ):
+            msg = f"Skipping creation of scan {scan.id} as already exists on destination."
+            self._logger.info(msg)
+            self.mapper.update_id_map(
+                source=scan.id,
+                destination=scan.id,  # Scan IDs must be preserved
+                map_type=XnatType.scan,
+            )
+        else:
+            self._create_scan(scan)
+            self._create_custom_forms_data(scan)
 
     def _create_scan(
         self,
@@ -670,6 +752,34 @@ class Migration:
                 destination=scan.id,  # Scan IDs must be preserved
                 map_type=XnatType.scan,
             )
+
+    def _check_assessor_exists(
+        self,
+        assessor: xnat.core.XNATListing,
+        experiment: xnat.core.XNATListing,
+        subject: xnat.core.XNATListing,
+    ) -> None:
+        if (
+            assessor.label
+            in self.destination_connection.projects[self.destination_info.id]
+            .subjects[subject.label]
+            .experiments[experiment.label]
+            .assessors
+        ):
+            msg = f"Skipping creation of scan {assessor.id} as already exists on destination."
+            self._logger.info(msg)
+            self.mapper.update_id_map(
+                source=assessor.id,
+                destination=self.destination_connection.projects[self.destination_info.id]
+                .subjects[subject.label]
+                .experiments[experiment.label]
+                .assessors[assessor.label]
+                .id,
+                map_type=XnatType.assessor,
+            )
+        else:
+            self._create_assessor(assessor)
+            self._create_custom_forms_data(assessor)
 
     def _create_assessor(
         self,
@@ -747,14 +857,47 @@ class Migration:
         destination_project = self.mapper.get_destination_id(source_project, XnatType.project)
         destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
+        source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
+        folder_path = pathlib.Path(__file__).resolve().parent / "output" / source_name
+        folder_path.mkdir(parents=True, exist_ok=True)
+        dest_project_id = self.destination_info.id
+
+        path = folder_path / "user_permissions_per_project.json"
+        if path.is_file():
+            msg = f"user_permissions_per_project.json file exists for {source_name}. Checking progress..."
+            self._logger.info(msg)
+            with pathlib.Path(path).open() as file:
+                dest_project_ownership = json.load(file)
+
+            if dest_project_id not in list(dest_project_ownership.keys()):
+                msg = f"User permissions not yet migrated for project {dest_project_id} in {source_name}."
+                self._logger.info(msg)
+            elif source_project_ownership == dest_project_ownership[dest_project_id]:
+                msg = f"User permissions already migrated for project {dest_project_id} in {source_name}."
+                self._logger.info(msg)
+                return
+
         for user in source_project_ownership:
             username = user["login"]
             ownership_type = user["displayname"]
-            if username not in destination_profiles:
+            if not any(profile["username"] == username for profile in destination_profiles):
                 msg = f"Username {username} not in destination."
                 raise ValueError(msg)
             api_put_string = f"/data/projects/{destination_project}/users/{ownership_type}/{username}"
             self.destination_connection.put(api_put_string)
+
+        if path.is_file():
+            msg = f"Updating user_permissions_per_project.json for {dest_project_id} in {source_name}."
+            self._logger.info(msg)
+        else:
+            msg = f"Creating user_permissions_per_project.json for {dest_project_id} in {source_name}."
+            self._logger.info(msg)
+            dest_project_ownership = {}
+
+        dest_project_ownership[self.destination_info.id] = source_project_ownership
+
+        with pathlib.Path(path).open("w") as file:
+            json.dump(dest_project_ownership, file, indent=4)
 
     def _create_resources(self) -> None:
         """Create all resources on the destination XNAT instance."""
@@ -791,24 +934,34 @@ class Migration:
         self._assign_user_permissions_per_project(source_project)
 
         destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
-        for subject in source_project.subjects:
-            self._create_subject(subject)
-            self._create_custom_forms_data(subject)
-            for experiment in subject.experiments:
-                if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
-                    datatype = experiment.fulldata["meta"]["xsi:type"]
-                    msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
-                    raise RuntimeError(msg)
-                self._create_experiment(experiment)
-                self._create_custom_forms_data(experiment)
+        source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
+        subj_path = f"output/{source_name}/{self.destination_info.id}/subjects_id_map.csv"
+        subj_full_path = pathlib.Path() / subj_path
+        if subj_full_path.is_file():
+            subjects_id_map = pd.read_csv(subj_path)
+            subjects_id_map_list = subjects_id_map["source_id"].tolist()
+        else:
+            subjects_id_map_list = []
 
+        exp_path = f"output/{source_name}/{self.destination_info.id}/experiments_id_map.csv"
+        exp_full_path = pathlib.Path() / exp_path
+        if exp_full_path.is_file():
+            experiments_id_map = pd.read_csv(exp_path)
+            experiments_id_map_list = experiments_id_map["source_id"].tolist()
+        else:
+            experiments_id_map_list = []
+
+        for subject in source_project.subjects:
+            self._check_subject_exists(subject, subjects_id_map_list, source_name)
+            for experiment in subject.experiments:
+                self._check_experiment_exists(
+                    experiment, subject, experiments_id_map_list, source_name, destination_datatypes
+                )
                 for scan in experiment.scans:
-                    self._create_scan(scan)
-                    self._create_custom_forms_data(scan)
+                    self._check_scan_exists(scan, experiment, subject)
 
                 for assessor in experiment.assessors:
-                    self._create_assessor(assessor)
-                    self._create_custom_forms_data(assessor)
+                    self._check_assessor_exists(assessor, experiment, subject)
 
         self._logger.info("Subjects failed: %d", self.subj_failed_count)
         self._logger.info("Total subjects: %d", len(source_project.subjects))
@@ -981,17 +1134,32 @@ class Migration:
 
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
 
-            self._get_resource_metadata(resource="subjects")
-            self._get_resource_metadata(resource="experiments")
+            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
+            path = f"output/{source_name}/{self.destination_info.id}"
+            full_path = f"output/{source_name}/{self.destination_info.id}/subjects_metadata.csv"
+            metadata_path_subjects = pathlib.Path() / full_path
+            if metadata_path_subjects.is_file():
+                self._logger.info("Skipping _get_resource_metadata as subjects_metadata.csv file exists")
+            else:
+                self._get_resource_metadata(resource="subjects", output_dir=pathlib.Path(path))
+
+            full_path = f"output/{source_name}/{self.destination_info.id}/experiments_metadata.csv"
+            metadata_path_experiments = pathlib.Path() / full_path
+            if metadata_path_experiments.is_file():
+                self._logger.info("Skipping _get_resource_metadata as experiments_metadata.csv file exists")
+            else:
+                self._get_resource_metadata(resource="experiments", output_dir=pathlib.Path(path))
             self._create_resources()
             self._set_project_configs()
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
+                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
             )
             self._export_id_map(
                 resource="experiments",
                 id_map=self.mapper.id_map[XnatType.experiment],
+                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
             )
             self._refresh_catalogues()
 
