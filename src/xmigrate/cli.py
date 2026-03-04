@@ -2,16 +2,16 @@
 
 import logging
 
+import cyclopts
 import requests  # type: ignore[import-untyped]
 import xnat
-from cyclopts import App, config
 
 # Adjust imports to where Migration and ProjectInfo live in this repo
 from xmigrate.main import Migration, ProjectInfo, check_datatypes_matching, create_custom_forms_json, create_users
 
-app = App(
+app = cyclopts.App(
     name="xmigrate",
-    config=config.Toml(
+    config=cyclopts.config.Toml(
         "xmigrate.toml",
         root_keys=["tool", "xmigrate"],
         search_parents=True,
@@ -57,42 +57,42 @@ def migrate(  # noqa: PLR0913
     destination_project_names = destination_project_names if destination_project_names is not None else source_projects
 
     with (
-        xnat.connect(source) as src_conn,
-        xnat.connect(destination, destination_user, destination_password) as dst_conn,
+        xnat.connect(source) as source_connection,
+        xnat.connect(destination, destination_user, destination_password) as destination_connection,
     ):
         try:
-            src_archive = src_conn.get("/xapi/siteConfig/archivePath").text
+            source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
             logger.warning("Failed to fetch source archive path: %s", e)
-            src_archive = None
+            source_archive = None
 
         try:
-            dst_archive = dst_conn.get("/xapi/siteConfig/archivePath").text
+            destination_archive = destination_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
             logger.warning("Failed to fetch destination archive path: %s", e)
-            dst_archive = None
+            destination_archive = None
 
         # Create a list of ProjectInfo objects, one for each project
         all_source_info = [
             ProjectInfo(
-                id=src_proj,
+                id=source_proj,
                 secondary_id=None,
                 project_name=None,
-                archive_path=src_archive,
+                archive_path=source_archive,
                 rsync_path=source_rsync,
             )
-            for src_proj in source_projects
+            for source_proj in source_projects
         ]
 
         all_destination_info = [
             ProjectInfo(
-                id=dst_proj,
-                secondary_id=dst_sec_id,
-                project_name=dst_proj_name,
-                archive_path=dst_archive,
+                id=destination_proj,
+                secondary_id=destination_sec_id,
+                project_name=destination_proj_name,
+                archive_path=destination_archive,
                 rsync_path=destination_rsync,
             )
-            for dst_proj, dst_sec_id, dst_proj_name in zip(
+            for destination_proj, destination_sec_id, destination_proj_name in zip(
                 destination_projects,
                 destination_secondary_ids,
                 destination_project_names,
@@ -101,8 +101,8 @@ def migrate(  # noqa: PLR0913
         ]
 
         migration = Migration(
-            source_conn=src_conn,
-            destination_conn=dst_conn,
+            source_connection=source_connection,
+            destination_connection=destination_connection,
             all_source_info=all_source_info,
             all_destination_info=all_destination_info,
             rsync_only=rsync_only,
@@ -129,12 +129,12 @@ def migrate_site(
 
     """
     with (
-        xnat.connect(source) as src_conn,
-        xnat.connect(destination, destination_user, destination_password) as dst_conn,
+        xnat.connect(source) as source_connection,
+        xnat.connect(destination, destination_user, destination_password) as destination_connection,
     ):
-        check_datatypes_matching(src_conn, dst_conn)
-        create_users(src_conn, dst_conn)
-        create_custom_forms_json(src_conn, dst_conn)
+        check_datatypes_matching(source_connection, destination_connection)
+        create_users(source_connection, destination_connection)
+        create_custom_forms_json(source_connection, destination_connection)
 
 
 @app.default
