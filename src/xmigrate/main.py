@@ -67,9 +67,7 @@ def create_users(source_connection: xnat.BaseXNATSession, destination_connection
     # Set site-wide permission roles for users
     for source_profile in source_profiles:
         username = source_profile["username"].removesuffix("#EXT#")
-        if all(
-            profile["username"] != username for profile in destination_profiles
-        ):
+        if all(profile["username"] != username for profile in destination_profiles):
             msg = f"Username {username} not in destination."
             raise ValueError(msg)
         api_get_string = f"/xapi/users/{username}/roles"
@@ -459,6 +457,7 @@ class Migration:
                 continue
 
             destination_form_data = {destination_form_uuid: source_form_data}
+
             try:
                 self.destination_connection.put(api_put_string, json=destination_form_data)
                 self._logger.info(
@@ -878,9 +877,7 @@ class Migration:
         for user in source_project_ownership:
             username = user["login"]
             ownership_type = user["displayname"]
-            if all(
-                profile["username"] != username for profile in destination_profiles
-            ):
+            if all(profile["username"] != username for profile in destination_profiles):
                 msg = f"Username {username} not in destination."
                 raise ValueError(msg)
             api_put_string = f"/data/projects/{destination_project}/users/{ownership_type}/{username}"
