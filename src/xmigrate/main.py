@@ -215,11 +215,11 @@ class Migration:
     Class to handle migration of XNAT projects.
 
     Args:
-        source_connection (xnat.BaseXNATSession): The source XNAT connection.
-        destination_connection (xnat.BaseXNATSession): The destination XNAT connection.
-        all_source_info (list[ProjectInfo]): The source projects information.
-        all_destination_info (list[ProjectInfo]): The destination projects information.
-        rsync_only (bool): Conditional for whether to run rsync only.
+        source_connection: The source XNAT connection.
+        destination_connection: The destination XNAT connection.
+        all_source_info: The source projects information.
+        all_destination_info: The destination projects information.
+        rsync_only: Conditional for whether to run rsync only.
 
     """
 
@@ -260,10 +260,10 @@ class Migration:
         Retrieve the XML representation of an XNAT item.
 
         Args:
-            uri (str): The URI of the XNAT item.
+            uri: The URI of the XNAT item.
 
         Returns:
-            ET.Element: The root XML element of the item.
+            The root XML element of the item.
 
         """
         response = self.source_connection.get(
@@ -314,8 +314,8 @@ class Migration:
         on the destination after migration.
 
         Args:
-            resource (str): The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
-            output_dir (pathlib.Path): The directory to write the CSV file to.
+            resource: The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
+            output_dir: The directory to write the CSV file to.
 
         """
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -334,9 +334,9 @@ class Migration:
         Write ID map to CSV.
 
         Args:
-            resource (str): The resource type, e.g., 'subjects' or 'experiments'.
-            id_map (dict[str, str]): The mapping of source IDs to destination IDs.
-            output_dir (pathlib.Path): The directory to write the CSV file to.
+            resource: The resource type, e.g., 'subjects' or 'experiments'.
+            id_map: The mapping of source IDs to destination IDs.
+            output_dir: The directory to write the CSV file to.
 
         """
         output_dir.mkdir(parents=True, exist_ok=True)

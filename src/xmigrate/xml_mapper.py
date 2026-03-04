@@ -55,16 +55,16 @@ class XMLMapper:
     Class for mapping XML tags and attributes between XNAT instances.
 
     Args:
-        source (ProjectInfo): The source project information.
-        destination (ProjectInfo): The destination project information.
+        source: The source project information.
+        destination: The destination project information.
 
     Attributes:
-        namespaces (dict): A dictionary of XML namespaces.
-        modality_to_scan (dict): A mapping of imaging modalities to XNAT scan types.
-        tags_to_delete (list): A list of XML tags to delete during mapping.
-        tags_to_remap (dict): A mapping of XML tags to XNAT types for remapping.
-        ids_to_map (dict): A mapping of XNAT types for ID remapping.
-        id_map (collections.defaultdict): A mapping of old IDs to new IDs for various XNAT types.
+        namespaces: A dictionary of XML namespaces.
+        modality_to_scan: A mapping of imaging modalities to XNAT scan types.
+        tags_to_delete: A list of XML tags to delete during mapping.
+        tags_to_remap: A mapping of XML tags to XNAT types for remapping.
+        ids_to_map: A mapping of XNAT types for ID remapping.
+        id_map: A mapping of old IDs to new IDs for various XNAT types.
 
     """
 
@@ -124,9 +124,9 @@ class XMLMapper:
         Modifiees the XML element in-place.
 
         Args:
-            child (ET.Element): The XML element to process.
-            source_path (str): The source XNAT path.
-            destination_path (str): The destination XNAT path.
+            child: The XML element to process.
+            source_path: The source XNAT path.
+            destination_path: The destination XNAT path.
 
         """
         if "URI" not in child.attrib:
@@ -148,8 +148,8 @@ class XMLMapper:
         Update the ID mapping between source and destination.
 
         Args:
-            source (str): The source XNAT listing.
-            destination (xnat.core.XNATListing): The destination XNAT listing.
+            source: The source XNAT listing.
+            destination: The destination XNAT listing.
 
         """
         # Accept either a string ID or an XNATListing-like object; store the string id.
@@ -165,11 +165,11 @@ class XMLMapper:
         "Map XML tags and attributes for migration.
 
         Args:
-            element (ET.Element): The XML element to map from source to destination.
-            resource_type (XnatType): The type of XNAT resource being processed.
+            element: The XML element to map from source to destination.
+            resource_type: The type of XNAT resource being processed.
 
         Returns:
-            ET.Element: The mapped XML element.
+            The mapped XML element.
 
         """
         # Remap project ID
