@@ -751,7 +751,10 @@ class Migration:
 
         path = folder_path / "user_permissions_per_project.json"
         if path.is_file():
-            msg = f"user_permissions_per_project.json file exists for {source_name}. Checking progress..."
+            msg = (
+                "user_permissions_per_project.json file exists for "
+                f"{source_name}. Checking progress..."
+          	)
             self._logger.info(msg)
             with open(path) as file:  # noqa: PTH123
                 dest_project_ownership = json.load(file)
