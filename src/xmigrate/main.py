@@ -931,7 +931,7 @@ class Migration:
             return
 
         self._create_custom_forms_data(source_project)
-        self._assign_user_permissions_per_project(source_project)
+        self._assign_user_permissions_per_project(source_project.id)
 
         destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
