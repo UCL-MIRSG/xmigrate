@@ -1,4 +1,4 @@
-"""Functions related to users on the XNAT instance."""
+"""Module for handling users on XNAT instances."""
 
 import logging
 
