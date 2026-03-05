@@ -1120,6 +1120,10 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
+        check_datatypes_matching(self.source_connection, self.destination_connection)
+        create_users(self.source_connection, self.destination_connection)
+        create_custom_forms_json(self.source_connection, self.destination_connection)
+
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
             self.mappers, self.all_source_info, self.all_destination_info, strict=True
