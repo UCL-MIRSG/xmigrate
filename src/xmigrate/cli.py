@@ -1,12 +1,13 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
+# Adjust imports to where Migration and ProjectInfo live in this repo
 import logging
 
 import cyclopts
 import requests  # type: ignore[import-untyped]
+
 import xnat
 
-# Adjust imports to where Migration and ProjectInfo live in this repo
 from xmigrate.main import Migration, ProjectInfo, check_datatypes_matching, create_custom_forms_json, create_users
 
 app = cyclopts.App(
