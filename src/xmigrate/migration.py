@@ -10,9 +10,13 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 
 import pandas as pd
+
 import xnat
 from xnat.exceptions import XNATResponseError
 
+from xmigrate.custom_forms import create_custom_forms_json
+from xmigrate.datatypes import check_datatypes_matching
+from xmigrate.users import create_users
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
 # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
@@ -935,6 +939,10 @@ class Migration:
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
+
+        check_datatypes_matching(self.source_connection, self.destination_connection)
+        create_users(self.source_connection, self.destination_connection)
+        create_custom_forms_json(self.source_connection, self.destination_connection)
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(

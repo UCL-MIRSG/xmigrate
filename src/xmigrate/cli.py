@@ -4,12 +4,11 @@ import logging
 
 import cyclopts
 import requests  # type: ignore[import-untyped]
+
 import xnat
 
-from xmigrate.custom_forms import create_custom_forms_json
-from xmigrate.main import ProjectInfo, check_datatypes_matching
 from xmigrate.migration import Migration
-from xmigrate.users import create_users
+from xmigrate.xml_mapper import ProjectInfo
 
 app = cyclopts.App(
     name="xmigrate",
@@ -29,7 +28,7 @@ logger.setLevel(logging.INFO)
 
 
 @app.command
-def migrate(  # noqa: PLR0913
+def migrate_project_list(  # noqa: PLR0913
     source: str,
     source_projects: list[str],
     source_rsync: str,
@@ -44,10 +43,10 @@ def migrate(  # noqa: PLR0913
     rsync_only: bool = False,
 ) -> None:
     """
-    Migrate a project from source to destination XNAT instance.
+    Migrate a project or multiple projects in a list from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate
+      xmigrate migrate_project_list
 
     Command can be run with the arguments within an xmigrate.toml config file.
 
@@ -115,28 +114,95 @@ def migrate(  # noqa: PLR0913
 
 
 @app.command
-def migrate_site(
+def migrate_all_projects(  # noqa: PLR0913
     source: str,
+    source_rsync: str,
     destination: str,
     destination_user: str,
     destination_password: str,
+    destination_rsync: str,
+    *,
+    rsync_only: bool = False,
 ) -> None:
     """
-    Migrate site level data from source to destination XNAT instances.
+    Migrate all projects from source to destination XNAT instance.
 
     Example:
-        xmigrate migrate_site
+      xmigrate migrate_all_projects
 
-        Command can be run with the arguments within an xmigrate.toml config file.
+    Command can be run with the arguments within an xmigrate.toml config file.
+
+    It should be noted that source_rsync and destination_rsync must both be local paths.
 
     """
     with (
         xnat.connect(source) as source_connection,
         xnat.connect(destination, destination_user, destination_password) as destination_connection,
     ):
-        check_datatypes_matching(source_connection, destination_connection)
-        create_users(source_connection, destination_connection)
-        create_custom_forms_json(source_connection, destination_connection)
+        rows = [(p.id, p.secondary_id, p.project) for p in source_connection.projects]
+        source_projects, source_secondary_ids, source_project_names = (
+            map(list, zip(*rows, strict=False)) if rows else ([], [], [])
+        )
+
+        destination_projects = source_projects
+        destination_secondary_ids = source_secondary_ids
+        destination_project_names = source_project_names
+
+        try:
+            source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
+        except (requests.exceptions.RequestException, OSError) as e:
+            logger.warning("Failed to fetch source archive path: %s", e)
+            source_archive = None
+
+        try:
+            destination_archive = destination_connection.get("/xapi/siteConfig/archivePath").text
+        except (requests.exceptions.RequestException, OSError) as e:
+            logger.warning("Failed to fetch destination archive path: %s", e)
+            destination_archive = None
+
+        # Create a list of ProjectInfo objects, one for each project
+        all_source_info = [
+            ProjectInfo(
+                id=source_proj,
+                secondary_id=source_sec_id,
+                project_name=source_proj_name,
+                archive_path=source_archive,
+                rsync_path=source_rsync,
+            )
+            for source_proj, source_sec_id, source_proj_name in zip(
+                source_projects,
+                source_secondary_ids,
+                source_project_names,
+                strict=True,
+            )
+        ]
+
+        all_destination_info = [
+            ProjectInfo(
+                id=destination_proj,
+                secondary_id=destination_sec_id,
+                project_name=destination_proj_name,
+                archive_path=destination_archive,
+                rsync_path=destination_rsync,
+            )
+            for destination_proj, destination_sec_id, destination_proj_name in zip(
+                destination_projects,
+                destination_secondary_ids,
+                destination_project_names,
+                strict=True,
+            )
+        ]
+
+        migration = Migration(
+            source_connection=source_connection,
+            destination_connection=destination_connection,
+            all_source_info=all_source_info,
+            all_destination_info=all_destination_info,
+            rsync_only=rsync_only,
+        )
+
+        migration.run()
+        logger.info("Migration run finished.")
 
 
 @app.default
