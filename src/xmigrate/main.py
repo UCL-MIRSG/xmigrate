@@ -107,8 +107,8 @@ def create_custom_forms_json(
                     "xnatDatatype": {"label": [], "value": []},
                     "isThisASiteWideConfiguration": [],
                     "xnatProject": [{"label": [], "value": []}],
-                }
-            }
+                },
+            },
         }
 
         # Extract projects list, datatype, scope and formDisplayOrder
@@ -952,7 +952,11 @@ class Migration:
             self._check_subject_exists(subject, subjects_id_map_list, source_name)
             for experiment in subject.experiments:
                 self._check_experiment_exists(
-                    experiment, subject, experiments_id_map_list, source_name, destination_datatypes
+                    experiment,
+                    subject,
+                    experiments_id_map_list,
+                    source_name,
+                    destination_datatypes,
                 )
                 for scan in experiment.scans:
                     self._check_scan_exists(scan, experiment, subject)
@@ -1025,7 +1029,7 @@ class Migration:
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_connection.put(
-                        f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}",
                     )
                     self._logger.info(
                         "Shared subject %s with project %s",
@@ -1049,7 +1053,8 @@ class Migration:
             for mapper in self.mappers:
                 try:
                     destination_experiment_id = mapper.get_destination_id(
-                        sharing_info["source_id"], XnatType.experiment
+                        sharing_info["source_id"],
+                        XnatType.experiment,
                     )
                     break
                 except KeyError:
@@ -1063,7 +1068,7 @@ class Migration:
                 try:
                     # Use experiment ID in the URL and add label parameter
                     self.destination_connection.put(
-                        f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}",
                     )
                     self._logger.info(
                         "Shared experiment %s (ID: %s) with project %s",
@@ -1099,7 +1104,7 @@ class Migration:
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_connection.put(
-                        f"/data/projects/{owner}/assessors/{destination_assessor_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/assessors/{destination_assessor_id}/projects/{project_id}?label={label}",
                     )
                     self._logger.info(
                         "Shared assessor %s with project %s",
@@ -1122,7 +1127,10 @@ class Migration:
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
-            self.mappers, self.all_source_info, self.all_destination_info, strict=True
+            self.mappers,
+            self.all_source_info,
+            self.all_destination_info,
+            strict=True,
         ):
             # Set current project context
             self.mapper = mapper
