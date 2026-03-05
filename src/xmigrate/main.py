@@ -10,6 +10,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 
 import pandas as pd
+
 import xnat
 from xnat.exceptions import XNATResponseError
 
