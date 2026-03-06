@@ -87,7 +87,7 @@ def xnat_config_source(xnat_version, xnat_container_service_version):
         },
         docker_host = "127.0.0.1",
     )
-    
+
 @pytest.fixture(scope="session")
 def xnat_config_dest(xnat_version, xnat_container_service_version):
     xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_dest" / "root"
@@ -104,51 +104,72 @@ def xnat_config_dest(xnat_version, xnat_container_service_version):
             "xnat_version": xnat_version,
             "xnat_cs_plugin_version": xnat_container_service_version,
         },
-        docker_host = "127.0.0.2",
+        docker_host = "127.0.0.1",
         xnat_port = 8081
     )
 
 
+@pytest.fixture(scope="session")
+def jar_path():
+    """Path of jar built by gradlew"""
 
+    jar_dir = Path(__file__).parents[1] / "input"
+    jar_path = list(jar_dir.glob("ohif-*fat.jar"))[0]
+
+    if not jar_path.exists():
+        raise FileNotFoundError(f"Plugin JAR file not found at {jar_path}")
+
+    return jar_path
 
 
 @pytest.fixture(scope="session")
-def xnat_connection_source(xnat_config_source):  # noqa: ANN001, ANN201, D103
+def plugin_dir():
+    """Path to plugin directory inside the container"""
+
+    return Path("/data/xnat/home/plugins")
+
+def install_plugin(connection, jar_path, plugin_dir):
+    """Install plugin for specified connection"""
+    # Install OHIF viewer plugin by copying the jar into the container
+    status = subprocess.run(
+        [
+            "docker",
+            "exec",
+            "source_xnat4tests",
+            "ls",
+            plugin_dir.as_posix(),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    plugins_list = status.stdout.split("\n")
+
+    if jar_path.name not in plugins_list:
+        try:
+            subprocess.run(
+                [
+                    "docker",
+                    "cp",
+                    str(jar_path),
+                    f"source_xnat4tests:{(plugin_dir / jar_path.name).as_posix()}",
+                ],
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(
+                f"Command {e.cmd} returned with error code {e.returncode}: {e.output}"
+            ) from e
+
+        connection.restart_xnat()
+
+
+@pytest.fixture(scope="session")
+def xnat_connection_source(xnat_config_source,jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_source)
     connection = XnatConnection(xnat_config_source)
 
-    # # Install Mrd plugin by copying the jar into the container
-    # status = subprocess.run(
-    #     [
-    #         "docker",
-    #         "exec",
-    #         "xnat_mrd_xnat4tests",
-    #         "ls",
-    #         plugin_dir.as_posix(),
-    #     ],
-    #     check=True,
-    #     capture_output=True,
-    #     text=True,
-    # )
-    # plugins_list = status.stdout.split("\n")
-
-    # if jar_path.name not in plugins_list:
-    #     try:
-    #         subprocess.run(
-    #             [
-    #                 "docker",
-    #                 "cp",
-    #                 str(jar_path),
-    #                 f"xnat_mrd_xnat4tests:{(plugin_dir / jar_path.name).as_posix()}",
-    #             ],
-    #             check=True,
-    #         )
-    #     except subprocess.CalledProcessError as e:
-    #         raise RuntimeError(
-    #             f"Command {e.cmd} returned with error code {e.returncode}: {e.output}"
-    #         ) from e
-
-    #     connection.restart_xnat()
+    # install_plugin(connection, jar_path, plugin_dir)
 
     yield connection
 
@@ -180,6 +201,8 @@ def xnat_connection_dest(xnat_config_dest):  # noqa: ANN001, ANN201, D103
                 break
             except Exception:
                 continue
+
+    # install_plugin(connection, jar_path, plugin_dir)
 
     yield connection
 

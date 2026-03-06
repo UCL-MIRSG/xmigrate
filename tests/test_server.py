@@ -116,8 +116,7 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_dest, so
             all_destination_info=dest_info,
             rsync_only=False,
         )
-    
-    pdb.set_trace()
+
     create_users(xnat_connection_source.session,xnat_connection_dest.session)
     migration.run()
 
