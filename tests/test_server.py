@@ -69,13 +69,13 @@ def test_launch_source(xnat_config_source, xnat_connection_source):
         ] == [SESSION]
 
 
-def test_launch_dest(xnat_config_dest, xnat_connection_dest):
+def test_launch_dest(xnat_config_destination, xnat_connection_dest):
 
     PROJECT = "dest_proj"
     SUBJECT = "dest_subj"
     SESSION = "dest_session"
 
-    with xnat4tests.connect(xnat_config_dest) as login:
+    with xnat4tests.connect(xnat_config_destination) as login:
         # Create project
         login.put(f"/data/archive/projects/{PROJECT}")
 
@@ -97,12 +97,12 @@ def test_launch_dest(xnat_config_dest, xnat_connection_dest):
         )
         xresource.upload(str(a_file), "a_file")
 
-        assert [p.name for p in (xnat_config_dest.xnat_root_dir / "archive").iterdir()] == [
+        assert [p.name for p in (xnat_config_destination.xnat_root_dir / "archive").iterdir()] == [
             PROJECT
         ]
         assert [
             p.name
-            for p in (xnat_config_dest.xnat_root_dir / "archive" / PROJECT / "arc001").iterdir()
+            for p in (xnat_config_destination.xnat_root_dir / "archive" / PROJECT / "arc001").iterdir()
         ] == [SESSION]
 
 # # @pytest.mark.usefixtures("remove_test_data")

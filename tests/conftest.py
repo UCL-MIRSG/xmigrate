@@ -85,11 +85,11 @@ def xnat_config_source(xnat_version, xnat_container_service_version):
             "xnat_version": xnat_version,
             "xnat_cs_plugin_version": xnat_container_service_version,
         },
-        docker_host = "127.0.0.1",
+        # docker_host = "127.0.0.1",
     )
 
 @pytest.fixture(scope="session")
-def xnat_config_dest(xnat_version, xnat_container_service_version):
+def xnat_config_destination(xnat_version, xnat_container_service_version):
     xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_dest" / "root"
     docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_dest" / "build"
     xnat_root_dir.mkdir(parents=True, exist_ok=True)
@@ -98,13 +98,13 @@ def xnat_config_dest(xnat_version, xnat_container_service_version):
     return xnat4tests.Config(
         xnat_root_dir=xnat_root_dir,
         docker_build_dir=docker_build_dir,
-        docker_image="dest_xnat4tests",
-        docker_container="dest_xnat4tests",
+        docker_image="destination_xnat4tests",
+        docker_container="destination_xnat4tests",
         build_args={
             "xnat_version": xnat_version,
             "xnat_cs_plugin_version": xnat_container_service_version,
         },
-        docker_host = "127.0.0.1",
+        # docker_host = "127.0.0.1",
         xnat_port = 8081
     )
 
@@ -128,14 +128,14 @@ def plugin_dir():
 
     return Path("/data/xnat/home/plugins")
 
-def install_plugin(connection, jar_path, plugin_dir):
+def install_plugin(connection, jar_path, plugin_dir, connection_name):
     """Install plugin for specified connection"""
     # Install OHIF viewer plugin by copying the jar into the container
     status = subprocess.run(
         [
             "docker",
             "exec",
-            "source_xnat4tests",
+            connection_name,
             "ls",
             plugin_dir.as_posix(),
         ],
@@ -152,7 +152,7 @@ def install_plugin(connection, jar_path, plugin_dir):
                     "docker",
                     "cp",
                     str(jar_path),
-                    f"source_xnat4tests:{(plugin_dir / jar_path.name).as_posix()}",
+                    f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
                 ],
                 check=True,
             )
@@ -168,8 +168,9 @@ def install_plugin(connection, jar_path, plugin_dir):
 def xnat_connection_source(xnat_config_source,jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_source)
     connection = XnatConnection(xnat_config_source)
-
-    # install_plugin(connection, jar_path, plugin_dir)
+    
+    connection_name = "source_xnat4tests"
+    install_plugin(connection, jar_path, plugin_dir, connection_name)
 
     yield connection
 
@@ -184,12 +185,12 @@ def xnat_connection_source(xnat_config_source,jar_path, plugin_dir):
         connection.close()
 
 @pytest.fixture(scope="session")
-def xnat_connection_dest(xnat_config_dest):  # noqa: ANN001, ANN201, D103
-    xnat4tests.start_xnat(xnat_config_dest)
-    connection = XnatConnection(xnat_config_dest)
+def xnat_connection_dest(xnat_config_destination, jar_path, plugin_dir):
+    xnat4tests.start_xnat(xnat_config_destination)
+    connection = XnatConnection(xnat_config_destination)
 
     # replace base_url construction to use the configured docker_host IP
-    base_host = getattr(xnat_config_dest, "docker_host", "localhost") or "localhost"
+    base_host = getattr(xnat_config_destination, "docker_host", "localhost") or "localhost"
     base_url = f"http://{base_host}:8081"
 
     try:
@@ -202,7 +203,8 @@ def xnat_connection_dest(xnat_config_dest):  # noqa: ANN001, ANN201, D103
             except Exception:
                 continue
 
-    # install_plugin(connection, jar_path, plugin_dir)
+    connection_name = "destination_xnat4tests"
+    install_plugin(connection, jar_path, plugin_dir, connection_name)
 
     yield connection
 
@@ -211,7 +213,7 @@ def xnat_connection_dest(xnat_config_dest):  # noqa: ANN001, ANN201, D103
     # between every test run.
     if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         connection.close()
-        xnat4tests.stop_xnat(xnat_config_dest)
+        xnat4tests.stop_xnat(xnat_config_destination)
     else:
         delete_data(connection.session)
         connection.close()
