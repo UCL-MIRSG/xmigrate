@@ -1,4 +1,4 @@
-"""Module for handling migration of XNAT projects."""
+"""The main module for creating the Migration class for XNAT."""
 
 import dataclasses
 import json
@@ -23,7 +23,6 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 # packages importing this module can configure logging more specifically.
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
-
 
 @dataclasses.dataclass
 class Migration:
