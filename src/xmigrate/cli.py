@@ -43,14 +43,37 @@ def migrate_project_list(  # noqa: PLR0913
     rsync_only: bool = False,
 ) -> None:
     """
-    Migrate a project or multiple projects in a list from source to destination XNAT instance.
+    Migrate a project or projects from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate_project_list
+        xmigrate migrate_project_list
 
     Command can be run with the arguments within an xmigrate.toml config file.
 
-    It should be noted that source_rsync and destination_rsync must both be local paths.
+    Note that source_rsync and destination_rsync must both be local paths.
+
+    Parameters
+    ----------
+    source_projects
+        _description_.
+    source_rsync
+        _description_.
+    destination
+        _description_.
+    destination_user
+        _description_.
+    destination_password
+        _description_.
+    destination_rsync
+        _description_.
+    destination_projects
+        _description_.
+    destination_secondary_ids
+        _description_.
+    destination_project_names
+        _description_.
+    rsync_only
+        _description_.
 
     """
     destination_projects = destination_projects if destination_projects is not None else source_projects
@@ -128,11 +151,26 @@ def migrate_all_projects(  # noqa: PLR0913
     Migrate all projects from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate_all_projects
+        xmigrate migrate_all_projects
 
     Command can be run with the arguments within an xmigrate.toml config file.
 
-    It should be noted that source_rsync and destination_rsync must both be local paths.
+    Note that source_rsync and destination_rsync must both be local paths.
+
+    Parameters
+    ----------
+    source_rsync
+        _description_.
+    destination
+        _description_.
+    destination_user
+        _description_.
+    destination_password
+        _description_.
+    destination_rsync
+        _description_.
+    rsync_only, optional
+        _description_.
 
     """
     with (

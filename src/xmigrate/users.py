@@ -11,7 +11,21 @@ LOGGER = logging.getLogger(__name__)
 
 
 def check_users(source_profiles: list, destination_profiles: list) -> tuple[list, list]:
-    """Check users on the destination XNAT instance."""
+    """
+    Check users on the destination XNAT instance.
+
+    Parameters
+    ----------
+    source_profiles
+        _description_.
+    destination_profiles
+        _description_.
+
+    Returns
+    -------
+        _description_.
+
+    """
     idx_source_all = []
     idx_destination_all = []
 
@@ -32,7 +46,22 @@ def create_users(
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
 ) -> None:
-    """Create users on the destination XNAT instance."""
+    """
+    Create users on the destination XNAT instance.
+
+    Parameters
+    ----------
+    source_connection
+        _description_.
+    destination_connection
+        _description_.
+
+    Raises
+    ------
+    ValueError
+        _description_.
+
+    """
     source_profiles = source_connection.get("/xapi/users/profiles", format="json").json()
     destination_profiles = destination_connection.get("/xapi/users/profiles", format="json").json()
 

@@ -7,31 +7,65 @@ import xml.etree.ElementTree as ET
 
 
 class XnatType(enum.StrEnum):
-    """Type of XNAT item so cleaning can be performed."""
+    """
+    Type of XNAT item so cleaning can be performed.
+
+    Parameters
+    ----------
+    enum
+        _description_.
+
+    """
 
     server = enum.auto()
+    """_summary_."""
     project = enum.auto()
+    """_summary_."""
     subject = enum.auto()
+    """_summary_."""
     experiment = enum.auto()
+    """_summary_."""
     scan = enum.auto()
+    """_summary_."""
     assessor = enum.auto()
+    """_summary_."""
     reconstruction = enum.auto()
+    """_summary_."""
     resource = enum.auto()
+    """_summary_."""
     in_resource = enum.auto()
+    """_summary_."""
     out_resource = enum.auto()
+    """_summary_."""
     file = enum.auto()
+    """_summary_."""
 
 
 class XnatNS(enum.StrEnum):
-    """XNAT XML namespaces."""
+    """
+    XNAT XML namespaces.
+
+    Parameters
+    ----------
+    enum
+        _description_.
+
+    """
 
     xnat = "http://nrg.wustl.edu/xnat"
+    """_summary_."""
     prov = "http://www.nbirn.net/prov"
+    """_summary_."""
     xdat = "http://nrg.wustl.edu/xdat"
+    """_summary_."""
     xs = "http://www.w3.org/2001/XMLSchema"
+    """_summary_."""
     proc = "http://nrg.wustl.edu/proc"
+    """_summary_."""
     fs = "http://nrg.wustl.edu/fs"
+    """_summary_."""
     icr = "http://icr.ac.uk/icr"
+    """_summary_."""
 
 
 def register_namespaces() -> None:
@@ -41,22 +75,25 @@ def register_namespaces() -> None:
 
 
 @dataclasses.dataclass
-class ProjectInfo:  # noqa: D101
+class ProjectInfo:
+    """_summary_."""
+
     id: str
+    """_summary_."""
     secondary_id: str
+    """_summary_."""
     project_name: str
+    """_summary_."""
     archive_path: str
+    """_summary_."""
     rsync_path: str
+    """_summary_."""
 
 
 @dataclasses.dataclass
 class XMLMapper:
     """
     Class for mapping XML tags and attributes between XNAT instances.
-
-    Args:
-        source: The source project information.
-        destination: The destination project information.
 
     Attributes:
         namespaces: A dictionary of XML namespaces.
@@ -66,12 +103,26 @@ class XMLMapper:
         ids_to_map: A mapping of XNAT types for ID remapping.
         id_map: A mapping of old IDs to new IDs for various XNAT types.
 
+    Returns:
+    -------
+        _description_.
+
+    Raises:
+    ------
+    ValueError
+        _description_.
+    ValueError
+        _description_.
+
     """
 
     source: ProjectInfo
+    """The source project information."""
     destination: ProjectInfo
+    """The destination project information."""
 
-    def __post_init__(self):  # noqa: ANN204, D105
+    def __post_init__(self):  # noqa: ANN204
+        """_summary_."""
         register_namespaces()
         self.namespaces = {member.name: member.value for member in XnatNS}
         self.modality_to_scan = {
@@ -109,7 +160,21 @@ class XMLMapper:
         self.id_map = collections.defaultdict(dict)
 
     def get_destination_id(self, source_id: str, map_type: XnatType) -> str | None:
-        """Get the destination ID for a given source ID."""
+        """
+        Get the destination ID for a given source ID.
+
+        Parameters
+        ----------
+        source_id
+            _description_.
+        map_type
+            _description_.
+
+        Returns
+        -------
+            _description_.
+
+        """
         return self.id_map.get(map_type, {}).get(source_id)
 
     def rewrite_uris(
@@ -121,12 +186,21 @@ class XMLMapper:
         """
         Rewrite URIs in XML elements from source to destination path.
 
-        Modifiees the XML element in-place.
+        Modifies the XML element in-place.
 
-        Args:
-            child: The XML element to process.
-            source_path: The source XNAT path.
-            destination_path: The destination XNAT path.
+        Parameters
+        ----------
+        child
+            The XML element to process.
+        source_path
+            The source XNAT path.
+        destination_path
+            The destination XNAT path.
+
+        Raises
+        ------
+        ValueError
+            _description_.
 
         """
         if "URI" not in child.attrib:
@@ -147,9 +221,14 @@ class XMLMapper:
         """
         Update the ID mapping between source and destination.
 
-        Args:
-            source: The source XNAT listing.
-            destination: The destination XNAT listing.
+        Parameters
+        ----------
+        source
+            The source XNAT listing.
+        destination
+            The destination XNAT listing.
+        map_type
+            _description_.
 
         """
         # Accept either a string ID or an XNATListing-like object; store the string id.
@@ -162,14 +241,23 @@ class XMLMapper:
         resource_type: XnatType,
     ) -> ET.Element:
         """
-        "Map XML tags and attributes for migration.
+        _summary_.
 
-        Args:
-            element: The XML element to map from source to destination.
-            resource_type: The type of XNAT resource being processed.
+        Parameters
+        ----------
+        element
+            _description_.
+        resource_type
+            _description_.
 
-        Returns:
-            The mapped XML element.
+        Returns
+        -------
+            _description_.
+
+        Raises
+        ------
+        ValueError
+            _description_.
 
         """
         # Remap project ID

@@ -24,6 +24,7 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
+
 @dataclasses.dataclass
 class Migration:
     """
@@ -36,18 +37,43 @@ class Migration:
         all_destination_info: The destination projects information.
         rsync_only: Conditional for whether to run rsync only.
 
+    Returns:
+    -------
+        _description_.
+
+    Raises:
+    ------
+    RuntimeError
+        _description_.
+    RuntimeError
+        _description_.
+    ValueError
+        _description_.
+    RuntimeError
+        _description_.
+    ValueError
+        _description_.
+    RuntimeError
+        _description_.
+
     """
 
     # Instance logger (not included in dataclass init or repr)
     _logger: logging.Logger = dataclasses.field(default=LOGGER, init=False, repr=False)
-
+    """_summary_."""
     source_connection: xnat.BaseXNATSession
+    """_summary_."""
     destination_connection: xnat.BaseXNATSession
+    """_summary_."""
     all_source_info: list[ProjectInfo]
+    """_summary_."""
     all_destination_info: list[ProjectInfo]
+    """_summary_."""
     rsync_only: bool = False
+    """_summary_."""
 
-    def __post_init__(self):  # noqa: ANN204, D105
+    def __post_init__(self):  # noqa: ANN204
+        """_summary_."""
         self.mappers = [
             XMLMapper(
                 source=source_info,
@@ -74,10 +100,13 @@ class Migration:
         """
         Retrieve the XML representation of an XNAT item.
 
-        Args:
-            uri: The URI of the XNAT item.
+        Parameters
+        ----------
+        uri
+            The URI of the XNAT item.
 
-        Returns:
+        Returns
+        -------
             The root XML element of the item.
 
         """
@@ -89,6 +118,17 @@ class Migration:
         return ET.fromstring(response.text)  # noqa: S314
 
     def _set_project_configs(self) -> None:
+        """
+        _summary_.
+
+        Raises
+        ------
+        RuntimeError
+            _description_.
+        RuntimeError
+            _description_.
+
+        """
         # If a project has no custom configuration, XNAT raises an error
         try:
             custom_configs = self.source_connection.get(f"/data/projects/{self.source_info.id}/config").json()[
@@ -121,16 +161,23 @@ class Migration:
                     msg = f"Failed to put config to destination XNAT\n: {e.text}"
                     raise RuntimeError(msg) from e
 
-    def _get_resource_metadata(self, resource: str, output_dir: pathlib.Path = pathlib.Path("./output")) -> None:
+    def _get_resource_metadata(
+        self,
+        resource: str,
+        output_dir: pathlib.Path = pathlib.Path("./output"),
+    ) -> None:
         """
         Retrieve resource metadata and write to CSV.
 
-        This can be used to set the correct insert_user, insert_date, and last_modified metadata
-        on the destination after migration.
+        This can be used to set the correct insert_user, insert_date, and
+        last_modified metadata on the destination after migration.
 
-        Args:
-            resource: The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
-            output_dir: The directory to write the CSV file to.
+        Parameters
+        ----------
+        resource
+            The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
+        output_dir
+            The directory to write the CSV file to.
 
         """
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -148,10 +195,14 @@ class Migration:
         """
         Write ID map to CSV.
 
-        Args:
-            resource: The resource type, e.g., 'subjects' or 'experiments'.
-            id_map: The mapping of source IDs to destination IDs.
-            output_dir: The directory to write the CSV file to.
+        Parameters
+        ----------
+        resource
+            The resource type, e.g., 'subjects' or 'experiments'.
+        id_map
+            The mapping of source IDs to destination IDs.
+        output_dir
+            The directory to write the CSV file to.
 
         """
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -159,13 +210,48 @@ class Migration:
         df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
 
     def _extract_resource_type_name(self, resource_type: xnat.core.XNATListing) -> str:
+        """
+        _summary_.
+
+        Parameters
+        ----------
+        resource_type
+            _description_.
+
+        Returns
+        -------
+            _description_.
+
+        """
         fulluri_str = resource_type.fulluri
         fulluri_list = fulluri_str.split("/")  # e.g. /data/archive/projects/<project_name>
         idx = len(fulluri_list) - 2  # Index for the 2nd to last element of the fulluri
         resources_type_name = fulluri_list[idx]  # e.g. extracts "projects" as a string from fulluri
         return resources_type_name[:-1]  # e.g. "project" as string
 
-    def _construct_api(self, path_segment: str, api_call_str: str, resource_type: xnat.core.XNATListing) -> str:
+    def _construct_api(
+        self,
+        path_segment: str,
+        api_call_str: str,
+        resource_type: xnat.core.XNATListing,
+    ) -> str:
+        """
+        _summary_.
+
+        Parameters
+        ----------
+        path_segment
+            _description_.
+        api_call_str
+            _description_.
+        resource_type
+            _description_.
+
+        Returns
+        -------
+            _description_.
+
+        """
         if api_call_str == "GET":
             full_api_str = f"/xapi/custom-fields/{path_segment}/fields"
         elif api_call_str == "PUT":
@@ -208,8 +294,15 @@ class Migration:
         """
         Migrate custom form data from source resource_type to destination resource_type.
 
-        Args:
-            resource_type: The source resource_type object.
+        Parameters
+        ----------
+        resource_type
+            The source resource_type object.
+
+        Raises
+        ------
+        ValueError
+            _description_.
 
         """
         # Get source custom forms
@@ -317,7 +410,19 @@ class Migration:
         subjects_id_map_list: list,
         source_name: str,
     ) -> None:
-        """Check if subject exists on the destination XNAT instance."""
+        """
+        Check if subject exists on the destination XNAT instance.
+
+        Parameters
+        ----------
+        subject
+            _description_.
+        subjects_id_map_list
+            _description_.
+        source_name
+            _description_.
+
+        """
         if subject.id not in subjects_id_map_list:
             self._create_subject(subject)
             self._create_custom_forms_data(subject)
@@ -339,7 +444,15 @@ class Migration:
         self,
         subject: xnat.core.XNATListing,
     ) -> None:
-        """Create a subject on the destination XNAT instance."""
+        """
+        Create a subject on the destination XNAT instance.
+
+        Parameters
+        ----------
+        subject
+            _description_.
+
+        """
         root = self._get_source_xml(
             f"/data/projects/{self.source_info.id}/subjects/{subject.id}",
         )
@@ -389,6 +502,28 @@ class Migration:
         source_name: str,
         destination_datatypes: dict,
     ) -> None:
+        """
+        _summary_.
+
+        Parameters
+        ----------
+        experiment
+            _description_.
+        subject
+            _description_.
+        experiments_id_map_list
+            _description_.
+        source_name
+            _description_.
+        destination_datatypes
+            _description_.
+
+        Raises
+        ------
+        RuntimeError
+            _description_.
+
+        """
         if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
             datatype = experiment.fulldata["meta"]["xsi:type"]
             msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
@@ -418,7 +553,15 @@ class Migration:
         self,
         experiment: xnat.core.XNATListing,
     ) -> None:
-        """Create an experiment on the destination XNAT instance."""
+        """
+        Create an experiment on the destination XNAT instance.
+
+        Parameters
+        ----------
+        experiment
+            _description_.
+
+        """
         subject = experiment.parent
         root = self._get_source_xml(
             f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}",
@@ -482,6 +625,19 @@ class Migration:
         experiment: xnat.core.XNATListing,
         subject: xnat.core.XNATListing,
     ) -> None:
+        """
+        _summary_.
+
+        Parameters
+        ----------
+        scan
+            _description_.
+        experiment
+            _description_.
+        subject
+            _description_.
+
+        """
         if (
             scan.id
             in self.destination_connection.projects[self.destination_info.id]
@@ -504,7 +660,15 @@ class Migration:
         self,
         scan: xnat.core.XNATListing,
     ) -> None:
-        """Create a scan on the destination XNAT instance."""
+        """
+        Create a scan on the destination XNAT instance.
+
+        Parameters
+        ----------
+        scan
+            _description_.
+
+        """
         experiment = scan.parent
         subject = experiment.parent
 
@@ -570,6 +734,19 @@ class Migration:
         experiment: xnat.core.XNATListing,
         subject: xnat.core.XNATListing,
     ) -> None:
+        """
+        _summary_.
+
+        Parameters
+        ----------
+        assessor
+            _description_.
+        experiment
+            _description_.
+        subject
+            _description_.
+
+        """
         if (
             assessor.label
             in self.destination_connection.projects[self.destination_info.id]
@@ -596,7 +773,15 @@ class Migration:
         self,
         assessor: xnat.core.XNATListing,
     ) -> None:
-        """Create an assessor on the destination XNAT instance."""
+        """
+        Create an assessor on the destination XNAT instance.
+
+        Parameters
+        ----------
+        assessor
+            _description_.
+
+        """
         experiment = assessor.parent
         subject = experiment.parent
         root = self._get_source_xml(
@@ -663,6 +848,20 @@ class Migration:
             )
 
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
+        """
+        _summary_.
+
+        Parameters
+        ----------
+        source_project
+            _description_.
+
+        Raises
+        ------
+        ValueError
+            _description_.
+
+        """
         api_get_string = f"/data/projects/{source_project}/users"
         source_project_ownership = self.source_connection.get(api_get_string).json()["ResultSet"]["Result"]
         destination_project = self.mapper.get_destination_id(source_project, XnatType.project)
@@ -711,7 +910,15 @@ class Migration:
             json.dump(dest_project_ownership, file, indent=4)
 
     def _create_resources(self) -> None:
-        """Create all resources on the destination XNAT instance."""
+        """
+        Create all resources on the destination XNAT instance.
+
+        Raises
+        ------
+        RuntimeError
+            _description_.
+
+        """
         self._create_project()
         source_project = self.source_connection.projects[self.source_info.id]
         rsync_destination = self.destination_info.rsync_path + "/" + self.destination_info.id
@@ -785,7 +992,15 @@ class Migration:
         self._logger.info("Assessors failed: %d", self.assess_failed_count)
 
     def _refresh_catalogue(self, resource_path: str) -> None:
-        """Refresh a catalogue on the destination XNAT instance."""
+        """
+        Refresh a catalogue on the destination XNAT instance.
+
+        Parameters
+        ----------
+        resource_path
+            _description_.
+
+        """
         self.destination_connection.services.refresh_catalog(
             resource_path,
             checksum=True,
