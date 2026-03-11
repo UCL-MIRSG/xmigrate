@@ -24,6 +24,7 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
+
 @dataclasses.dataclass
 class Migration:
     """
