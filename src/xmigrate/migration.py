@@ -1,4 +1,4 @@
-"""The main module for creating the Migration class for XNAT."""
+"""Module for handling the creation of the migration object."""
 
 import dataclasses
 import json
