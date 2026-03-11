@@ -7,8 +7,7 @@ import requests  # type: ignore[import-untyped]
 
 import xnat
 
-from xmigrate.migration import Migration
-from xmigrate.xml_mapper import ProjectInfo
+from xmigrate.main import Migration, ProjectInfo
 
 app = cyclopts.App(
     name="xmigrate",
