@@ -72,7 +72,7 @@ run = {branch = true, parallel = true, source = [
 ]}
 paths.source = [
     "src",
-    ".tox*/*/lib/python*/site-packages",
+    ".nox*/*/lib/python*/site-packages",
 ]
 
 [tool.mypy]
@@ -136,29 +136,3 @@ trailing_comma_inline_array = true
 overrides."project.classifiers".inline_arrays = false
 overrides."tool.coverage.paths.source".inline_arrays = false
 overrides."tool.ruff.lint.isort.section-order".inline_arrays = false
-overrides."tool.tox.env.docs.commands".inline_arrays = false
-overrides."tool.tox.env_run_base.commands".inline_arrays = false
-
-[tool.tox]
-env_list = [
-    "py313",
-]
-env_run_base = {commands = [
-    [
-        "pytest",
-        "--cov",
-        "--cov-report=xml",
-    ],
-], dependency_groups = [
-    "test",
-]}
-env.docs = {commands = [
-    [
-        "zensical",
-        "build",
-        "--strict",
-    ],
-], dependency_groups = [
-    "docs",
-]}
-gh.python."3.13" = ["py313"]
