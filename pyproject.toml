@@ -148,7 +148,7 @@ env_run_base = {commands = [
 ]}
 env.docs = {commands = [
     [
-        "mkdocs",
+        "zensical",
         "build",
         "--strict",
     ],
