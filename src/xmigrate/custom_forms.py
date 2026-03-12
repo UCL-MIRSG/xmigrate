@@ -29,7 +29,7 @@ def create_custom_forms_json(
     Raises
     ------
     RuntimeError
-        If failed to create custom forms on destination
+        If failed to create custom forms on destination.
 
     """
     # Get custom forms from source as json

@@ -146,7 +146,8 @@ class Migration:
         Parameters
         ----------
         resource
-            The resource type to retrieve metadata for, e.g., 'subjects' or 'experiments'.
+            The resource type to retrieve metadata for, e.g., 'subjects' or
+            'experiments'.
         output_dir
             The directory to write the CSV file to.
 
