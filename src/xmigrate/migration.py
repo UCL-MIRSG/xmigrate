@@ -64,10 +64,7 @@ class Migration:
         self.experiment_sharing = {}
         self.assessor_sharing = {}
 
-    def _get_source_xml(
-        self,
-        uri: str,
-    ) -> ET.Element:
+    def _get_source_xml(self, uri: str) -> ET.Element:
         """
         Retrieve the XML representation of an XNAT item.
 
@@ -181,10 +178,7 @@ class Migration:
         df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
         df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
 
-    def _extract_resource_type_name(
-        self,
-        resource_type: xnat.core.XNATListing,
-    ) -> str:
+    def _extract_resource_type_name(self, resource_type: xnat.core.XNATListing) -> str:
         """
         Extract the resource type name from an XNATListing object.
 
@@ -262,10 +256,7 @@ class Migration:
 
         return full_api_str
 
-    def _create_custom_forms_data(
-        self,
-        resource_type: xnat.core.XNATListing,
-    ) -> None:
+    def _create_custom_forms_data(self, resource_type: xnat.core.XNATListing) -> None:
         """
         Migrate custom form data from source resource_type to destination resource_type.
 
@@ -415,10 +406,7 @@ class Migration:
                 map_type=XnatType.subject,
             )
 
-    def _create_subject(
-        self,
-        subject: xnat.core.XNATListing,
-    ) -> None:
+    def _create_subject(self, subject: xnat.core.XNATListing) -> None:
         """
         Create a subject on the destination XNAT instance.
 
@@ -524,10 +512,7 @@ class Migration:
                 map_type=XnatType.experiment,
             )
 
-    def _create_experiment(
-        self,
-        experiment: xnat.core.XNATListing,
-    ) -> None:
+    def _create_experiment(self, experiment: xnat.core.XNATListing) -> None:
         """
         Create an experiment on the destination XNAT instance.
 
@@ -631,10 +616,7 @@ class Migration:
             self._create_scan(scan)
             self._create_custom_forms_data(scan)
 
-    def _create_scan(
-        self,
-        scan: xnat.core.XNATListing,
-    ) -> None:
+    def _create_scan(self, scan: xnat.core.XNATListing) -> None:
         """
         Create a scan on the destination XNAT instance.
 
@@ -744,10 +726,7 @@ class Migration:
             self._create_assessor(assessor)
             self._create_custom_forms_data(assessor)
 
-    def _create_assessor(
-        self,
-        assessor: xnat.core.XNATListing,
-    ) -> None:
+    def _create_assessor(self, assessor: xnat.core.XNATListing) -> None:
         """
         Create an assessor on the destination XNAT instance.
 
