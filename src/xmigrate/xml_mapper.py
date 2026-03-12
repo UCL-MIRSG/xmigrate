@@ -136,7 +136,7 @@ class XMLMapper:
             msg = f"source_archive {source_path} not found in URI {child.attrib['URI']}."
             raise ValueError(msg)
 
-        child.attrib["URI"] = child.attrib["URI"].replace(source_path, destination_path, count=1)
+        child.attrib["URI"] = child.attrib["URI"].replace(source_path, destination_path, 1)
 
     def update_id_map(
         self,
