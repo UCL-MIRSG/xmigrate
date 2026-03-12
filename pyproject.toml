@@ -6,18 +6,22 @@ requires = [
 ]
 
 [dependency-groups]
-dev = [
+build = [
     "build",
-    "mypy",
-    "prek",
-    "ruff",
-    "tox",
-    "twine",
+]
+dev = [
+    "nox",
+    "nox-uv",
+    {include-group = "build"},
+    {include-group = "lint"},
 ]
 docs = [
     "mkdocstrings",
     "mkdocstrings-python",
     "zensical",
+]
+lint = [
+    "prek",
 ]
 test = [
     "pytest",
