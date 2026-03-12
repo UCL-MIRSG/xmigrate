@@ -15,11 +15,9 @@ dev = [
     "twine",
 ]
 docs = [
-    "mkdocs-include-markdown-plugin",
-    "mkdocs-material",
-    "mkdocs<2",
     "mkdocstrings",
     "mkdocstrings-python",
+    "zensical",
 ]
 test = [
     "pytest",
