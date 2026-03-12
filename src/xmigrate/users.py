@@ -10,20 +10,25 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
-def check_users(source_profiles: list, destination_profiles: list) -> tuple[list, list]:
+def check_users(
+    source_profiles: list,
+    destination_profiles: list,
+) -> tuple[list, list]:
     """
     Check users on the destination XNAT instance.
 
     Parameters
     ----------
     source_profiles
-        _description_.
+        List of user profiles from the source XNAT instance.
     destination_profiles
-        _description_.
+        List of user profiles from the destination XNAT instance.
 
     Returns
     -------
-        _description_.
+        A tuple containing two lists:
+        - List of indices of users in the destination_profiles that need to be updated.
+        - List of indices of users in the source_profiles that need to be updated.
 
     """
     idx_source_all = []
@@ -52,14 +57,14 @@ def create_users(
     Parameters
     ----------
     source_connection
-        _description_.
+        The XNAT session for the source instance.
     destination_connection
-        _description_.
+        The XNAT session for the destination instance.
 
     Raises
     ------
     ValueError
-        _description_.
+        If there is a mismatch in user IDs between the source and destination.
 
     """
     source_profiles = source_connection.get("/xapi/users/profiles", format="json").json()

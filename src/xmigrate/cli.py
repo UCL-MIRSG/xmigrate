@@ -55,25 +55,25 @@ def migrate_project_list(  # noqa: PLR0913
     Parameters
     ----------
     source_projects
-        _description_.
+        A list of source project IDs.
     source_rsync
-        _description_.
+        The path to the source rsync directory.
     destination
-        _description_.
+        The destination XNAT instance URL.
     destination_user
-        _description_.
+        The username for the destination XNAT instance.
     destination_password
-        _description_.
+        The password for the destination XNAT instance.
     destination_rsync
-        _description_.
+        The path to the destination rsync directory.
     destination_projects
-        _description_.
+        A list of destination project IDs.
     destination_secondary_ids
-        _description_.
+        A list of secondary IDs for the destination projects.
     destination_project_names
-        _description_.
+        A list of names for the destination projects.
     rsync_only
-        _description_.
+        If True, only perform rsync operations without migrating other data.
 
     """
     destination_projects = destination_projects if destination_projects is not None else source_projects
@@ -160,17 +160,17 @@ def migrate_all_projects(  # noqa: PLR0913
     Parameters
     ----------
     source_rsync
-        _description_.
+        The local path for the source XNAT instance's rsync.
     destination
-        _description_.
+        The destination XNAT instance URL.
     destination_user
-        _description_.
+        The username for the destination XNAT instance.
     destination_password
-        _description_.
+        The password for the destination XNAT instance.
     destination_rsync
-        _description_.
+        The local path for the destination XNAT instance's rsync.
     rsync_only, optional
-        _description_.
+        Flag indicating whether to run rsync only.
 
     """
     with (

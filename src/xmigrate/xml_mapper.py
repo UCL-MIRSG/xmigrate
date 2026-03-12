@@ -7,65 +7,49 @@ import xml.etree.ElementTree as ET
 
 
 class XnatType(enum.StrEnum):
-    """
-    Type of XNAT item so cleaning can be performed.
-
-    Parameters
-    ----------
-    enum
-        _description_.
-
-    """
+    """Type of XNAT item so cleaning can be performed."""
 
     server = enum.auto()
-    """_summary_."""
+    """The XNAT server itself."""
     project = enum.auto()
-    """_summary_."""
+    """An XNAT project."""
     subject = enum.auto()
-    """_summary_."""
+    """An XNAT subject."""
     experiment = enum.auto()
-    """_summary_."""
+    """An XNAT experiment."""
     scan = enum.auto()
-    """_summary_."""
+    """An XNAT scan."""
     assessor = enum.auto()
-    """_summary_."""
+    """An XNAT assessor."""
     reconstruction = enum.auto()
-    """_summary_."""
+    """An XNAT reconstruction."""
     resource = enum.auto()
-    """_summary_."""
+    """An XNAT resource."""
     in_resource = enum.auto()
-    """_summary_."""
+    """An XNAT in-resource."""
     out_resource = enum.auto()
-    """_summary_."""
+    """An XNAT out-resource."""
     file = enum.auto()
-    """_summary_."""
+    """An XNAT file."""
 
 
 class XnatNS(enum.StrEnum):
-    """
-    XNAT XML namespaces.
-
-    Parameters
-    ----------
-    enum
-        _description_.
-
-    """
+    """XNAT XML namespaces."""
 
     xnat = "http://nrg.wustl.edu/xnat"
-    """_summary_."""
+    """XNAT namespace."""
     prov = "http://www.nbirn.net/prov"
-    """_summary_."""
+    """PROV namespace."""
     xdat = "http://nrg.wustl.edu/xdat"
-    """_summary_."""
+    """XDAT namespace."""
     xs = "http://www.w3.org/2001/XMLSchema"
-    """_summary_."""
+    """XML Schema namespace."""
     proc = "http://nrg.wustl.edu/proc"
-    """_summary_."""
+    """PROC namespace."""
     fs = "http://nrg.wustl.edu/fs"
-    """_summary_."""
+    """FS namespace."""
     icr = "http://icr.ac.uk/icr"
-    """_summary_."""
+    """ICR namespace."""
 
 
 def register_namespaces() -> None:
@@ -76,53 +60,46 @@ def register_namespaces() -> None:
 
 @dataclasses.dataclass
 class ProjectInfo:
-    """_summary_."""
+    """Class representing project information."""
 
     id: str
-    """_summary_."""
+    """The project ID."""
     secondary_id: str
-    """_summary_."""
+    """The secondary project ID."""
     project_name: str
-    """_summary_."""
+    """The name of the project."""
     archive_path: str
-    """_summary_."""
+    """The path to the project's archive."""
     rsync_path: str
-    """_summary_."""
+    """The path for rsync operations."""
 
 
 @dataclasses.dataclass
 class XMLMapper:
-    """
-    Class for mapping XML tags and attributes between XNAT instances.
-
-    Attributes:
-        namespaces: A dictionary of XML namespaces.
-        modality_to_scan: A mapping of imaging modalities to XNAT scan types.
-        tags_to_delete: A list of XML tags to delete during mapping.
-        tags_to_remap: A mapping of XML tags to XNAT types for remapping.
-        ids_to_map: A mapping of XNAT types for ID remapping.
-        id_map: A mapping of old IDs to new IDs for various XNAT types.
-
-    Returns:
-    -------
-        _description_.
-
-    Raises:
-    ------
-    ValueError
-        _description_.
-    ValueError
-        _description_.
-
-    """
+    """Class for mapping XML tags and attributes between XNAT instances."""
 
     source: ProjectInfo
     """The source project information."""
     destination: ProjectInfo
     """The destination project information."""
+    namespaces: dict[str, str] = dataclasses.field(default_factory=dict, init=False)
+    """A dictionary of XML namespaces."""
+    modality_to_scan: dict[str, str] = dataclasses.field(default_factory=dict, init=False)
+    """A mapping of imaging modalities to XNAT scan types."""
+    tags_to_delete: list[str] = dataclasses.field(default_factory=list, init=False)
+    """A list of XML tags to delete during mapping."""
+    tags_to_remap: dict[str, XnatType] = dataclasses.field(default_factory=dict, init=False)
+    """A mapping of XML tags to XNAT types for remapping."""
+    ids_to_map: dict[XnatType, XnatType] = dataclasses.field(default_factory=dict, init=False)
+    """A mapping of XNAT types for ID remapping."""
+    id_map: dict[XnatType, dict] = dataclasses.field(
+        default_factory=lambda: collections.defaultdict(dict),
+        init=False,
+    )
+    """A mapping of old IDs to new IDs for various XNAT types."""
 
     def __post_init__(self):  # noqa: ANN204
-        """_summary_."""
+        """Post-initialisation to set up namespaces and mapping configurations."""
         register_namespaces()
         self.namespaces = {member.name: member.value for member in XnatNS}
         self.modality_to_scan = {
@@ -166,13 +143,13 @@ class XMLMapper:
         Parameters
         ----------
         source_id
-            _description_.
+            The source ID for which to find the corresponding destination ID.
         map_type
-            _description_.
+            The type of XNAT resource.
 
         Returns
         -------
-            _description_.
+            The destination ID corresponding to the given source ID.
 
         """
         return self.id_map.get(map_type, {}).get(source_id)
@@ -200,7 +177,7 @@ class XMLMapper:
         Raises
         ------
         ValueError
-            _description_.
+            If the source path is not found in the URI.
 
         """
         if "URI" not in child.attrib:
@@ -228,7 +205,7 @@ class XMLMapper:
         destination
             The destination XNAT listing.
         map_type
-            _description_.
+            The type of XNAT resource.
 
         """
         # Accept either a string ID or an XNATListing-like object; store the string id.
@@ -241,23 +218,23 @@ class XMLMapper:
         resource_type: XnatType,
     ) -> ET.Element:
         """
-        _summary_.
+        Map XML tags and attributes for a given XNAT resource type.
 
         Parameters
         ----------
         element
-            _description_.
+            The XML element to process.
         resource_type
-            _description_.
+            The type of XNAT resource.
 
         Returns
         -------
-            _description_.
+            The processed XML element.
 
         Raises
         ------
         ValueError
-            _description_.
+            If a tag cannot be mapped to a new value.
 
         """
         # Remap project ID
