@@ -98,7 +98,7 @@ def create_custom_forms_json(
         builder_dict = {"builder": current_custom_form_dict}
 
         # Construct current custom forms dict with submission and builder components
-        current_submission.update(builder_dict)
+        current_submission |= builder_dict
 
         # Convert to current custom forms to json formatted string
         current_custom_form_json = json.dumps(current_submission)
