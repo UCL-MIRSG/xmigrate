@@ -1,4 +1,4 @@
-"""Module to migrate XNAT projects between instances."""
+"""Module for handling the creation of the migration object."""
 
 import dataclasses
 import json
@@ -14,201 +14,15 @@ import pandas as pd
 import xnat
 from xnat.exceptions import XNATResponseError
 
+from xmigrate.custom_forms import create_custom_forms_json
+from xmigrate.datatypes import check_datatypes_matching
+from xmigrate.users import create_users
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
 # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
 # packages importing this module can configure logging more specifically.
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
-
-
-def check_users(source_profiles: list, destination_profiles: list) -> tuple[list, list]:
-    """Check users on the destination XNAT instance."""
-    idx_source_all = []
-    idx_destination_all = []
-
-    for source_profile, destination_profile in zip(source_profiles, destination_profiles, strict=False):
-        if source_profile["username"] != destination_profile["username"]:
-            msg = f"Skipping... Usernames not equal: {source_profile['username']=} {destination_profile['username']=}"
-            LOGGER.info(msg)
-            idx_destination_all.append(destination_profiles.index(destination_profile))
-            idx_source_all.append(source_profiles.index(source_profile))
-
-        if source_profile["id"] != destination_profile["id"]:
-            msg = f"IDs not equal: {source_profile['id']=} {destination_profile['id']=}"
-            raise (ValueError(msg))
-    return idx_destination_all, idx_source_all
-
-
-def create_users(source_connection: xnat.BaseXNATSession, destination_connection: xnat.BaseXNATSession) -> None:
-    """Create users on the destination XNAT instance."""
-    source_profiles = source_connection.get("/xapi/users/profiles", format="json").json()
-    destination_profiles = destination_connection.get("/xapi/users/profiles", format="json").json()
-
-    # First check that existing users on the destination are identical to the source
-    idx_destination_all, idx_source_all = check_users(source_profiles, destination_profiles)
-
-    for idx_destination, idx_source in zip(idx_destination_all, idx_source_all, strict=False):
-        destination_profiles.pop(idx_destination)
-        source_profiles.pop(idx_source)
-
-    # Now create missing users from the source on the destination
-    for source_profile in source_profiles[len(destination_profiles) :]:
-        LOGGER.info("Creating user: %s", source_profile["username"])
-        destination_profile = {
-            "username": source_profile["username"].removesuffix("#EXT#"),
-            "enabled": source_profile["enabled"],
-            "email": source_profile["email"],
-            "verified": source_profile["verified"],
-            "firstName": source_profile["firstName"],
-            "lastName": source_profile["lastName"],
-        }
-        destination_connection.post("/xapi/users", json=destination_profile)
-
-    # Set site-wide permission roles for users
-    for source_profile in source_profiles:
-        username = source_profile["username"].removesuffix("#EXT#")
-        if all(profile["username"] != username for profile in destination_profiles):
-            msg = f"Username {username} not in destination."
-            raise ValueError(msg)
-        api_get_string = f"/xapi/users/{username}/roles"
-        roles = source_connection.get(api_get_string).json()
-
-        for role in roles:
-            destination_connection.put(f"/xapi/users/{username}/roles/{role}")
-
-
-def create_custom_forms_json(
-    source_connection: xnat.BaseXNATSession,
-    destination_connection: xnat.BaseXNATSession,
-) -> None:
-    """
-    Extract custom forms from source and create on the destination.
-
-    Args:
-        source_connection: The source XNAT connection.
-        destination_connection: The destination XNAT connection.
-
-    Raises:
-        XNATResponseError: If failed to create custom forms on destination
-
-    """
-    # Get custom forms from source as json
-    source_custom_forms = source_connection.get_json("/xapi/customforms")
-
-    LOGGER.info("There are %d custom forms being created", len(source_custom_forms))
-
-    # Loop through custom forms
-    for _form_idx, source_custom_form in enumerate(source_custom_forms):
-        # Create empty submission object
-        current_submission = {
-            "submission": {
-                "data": {
-                    "zIndex": [],
-                    "xnatDatatype": {"label": [], "value": []},
-                    "isThisASiteWideConfiguration": [],
-                    "xnatProject": [{"label": [], "value": []}],
-                }
-            }
-        }
-
-        # Extract projects list, datatype, scope and formDisplayOrder
-        projects = source_custom_form["appliesToList"]
-        datatype = source_custom_form["path"]
-        datatype_value = datatype.replace("datatype/", "")
-        scope = source_custom_form["scope"]
-        zindex = source_custom_form["formDisplayOrder"]
-
-        # Populate zIndex and isThisASiteWideConfiguration
-        current_submission["submission"]["data"]["zIndex"] = zindex
-        if scope == "Site":
-            current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "yes"
-            projects = []
-            # fetch projects response and build list of IDs
-            destination_projects_resp = destination_connection.get("/data/projects").json()
-            projects = [project["ID"] for project in destination_projects_resp["ResultSet"]["Result"]]
-
-        else:
-            current_submission["submission"]["data"]["isThisASiteWideConfiguration"] = "no"
-
-        # Populate datatype section of submission object
-        xnat_datatype_dict: dict[str, str] = {"label": datatype, "value": datatype_value}
-
-        current_submission["submission"]["data"]["xnatDatatype"] = xnat_datatype_dict
-
-        # Loop through projects to populate project section of submission object
-        current_dict: dict[str, str] = {}
-        xnat_project_list: list[dict[str, str]] = [{"label": "", "value": ""}]
-        for proj_idx, project in enumerate(projects):
-            current_proj = project if scope == "Site" else project["entityId"]
-
-            # Initially populate empty project section and then append
-            if proj_idx == 0:
-                xnat_project_list[proj_idx]["label"] = current_proj
-                xnat_project_list[proj_idx]["value"] = current_proj
-
-            else:
-                current_dict = {"label": current_proj, "value": current_proj}
-                xnat_project_list.append(current_dict)
-
-        current_submission["submission"]["data"]["xnatProject"] = xnat_project_list
-
-        # Extract contents of form, convert to dict and create builder_dict
-        current_custom_form = source_custom_form["contents"]
-        current_custom_form_dict = json.loads(current_custom_form)
-        builder_dict = {"builder": current_custom_form_dict}
-
-        # Construct current custom forms dict with submission and builder components
-        current_submission.update(builder_dict)
-
-        # Convert to current custom forms to json formatted string
-        current_custom_form_json = json.dumps(current_submission)
-
-        # Try a PUT API call to save the current custom form on the destination
-        current_content_json = json.loads(current_custom_form)
-        title = current_content_json["title"]
-        try:
-            headers = {"Content-Type": "application/json;charset=UTF-8"}
-            destination_connection.put("/xapi/customforms/save", data=current_custom_form_json, headers=headers)
-        except XNATResponseError as e:
-            msg = f"Failed to create the {title} custom form on destination XNAT\n: {e.text}"
-            raise RuntimeError(msg) from e
-
-        LOGGER.info("The %s custom form has been successfully created", title)
-
-
-def check_datatypes_matching(
-    source_connection: xnat.BaseXNATSession,
-    destination_connection: xnat.BaseXNATSession,
-) -> None:
-    """
-    Check that all source datatypes are enabled on the destination.
-
-    Args:
-        source_connection: The source XNAT connection.
-        destination_connection: The destination XNAT connection.
-
-    Raises:
-        ValueError: If source has datatypes not enabled on destination.
-
-    """
-    enabled_datatypes_source = {
-        datatype["elementName"]
-        for datatype in source_connection.get("/xapi/access/displays/createable").json()
-        if not datatype["elementName"].startswith("xdat:")
-    }
-    enabled_datatypes_destination = {
-        datatype["elementName"]
-        for datatype in destination_connection.get("/xapi/access/displays/createable").json()
-        if not datatype["elementName"].startswith("xdat:")
-    }
-
-    if not enabled_datatypes_source.issubset(enabled_datatypes_destination):
-        missing_datatypes = enabled_datatypes_source - enabled_datatypes_destination
-        msg = f"Source has datatypes not enabled on destination: {missing_datatypes}"
-        raise ValueError(msg)
-
-    LOGGER.info("All source datatypes are enabled on destination")
 
 
 @dataclasses.dataclass
@@ -953,7 +767,11 @@ class Migration:
             self._check_subject_exists(subject, subjects_id_map_list, source_name)
             for experiment in subject.experiments:
                 self._check_experiment_exists(
-                    experiment, subject, experiments_id_map_list, source_name, destination_datatypes
+                    experiment,
+                    subject,
+                    experiments_id_map_list,
+                    source_name,
+                    destination_datatypes,
                 )
                 for scan in experiment.scans:
                     self._check_scan_exists(scan, experiment, subject)
@@ -1026,7 +844,7 @@ class Migration:
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_connection.put(
-                        f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}",
                     )
                     self._logger.info(
                         "Shared subject %s with project %s",
@@ -1050,7 +868,8 @@ class Migration:
             for mapper in self.mappers:
                 try:
                     destination_experiment_id = mapper.get_destination_id(
-                        sharing_info["source_id"], XnatType.experiment
+                        sharing_info["source_id"],
+                        XnatType.experiment,
                     )
                     break
                 except KeyError:
@@ -1064,7 +883,7 @@ class Migration:
                 try:
                     # Use experiment ID in the URL and add label parameter
                     self.destination_connection.put(
-                        f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}",
                     )
                     self._logger.info(
                         "Shared experiment %s (ID: %s) with project %s",
@@ -1100,7 +919,7 @@ class Migration:
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_connection.put(
-                        f"/data/projects/{owner}/assessors/{destination_assessor_id}/projects/{project_id}?label={label}"
+                        f"/data/projects/{owner}/assessors/{destination_assessor_id}/projects/{project_id}?label={label}",
                     )
                     self._logger.info(
                         "Shared assessor %s with project %s",
@@ -1127,7 +946,10 @@ class Migration:
 
         # Iterate over all projects
         for mapper, source_info, destination_info in zip(
-            self.mappers, self.all_source_info, self.all_destination_info, strict=True
+            self.mappers,
+            self.all_source_info,
+            self.all_destination_info,
+            strict=True,
         ):
             # Set current project context
             self.mapper = mapper

@@ -7,8 +7,8 @@ import requests  # type: ignore[import-untyped]
 
 import xnat
 
-# Adjust imports to where Migration and ProjectInfo live in this repo
-from xmigrate.main import Migration, ProjectInfo
+from xmigrate.migration import Migration
+from xmigrate.xml_mapper import ProjectInfo
 
 app = cyclopts.App(
     name="xmigrate",
