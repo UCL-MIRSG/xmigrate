@@ -6,18 +6,22 @@ requires = [
 ]
 
 [dependency-groups]
-dev = [
+build = [
     "build",
-    "mypy",
-    "prek",
-    "ruff",
-    "tox",
-    "twine",
+]
+dev = [
+    "nox",
+    "nox-uv",
+    {include-group = "build"},
+    {include-group = "lint"},
 ]
 docs = [
     "mkdocstrings",
     "mkdocstrings-python",
     "zensical",
+]
+lint = [
+    "prek",
 ]
 test = [
     "pytest",
@@ -32,7 +36,9 @@ classifiers = [
     "Operating System :: POSIX",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -53,7 +59,7 @@ license-files = [
 ]
 name = "xmigrate"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 scripts = {xmigrate = """\
     xmigrate.cli:app\
     """}
@@ -66,12 +72,12 @@ run = {branch = true, parallel = true, source = [
 ]}
 paths.source = [
     "src",
-    ".tox*/*/lib/python*/site-packages",
+    ".nox*/*/lib/python*/site-packages",
 ]
 
 [tool.mypy]
 explicit_package_bases = true
-python_version = "3.13"
+python_version = "3.12"
 
 [tool.pytest.ini_options]
 addopts = [
@@ -130,29 +136,3 @@ trailing_comma_inline_array = true
 overrides."project.classifiers".inline_arrays = false
 overrides."tool.coverage.paths.source".inline_arrays = false
 overrides."tool.ruff.lint.isort.section-order".inline_arrays = false
-overrides."tool.tox.env.docs.commands".inline_arrays = false
-overrides."tool.tox.env_run_base.commands".inline_arrays = false
-
-[tool.tox]
-env_list = [
-    "py313",
-]
-env_run_base = {commands = [
-    [
-        "pytest",
-        "--cov",
-        "--cov-report=xml",
-    ],
-], dependency_groups = [
-    "test",
-]}
-env.docs = {commands = [
-    [
-        "zensical",
-        "build",
-        "--strict",
-    ],
-], dependency_groups = [
-    "docs",
-]}
-gh.python."3.13" = ["py313"]
