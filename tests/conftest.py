@@ -61,14 +61,13 @@ def source_xnat(source_config: xnat4tests.Config) -> Generator[xnat4tests.Config
     source_config
         The configuration for the source XNAT instance.
 
-    Yields
-    ------
-        The configuration for the running source XNAT instance.
+    Returns
+    -------
+        The configuration for the source XNAT instance.
 
     """
     xnat4tests.start_xnat(source_config)
-    yield source_config
-    xnat4tests.stop_xnat(source_config)
+    return source_config
 
 
 @pytest.fixture(scope="session")
@@ -81,17 +80,16 @@ def destination_xnat(destination_config: xnat4tests.Config) -> Generator[xnat4te
     destination_config
         The configuration for the destination XNAT instance.
 
-    Yields
-    ------
-        The configuration for the running destination XNAT instance.
+    Returns
+    -------
+        The configuration for the destination XNAT instance.
 
     """
     xnat4tests.start_xnat(destination_config)
-    yield destination_config
-    xnat4tests.stop_xnat(destination_config)
+    return destination_config
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def source_connection(source_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
@@ -99,7 +97,7 @@ def source_connection(source_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNAT
     Parameters
     ----------
     source_xnat
-        The configuration of the running source XNAT.
+        The configuration for the source XNAT instance.
 
     Yields
     ------
@@ -110,7 +108,7 @@ def source_connection(source_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNAT
         yield conn
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def destination_connection(destination_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
@@ -118,7 +116,7 @@ def destination_connection(destination_xnat: xnat4tests.Config) -> Generator[xna
     Parameters
     ----------
     destination_xnat
-        The configuration of the running destination XNAT.
+        The configuration for the destination XNAT instance.
 
     Yields
     ------
