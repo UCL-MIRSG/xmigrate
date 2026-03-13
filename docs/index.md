@@ -1,3 +1,3 @@
-<!-- markdownlint-disable MD041 -->
+# xmigrate
 
-{! include-markdown "../README.md" rewrite-relative-urls=false !}
+A Python package to migrate projects from one XNAT to another.
