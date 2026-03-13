@@ -25,9 +25,8 @@ def source_config() -> xnat4tests.Config:
         The configuration for the source XNAT instance.
 
     """
-    tmp = pathlib.Path(tempfile.mkdtemp())
     return xnat4tests.Config(
-        xnat_root_dir=tmp / "source",
+        xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "source",
         xnat_port=8888,
         docker_image="xnat4tests_source",
         docker_container="xnat4tests_source",
@@ -44,9 +43,8 @@ def destination_config() -> xnat4tests.Config:
         The configuration for the destination XNAT instance.
 
     """
-    tmp = pathlib.Path(tempfile.mkdtemp())
     return xnat4tests.Config(
-        xnat_root_dir=tmp / "destination",
+        xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "destination",
         xnat_port=8889,
         docker_image="xnat4tests_destination",
         docker_container="xnat4tests_destination",
@@ -93,7 +91,6 @@ def destination_xnat(destination_config: xnat4tests.Config) -> Generator[xnat4te
     xnat4tests.stop_xnat(destination_config)
 
 
-@pytest.fixture
 def source_connection(source_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNATSession]:
     """
     Create and returns a connection to the source XNAT instance.
@@ -112,7 +109,6 @@ def source_connection(source_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNAT
         yield conn
 
 
-@pytest.fixture
 def destination_connection(destination_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNATSession]:
     """
     Create and returns a connection to the destination XNAT instance.
