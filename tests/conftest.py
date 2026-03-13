@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 @pytest.fixture(scope="session")
 def source_config() -> xnat4tests.Config:
     """
-    Create and returns the configuration for the source XNAT instance.
+    Create configuration for the source XNAT instance.
 
     Returns
     -------
@@ -27,7 +27,7 @@ def source_config() -> xnat4tests.Config:
     """
     return xnat4tests.Config(
         xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "source",
-        xnat_port=8888,
+        xnat_port="8888",
         docker_image="xnat4tests_source",
         docker_container="xnat4tests_source",
     )
@@ -36,7 +36,7 @@ def source_config() -> xnat4tests.Config:
 @pytest.fixture(scope="session")
 def destination_config() -> xnat4tests.Config:
     """
-    Create and returns the configuration for the destination XNAT instance.
+    Create configuration for the destination XNAT instance.
 
     Returns
     -------
@@ -45,16 +45,16 @@ def destination_config() -> xnat4tests.Config:
     """
     return xnat4tests.Config(
         xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "destination",
-        xnat_port=8889,
+        xnat_port="8889",
         docker_image="xnat4tests_destination",
         docker_container="xnat4tests_destination",
     )
 
 
 @pytest.fixture(scope="session")
-def source_xnat(source_config: xnat4tests.Config) -> Generator[xnat4tests.Config]:
+def source_xnat(source_config: xnat4tests.Config) -> Generator[xnat4tests.Config, None, None]:
     """
-    Start the source XNAT instance and yield its configuration.
+    Start the source XNAT instance.
 
     Parameters
     ----------
@@ -63,7 +63,7 @@ def source_xnat(source_config: xnat4tests.Config) -> Generator[xnat4tests.Config
 
     Yields
     ------
-        The configuration for the source XNAT instance.
+        The configuration for the running source XNAT instance.
 
     """
     xnat4tests.start_xnat(source_config)
@@ -72,9 +72,9 @@ def source_xnat(source_config: xnat4tests.Config) -> Generator[xnat4tests.Config
 
 
 @pytest.fixture(scope="session")
-def destination_xnat(destination_config: xnat4tests.Config) -> Generator[xnat4tests.Config]:
+def destination_xnat(destination_config: xnat4tests.Config) -> Generator[xnat4tests.Config, None, None]:
     """
-    Start the destination XNAT instance and yield its configuration.
+    Start the destination XNAT instance.
 
     Parameters
     ----------
@@ -83,7 +83,7 @@ def destination_xnat(destination_config: xnat4tests.Config) -> Generator[xnat4te
 
     Yields
     ------
-        The configuration for the destination XNAT instance.
+        The configuration for the running destination XNAT instance.
 
     """
     xnat4tests.start_xnat(destination_config)
@@ -92,18 +92,18 @@ def destination_xnat(destination_config: xnat4tests.Config) -> Generator[xnat4te
 
 
 @pytest.fixture
-def source_connection(source_xnat: str) -> Generator[xnat.BaseXNATSession]:
+def source_connection(source_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
     """
-    Create and returns a connection to the source XNAT instance.
+    Provide a connection to the source XNAT instance.
 
     Parameters
     ----------
     source_xnat
-        The name of the source XNAT instance.
+        The configuration of the running source XNAT.
 
     Yields
     ------
-        The XNAT session for the source XNAT instance.
+        The active XNAT session for the source instance.
 
     """
     with xnat4tests.connect(source_xnat) as conn:
@@ -111,18 +111,18 @@ def source_connection(source_xnat: str) -> Generator[xnat.BaseXNATSession]:
 
 
 @pytest.fixture
-def destination_connection(destination_xnat: str) -> Generator[xnat.BaseXNATSession]:
+def destination_connection(destination_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
     """
-    Create and returns a connection to the destination XNAT instance.
+    Provide a connection to the destination XNAT instance.
 
     Parameters
     ----------
     destination_xnat
-        The name of the destination XNAT instance.
+        The configuration of the running destination XNAT.
 
     Yields
     ------
-        The XNAT session for the destination XNAT instance.
+        The active XNAT session for the destination instance.
 
     """
     with xnat4tests.connect(destination_xnat) as conn:
