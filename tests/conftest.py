@@ -91,14 +91,15 @@ def destination_xnat(destination_config: xnat4tests.Config) -> Generator[xnat4te
     xnat4tests.stop_xnat(destination_config)
 
 
-def source_connection(source_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNATSession]:
+@pytest.fixture
+def source_connection(source_xnat: str) -> Generator[xnat.BaseXNATSession]:
     """
     Create and returns a connection to the source XNAT instance.
 
     Parameters
     ----------
     source_xnat
-        The configuration for the source XNAT instance.
+        The name of the source XNAT instance.
 
     Yields
     ------
@@ -109,14 +110,15 @@ def source_connection(source_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNAT
         yield conn
 
 
-def destination_connection(destination_xnat: xnat4tests.Config) -> Generator[xnat.BaseXNATSession]:
+@pytest.fixture
+def destination_connection(destination_xnat: str) -> Generator[xnat.BaseXNATSession]:
     """
     Create and returns a connection to the destination XNAT instance.
 
     Parameters
     ----------
     destination_xnat
-        The configuration for the destination XNAT instance.
+        The name of the destination XNAT instance.
 
     Yields
     ------
