@@ -43,14 +43,37 @@ def migrate_project_list(  # noqa: PLR0913
     rsync_only: bool = False,
 ) -> None:
     """
-    Migrate a project or multiple projects in a list from source to destination XNAT instance.
+    Migrate a project or projects from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate_project_list
+        xmigrate migrate_project_list
 
     Command can be run with the arguments within an xmigrate.toml config file.
 
-    It should be noted that source_rsync and destination_rsync must both be local paths.
+    Note that source_rsync and destination_rsync must both be local paths.
+
+    Parameters
+    ----------
+    source_projects
+        A list of source project IDs.
+    source_rsync
+        The path to the source rsync directory.
+    destination
+        The destination XNAT instance URL.
+    destination_user
+        The username for the destination XNAT instance.
+    destination_password
+        The password for the destination XNAT instance.
+    destination_rsync
+        The path to the destination rsync directory.
+    destination_projects
+        A list of destination project IDs.
+    destination_secondary_ids
+        A list of secondary IDs for the destination projects.
+    destination_project_names
+        A list of names for the destination projects.
+    rsync_only
+        If True, only perform rsync operations without migrating other data.
 
     """
     destination_projects = destination_projects if destination_projects is not None else source_projects
@@ -128,11 +151,26 @@ def migrate_all_projects(  # noqa: PLR0913
     Migrate all projects from source to destination XNAT instance.
 
     Example:
-      xmigrate migrate_all_projects
+        xmigrate migrate_all_projects
 
     Command can be run with the arguments within an xmigrate.toml config file.
 
-    It should be noted that source_rsync and destination_rsync must both be local paths.
+    Note that source_rsync and destination_rsync must both be local paths.
+
+    Parameters
+    ----------
+    source_rsync
+        The local path for the source XNAT instance's rsync.
+    destination
+        The destination XNAT instance URL.
+    destination_user
+        The username for the destination XNAT instance.
+    destination_password
+        The password for the destination XNAT instance.
+    destination_rsync
+        The local path for the destination XNAT instance's rsync.
+    rsync_only, optional
+        Flag indicating whether to run rsync only.
 
     """
     with (

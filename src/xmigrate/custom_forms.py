@@ -19,12 +19,17 @@ def create_custom_forms_json(
     """
     Extract custom forms from source and create on the destination.
 
-    Args:
-        source_connection: The source XNAT connection.
-        destination_connection: The destination XNAT connection.
+    Parameters
+    ----------
+    source_connection
+        The source XNAT connection.
+    destination_connection
+        The destination XNAT connection.
 
-    Raises:
-        XNATResponseError: If failed to create custom forms on destination
+    Raises
+    ------
+    RuntimeError
+        If failed to create custom forms on destination.
 
     """
     # Get custom forms from source as json
@@ -93,7 +98,7 @@ def create_custom_forms_json(
         builder_dict = {"builder": current_custom_form_dict}
 
         # Construct current custom forms dict with submission and builder components
-        current_submission.update(builder_dict)
+        current_submission |= builder_dict
 
         # Convert to current custom forms to json formatted string
         current_custom_form_json = json.dumps(current_submission)

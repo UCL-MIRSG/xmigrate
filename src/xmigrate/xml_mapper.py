@@ -10,28 +10,46 @@ class XnatType(enum.StrEnum):
     """Type of XNAT item so cleaning can be performed."""
 
     server = enum.auto()
+    """The XNAT server itself."""
     project = enum.auto()
+    """An XNAT project."""
     subject = enum.auto()
+    """An XNAT subject."""
     experiment = enum.auto()
+    """An XNAT experiment."""
     scan = enum.auto()
+    """An XNAT scan."""
     assessor = enum.auto()
+    """An XNAT assessor."""
     reconstruction = enum.auto()
+    """An XNAT reconstruction."""
     resource = enum.auto()
+    """An XNAT resource."""
     in_resource = enum.auto()
+    """An XNAT in-resource."""
     out_resource = enum.auto()
+    """An XNAT out-resource."""
     file = enum.auto()
+    """An XNAT file."""
 
 
 class XnatNS(enum.StrEnum):
     """XNAT XML namespaces."""
 
     xnat = "http://nrg.wustl.edu/xnat"
+    """XNAT namespace."""
     prov = "http://www.nbirn.net/prov"
+    """PROV namespace."""
     xdat = "http://nrg.wustl.edu/xdat"
+    """XDAT namespace."""
     xs = "http://www.w3.org/2001/XMLSchema"
+    """XML Schema namespace."""
     proc = "http://nrg.wustl.edu/proc"
+    """PROC namespace."""
     fs = "http://nrg.wustl.edu/fs"
+    """FS namespace."""
     icr = "http://icr.ac.uk/icr"
+    """ICR namespace."""
 
 
 def register_namespaces() -> None:
@@ -41,37 +59,47 @@ def register_namespaces() -> None:
 
 
 @dataclasses.dataclass
-class ProjectInfo:  # noqa: D101
+class ProjectInfo:
+    """Class representing project information."""
+
     id: str
+    """The project ID."""
     secondary_id: str
+    """The secondary project ID."""
     project_name: str
+    """The name of the project."""
     archive_path: str
+    """The path to the project's archive."""
     rsync_path: str
+    """The path for rsync operations."""
 
 
 @dataclasses.dataclass
 class XMLMapper:
-    """
-    Class for mapping XML tags and attributes between XNAT instances.
-
-    Args:
-        source: The source project information.
-        destination: The destination project information.
-
-    Attributes:
-        namespaces: A dictionary of XML namespaces.
-        modality_to_scan: A mapping of imaging modalities to XNAT scan types.
-        tags_to_delete: A list of XML tags to delete during mapping.
-        tags_to_remap: A mapping of XML tags to XNAT types for remapping.
-        ids_to_map: A mapping of XNAT types for ID remapping.
-        id_map: A mapping of old IDs to new IDs for various XNAT types.
-
-    """
+    """Class for mapping XML tags and attributes between XNAT instances."""
 
     source: ProjectInfo
+    """The source project information."""
     destination: ProjectInfo
+    """The destination project information."""
+    namespaces: dict[str, str] = dataclasses.field(default_factory=dict, init=False)
+    """A dictionary of XML namespaces."""
+    modality_to_scan: dict[str, str] = dataclasses.field(default_factory=dict, init=False)
+    """A mapping of imaging modalities to XNAT scan types."""
+    tags_to_delete: list[str] = dataclasses.field(default_factory=list, init=False)
+    """A list of XML tags to delete during mapping."""
+    tags_to_remap: dict[str, XnatType] = dataclasses.field(default_factory=dict, init=False)
+    """A mapping of XML tags to XNAT types for remapping."""
+    ids_to_map: dict[XnatType, XnatType] = dataclasses.field(default_factory=dict, init=False)
+    """A mapping of XNAT types for ID remapping."""
+    id_map: dict[XnatType, dict] = dataclasses.field(
+        default_factory=lambda: collections.defaultdict(dict),
+        init=False,
+    )
+    """A mapping of old IDs to new IDs for various XNAT types."""
 
-    def __post_init__(self):  # noqa: ANN204, D105
+    def __post_init__(self):  # noqa: ANN204
+        """Post-initialisation to set up namespaces and mapping configurations."""
         register_namespaces()
         self.namespaces = {member.name: member.value for member in XnatNS}
         self.modality_to_scan = {
@@ -109,7 +137,21 @@ class XMLMapper:
         self.id_map = collections.defaultdict(dict)
 
     def get_destination_id(self, source_id: str, map_type: XnatType) -> str | None:
-        """Get the destination ID for a given source ID."""
+        """
+        Get the destination ID for a given source ID.
+
+        Parameters
+        ----------
+        source_id
+            The source ID for which to find the corresponding destination ID.
+        map_type
+            The type of XNAT resource.
+
+        Returns
+        -------
+            The destination ID corresponding to the given source ID.
+
+        """
         return self.id_map.get(map_type, {}).get(source_id)
 
     def rewrite_uris(
@@ -121,12 +163,21 @@ class XMLMapper:
         """
         Rewrite URIs in XML elements from source to destination path.
 
-        Modifiees the XML element in-place.
+        Modifies the XML element in-place.
 
-        Args:
-            child: The XML element to process.
-            source_path: The source XNAT path.
-            destination_path: The destination XNAT path.
+        Parameters
+        ----------
+        child
+            The XML element to process.
+        source_path
+            The source XNAT path.
+        destination_path
+            The destination XNAT path.
+
+        Raises
+        ------
+        ValueError
+            If the source path is not found in the URI.
 
         """
         if "URI" not in child.attrib:
@@ -147,9 +198,14 @@ class XMLMapper:
         """
         Update the ID mapping between source and destination.
 
-        Args:
-            source: The source XNAT listing.
-            destination: The destination XNAT listing.
+        Parameters
+        ----------
+        source
+            The source XNAT listing.
+        destination
+            The destination XNAT listing.
+        map_type
+            The type of XNAT resource.
 
         """
         # Accept either a string ID or an XNATListing-like object; store the string id.
@@ -162,14 +218,23 @@ class XMLMapper:
         resource_type: XnatType,
     ) -> ET.Element:
         """
-        "Map XML tags and attributes for migration.
+        Map XML tags and attributes for a given XNAT resource type.
 
-        Args:
-            element: The XML element to map from source to destination.
-            resource_type: The type of XNAT resource being processed.
+        Parameters
+        ----------
+        element
+            The XML element to process.
+        resource_type
+            The type of XNAT resource.
 
-        Returns:
-            The mapped XML element.
+        Returns
+        -------
+            The processed XML element.
+
+        Raises
+        ------
+        ValueError
+            If a tag cannot be mapped to a new value.
 
         """
         # Remap project ID

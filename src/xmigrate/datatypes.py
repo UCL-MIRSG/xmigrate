@@ -17,12 +17,17 @@ def check_datatypes_matching(
     """
     Check that all source datatypes are enabled on the destination.
 
-    Args:
-        source_connection: The source XNAT connection.
-        destination_connection: The destination XNAT connection.
+    Parameters
+    ----------
+    source_connection
+        The source XNAT connection.
+    destination_connection
+        The destination XNAT connection.
 
-    Raises:
-        ValueError: If source has datatypes not enabled on destination.
+    Raises
+    ------
+    ValueError
+        If source has datatypes not enabled on destination.
 
     """
     enabled_datatypes_source = {
