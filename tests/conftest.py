@@ -11,9 +11,14 @@ from tests.utils import delete_data, XnatConnection
 
 
 @pytest.fixture
-def remove_test_data(xnat_connection):
+def remove_source_test_data(xnat_connection_source):
     yield
-    delete_data(xnat_connection.session)
+    delete_data(xnat_connection_source.session)
+
+@pytest.fixture
+def remove_destination_test_data(xnat_connection_destination):
+    yield
+    delete_data(xnat_connection_destination.session)
 
 
 @pytest.fixture(scope="session")
@@ -130,7 +135,7 @@ def install_plugin(connection, jar_path, plugin_dir, connection_name):
 
 
 @pytest.fixture(scope="session")
-def xnat_connection_source(xnat_config_source):
+def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_source)
     xnat4tests.add_data("dummydicom", upload_method="direct")
     connection = XnatConnection(xnat_config_source)
@@ -151,7 +156,7 @@ def xnat_connection_source(xnat_config_source):
         connection.close()
 
 @pytest.fixture(scope="session")
-def xnat_connection_destination(xnat_config_destination):
+def xnat_connection_destination(xnat_config_destination, jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_destination)
     connection = XnatConnection(xnat_config_destination)
     connection_name = "destination_xnat4tests"

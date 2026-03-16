@@ -1,7 +1,10 @@
+import pdb
+import shutil
 import xnat4tests
 import xnat
 import requests
 import time
+from pathlib import Path
 
 
 class XnatConnection:
@@ -53,30 +56,16 @@ def delete_data(session: xnat.XNATSession) -> None:
                 path=f"/data/projects/{project.id}/subjects/{subject.label}",
                 query={"removeFiles": "True"},
             )
-            for experiment in project.subject.experiments.values():
-                session.delete(
-                    path=f"/data/projects/{project.id}/subjects/{subject.label}/{experiment.label}",
-                    query={"removeFiles": "True"},
-                )
-                for scan in project.subject.experiment.scans.values():
-                    session.delete(
-                        path=f"/data/projects/{project.id}/subjects/{subject.label}/{experiment.label}/{scan.id}",
-                        query={"removeFiles": "True"},
-                    )
-                project.subject.experiment.scans.clearcache()
-                for asessor in project.subject.experiment.scans.values():
-                    session.delete(
-                        path=f"/data/projects/{project.id}/subjects/{subject.label}/{experiment.label}/{asessor.id}",
-                        query={"removeFiles": "True"},
-                    )
-                project.subject.experiment.assesors.clearcache()
-                    
-            project.subject.experiments.clearcache()
-                    
+
         project.subjects.clearcache()
-        
+
         session.delete(
             path=f"/data/projects/{project.id}",
             query={"removeFiles": "True"},
         )
     project.clearcache()
+
+    metadata_folder=Path(__file__).parents[1] / "output/localhost"
+
+    if metadata_folder.exists():
+        shutil.rmtree("output/localhost")
