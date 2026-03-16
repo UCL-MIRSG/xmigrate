@@ -1,35 +1,39 @@
 """Tests for the xmigrate.users module."""
 
+import pytest
+
 import xmigrate
 
 
-def _seed_user(connection, username, email="test@example.com", roles=("user",)):
-    profile = {
-        "username": username,
-        "enabled": True,
-        "email": email,
-        "verified": True,
-        "firstName": "Test",
-        "lastName": "User",
-    }
-    existing = {p["username"] for p in connection.get("/xapi/users/profiles", format="json").json()}
-    if username in existing:
-        connection.put(f"/xapi/users/{username}", json=profile, accepted_status=[200, 201, 304])
-    else:
-        connection.post("/xapi/users", json=profile)
-    for role in roles:
-        connection.put(f"/xapi/users/{username}/roles/{role}", accepted_status=[200, 201, 304])
+def test_check_users_matching() -> None:
+    """Identical profiles return empty index lists."""
+    profiles = [{"username": "alice", "id": "1"}]
+    idx_dst, idx_src = xmigrate.check_users(profiles, profiles.copy())
+    assert idx_dst == []
+    assert idx_src == []
 
 
-def _get_usernames(connection):
-    profiles = connection.get("/xapi/users/profiles", format="json").json()
-    return {p["username"] for p in profiles}
+def test_check_users_mismatched_usernames() -> None:
+    """Profiles with different usernames are flagged for skipping."""
+    source = [{"username": "alice", "id": "1"}]
+    destination = [{"username": "bob", "id": "1"}]
+    idx_dst, idx_src = xmigrate.check_users(source, destination)
+    assert idx_dst == [0]
+    assert idx_src == [0]
 
 
-def test_creates_missing_users(source_connection, destination_connection) -> None:
-    """Users on source but not destination should be created on destination."""
-    _seed_user(source_connection, "alice", roles=["user"])
+def test_check_users_mismatched_ids() -> None:
+    """Profiles with the same username but different IDs raise ValueError."""
+    source = [{"username": "alice", "id": "1"}]
+    destination = [{"username": "alice", "id": "999"}]
+    with pytest.raises(ValueError, match="IDs not equal"):
+        xmigrate.check_users(source, destination)
 
-    xmigrate.create_users(source_connection, destination_connection)
 
-    assert "alice" in _get_usernames(destination_connection)
+def test_check_users_source_longer() -> None:
+    """Extra profiles in source beyond destination length are ignored."""
+    source = [{"username": "alice", "id": "1"}, {"username": "bob", "id": "2"}]
+    destination = [{"username": "alice", "id": "1"}]
+    idx_dst, idx_src = xmigrate.check_users(source, destination)
+    assert idx_dst == []
+    assert idx_src == []

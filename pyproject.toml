@@ -26,6 +26,7 @@ lint = [
 test = [
     "pytest",
     "pytest-cov",
+    "xnat4tests",
 ]
 
 [project]
