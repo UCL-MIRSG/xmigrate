@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope="session")
-def source_xnat() -> Generator[xnat.BaseXNATSession, None, None]:
+def source_connection() -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -37,7 +37,7 @@ def source_xnat() -> Generator[xnat.BaseXNATSession, None, None]:
 
 
 @pytest.fixture(scope="session")
-def destination_xnat() -> Generator[xnat.BaseXNATSession, None, None]:
+def destination_connection() -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
 
