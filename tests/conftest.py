@@ -7,40 +7,13 @@ import tempfile
 
 import pytest
 import xnat4tests
-# from xnat_mrd.fetch_datasets import get_singledata, get_multidata
-
 from tests.utils import delete_data, XnatConnection
 
 
-# @pytest.fixture
-# def mrd_file_path():
-#     """Provides the mrd_data filepath"""
-
-#     mrd_data = get_singledata()
-
-#     return mrd_data
-
-
-# @pytest.fixture
-# def mrd_file_multidata_path():
-#     """Provides the mrd_data filepath"""
-
-#     mrd_data = get_multidata()
-
-#     return mrd_data
-
-# @pytest.fixture
-# def remove_test_data(xnat_connection):
-#     yield
-#     delete_data(xnat_connection.session)
-
-# @pytest.fixture
-# def ensure_mrd_project(xnat_connection):
-#     project_id = "mrd"
-#     xnat_session = xnat_connection.session
-#     if project_id not in xnat_session.projects:
-#         xnat_session.put(f"/data/archive/projects/{project_id}")
-#         xnat_session.projects.clearcache()
+@pytest.fixture
+def remove_test_data(xnat_connection):
+    yield
+    delete_data(xnat_connection.session)
 
 
 @pytest.fixture(scope="session")
@@ -62,13 +35,6 @@ def xnat_container_service_version():
 
     return version
 
-
-
-
-
-
-
-
 @pytest.fixture(scope="session")
 def xnat_config_source(xnat_version, xnat_container_service_version):
     xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_src" / "root"
@@ -85,7 +51,6 @@ def xnat_config_source(xnat_version, xnat_container_service_version):
             "xnat_version": xnat_version,
             "xnat_cs_plugin_version": xnat_container_service_version,
         },
-        # docker_host = "127.0.0.1",
     )
 
 @pytest.fixture(scope="session")
@@ -104,20 +69,20 @@ def xnat_config_destination(xnat_version, xnat_container_service_version):
             "xnat_version": xnat_version,
             "xnat_cs_plugin_version": xnat_container_service_version,
         },
-        # docker_host = "127.0.0.1",
+        # docker_host = "127.0.0.2",
         xnat_port = 8081
     )
 
 
 @pytest.fixture(scope="session")
 def jar_path():
-    """Path of jar built by gradlew"""
+    """Path of OHIF viewer jar"""
 
     jar_dir = Path(__file__).parents[1] / "input"
     jar_path = list(jar_dir.glob("ohif-*fat.jar"))[0]
 
     if not jar_path.exists():
-        raise FileNotFoundError(f"Plugin JAR file not found at {jar_path}")
+        raise FileNotFoundError(f"Plugin OHIF Viewer JAR file not found at {jar_path}")
 
     return jar_path
 
@@ -165,10 +130,11 @@ def install_plugin(connection, jar_path, plugin_dir, connection_name):
 
 
 @pytest.fixture(scope="session")
-def xnat_connection_source(xnat_config_source,jar_path, plugin_dir):
+def xnat_connection_source(xnat_config_source):
     xnat4tests.start_xnat(xnat_config_source)
+    xnat4tests.add_data("dummydicom", upload_method="direct")
     connection = XnatConnection(xnat_config_source)
-    
+
     connection_name = "source_xnat4tests"
     install_plugin(connection, jar_path, plugin_dir, connection_name)
 
@@ -185,24 +151,9 @@ def xnat_connection_source(xnat_config_source,jar_path, plugin_dir):
         connection.close()
 
 @pytest.fixture(scope="session")
-def xnat_connection_dest(xnat_config_destination, jar_path, plugin_dir):
+def xnat_connection_destination(xnat_config_destination):
     xnat4tests.start_xnat(xnat_config_destination)
     connection = XnatConnection(xnat_config_destination)
-
-    # replace base_url construction to use the configured docker_host IP
-    base_host = getattr(xnat_config_destination, "docker_host", "localhost") or "localhost"
-    base_url = f"http://{base_host}:8081"
-
-    try:
-        setattr(connection.session, "_original_uri", base_url)
-    except Exception:
-        for attr in ("base_url", "BASE_URL", "baseURI"):
-            try:
-                setattr(connection.session, attr, base_url)
-                break
-            except Exception:
-                continue
-
     connection_name = "destination_xnat4tests"
     install_plugin(connection, jar_path, plugin_dir, connection_name)
 
@@ -215,5 +166,4 @@ def xnat_connection_dest(xnat_config_destination, jar_path, plugin_dir):
         connection.close()
         xnat4tests.stop_xnat(xnat_config_destination)
     else:
-        delete_data(connection.session)
         connection.close()

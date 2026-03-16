@@ -168,3 +168,6 @@ _version.py
 xmigrate.toml
 archive
 ncita_locate
+.DS_Store
+.vscode/
+*.ipynb
