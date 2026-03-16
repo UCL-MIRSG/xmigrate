@@ -8,6 +8,7 @@ import tempfile
 import pytest
 import xnat4tests
 from tests.utils import delete_data, XnatConnection
+from xmigrate.main import Migration, ProjectInfo
 
 
 @pytest.fixture
@@ -133,15 +134,22 @@ def install_plugin(connection, jar_path, plugin_dir, connection_name):
 
         connection.restart_xnat()
 
-
 @pytest.fixture(scope="session")
 def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_source)
+    try:
+        no_project = int(os.environ["PROJECT"])
+    except KeyError:
+        no_project = 1
+        
     xnat4tests.add_data("dummydicom", upload_method="direct")
+    if no_project==2:
+        xnat4tests.add_data("openneuro-t1w", upload_method="direct")
+    
     connection = XnatConnection(xnat_config_source)
 
     connection_name = "source_xnat4tests"
-    install_plugin(connection, jar_path, plugin_dir, connection_name)
+    # install_plugin(connection, jar_path, plugin_dir, connection_name)
 
     yield connection
 
@@ -152,7 +160,7 @@ def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
         connection.close()
         xnat4tests.stop_xnat(xnat_config_source)
     else:
-        delete_data(connection.session)
+        # delete_data(connection.session)
         connection.close()
 
 @pytest.fixture(scope="session")
@@ -160,7 +168,7 @@ def xnat_connection_destination(xnat_config_destination, jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_destination)
     connection = XnatConnection(xnat_config_destination)
     connection_name = "destination_xnat4tests"
-    install_plugin(connection, jar_path, plugin_dir, connection_name)
+    # install_plugin(connection, jar_path, plugin_dir, connection_name)
 
     yield connection
 
@@ -172,3 +180,29 @@ def xnat_connection_destination(xnat_config_destination, jar_path, plugin_dir):
         xnat4tests.stop_xnat(xnat_config_destination)
     else:
         connection.close()
+        
+@pytest.fixture
+def source_info():
+    project = ProjectInfo(
+        id="dummydicomproject",
+        secondary_id="dummydicomproject",
+        project_name="dummydicomproject",
+        archive_path="/data/xnat/archive",
+        rsync_path=".xnat4tests_src/root/archive",
+    )
+    return [project]
+
+@pytest.fixture
+def source_info_mult():
+    source_projects=["dummydicomproject", "OPENNEURO_T1W"]
+    all_projects = [
+        ProjectInfo(
+            id=source_proj,
+            secondary_id=source_proj,
+            project_name=source_proj,
+            archive_path="/data/xnat/archive",
+            rsync_path=".xnat4tests_src/root/archive",
+        )
+        for source_proj in source_projects
+    ]
+    return all_projects

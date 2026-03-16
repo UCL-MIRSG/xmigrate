@@ -49,6 +49,7 @@ class XnatConnection:
         self.session = session
 
 
+# Can't delete project if re-using XNAT instance as the project name can't be reused
 def delete_data(session: xnat.XNATSession) -> None:
     for project in session.projects:
         for subject in project.subjects.values():
@@ -56,14 +57,7 @@ def delete_data(session: xnat.XNATSession) -> None:
                 path=f"/data/projects/{project.id}/subjects/{subject.label}",
                 query={"removeFiles": "True"},
             )
-
         project.subjects.clearcache()
-
-        session.delete(
-            path=f"/data/projects/{project.id}",
-            query={"removeFiles": "True"},
-        )
-    project.clearcache()
 
     metadata_folder=Path(__file__).parents[1] / "output/localhost"
 
