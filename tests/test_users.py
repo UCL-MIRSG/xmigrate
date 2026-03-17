@@ -36,12 +36,12 @@ def _seed_user(
 
     """
     profile = {
-        "username": username,
-        "enabled": True,
         "email": email,
-        "verified": True,
+        "enabled": True,
         "firstName": "Test",
         "lastName": "User",
+        "username": username,
+        "verified": True,
     }
     connection.post("/xapi/users", json=profile)
     for role in roles:
@@ -123,7 +123,7 @@ def test_creates_missing_users(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
-    """_summary_."""
+    """Users present in the source but missing in the destination are created."""
     _seed_user(source_connection, "alice", roles=("user",))
     xmigrate.create_users(source_connection, destination_connection)
     assert "alice" in _get_usernames(destination_connection)
@@ -133,7 +133,7 @@ def test_creates_missing_users_roles(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
-    """_summary_."""
+    """Roles assigned to users in the source are correctly created in the destination."""
     _seed_user(source_connection, "alice", roles=("user", "data_manager"))
     xmigrate.create_users(source_connection, destination_connection)
     assert "data_manager" in _get_roles(destination_connection, "alice")
@@ -143,7 +143,7 @@ def test_ext_suffix_stripped(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
-    """_summary_."""
+    """A suffix is stripped from usernames when creating users."""
     _seed_user(source_connection, "alice#EXT#")
     xmigrate.create_users(source_connection, destination_connection)
     usernames = _get_usernames(destination_connection)
@@ -155,7 +155,7 @@ def test_existing_users_not_duplicated(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
-    """_summary_."""
+    """Existing users are not duplicated in the destination."""
     _seed_user(source_connection, "alice")
     _seed_user(destination_connection, "alice")
     xmigrate.create_users(source_connection, destination_connection)
@@ -167,7 +167,7 @@ def test_creates_multiple_users(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
-    """_summary_."""
+    """Multiple users are created in the destination."""
     _seed_user(source_connection, "alice")
     _seed_user(source_connection, "bob")
     xmigrate.create_users(source_connection, destination_connection)
