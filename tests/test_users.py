@@ -14,8 +14,27 @@ if TYPE_CHECKING:
     import xnat
 
 
-def _seed_user(connection, username, email="test@example.com", roles=("user",)):
-    """Create a user directly on an XNAT instance via REST."""
+def _seed_user(
+    connection: xnat.BaseXNATSession,
+    username: str,
+    email: str = "test@example.com",
+    roles: tuple[str, ...] = ("user",),
+) -> None:
+    """
+    Create a user directly on an XNAT instance via REST.
+
+    Parameters
+    ----------
+    connection
+        The XNAT session to use for the request.
+    username
+        The username of the user to create.
+    email
+        The email of the user to create.
+    roles
+        The roles to assign to the user.
+
+    """
     profile = {
         "username": username,
         "enabled": True,
@@ -29,12 +48,40 @@ def _seed_user(connection, username, email="test@example.com", roles=("user",)):
         connection.put(f"/xapi/users/{username}/roles/{role}")
 
 
-def _get_usernames(connection):
+def _get_usernames(connection: xnat.BaseXNATSession) -> set[str]:
+    """
+    Get the usernames of all users on an XNAT instance.
+
+    Parameters
+    ----------
+    connection
+        The XNAT session to use for the request.
+
+    Returns
+    -------
+        The set of usernames of all users on the XNAT instance.
+
+    """
     profiles = connection.get("/xapi/users/profiles", format="json").json()
     return {p["username"] for p in profiles}
 
 
-def _get_roles(connection, username):
+def _get_roles(connection: xnat.BaseXNATSession, username: str) -> set[str]:
+    """
+    Get the roles of a user on an XNAT instance.
+
+    Parameters
+    ----------
+    connection
+        The XNAT session to use for the request.
+    username
+        The username of the user.
+
+    Returns
+    -------
+        The set of roles assigned to the user.
+
+    """
     return set(connection.get(f"/xapi/users/{username}/roles").json())
 
 
@@ -76,7 +123,8 @@ def test_creates_missing_users(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
-    _seed_user(source_connection, "alice", roles=["user"])
+    """_summary_."""
+    _seed_user(source_connection, "alice", roles=("user",))
     xmigrate.create_users(source_connection, destination_connection)
     assert "alice" in _get_usernames(destination_connection)
 
@@ -85,7 +133,8 @@ def test_creates_missing_users_roles(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
-    _seed_user(source_connection, "alice", roles=["user", "data_manager"])
+    """_summary_."""
+    _seed_user(source_connection, "alice", roles=("user", "data_manager"))
     xmigrate.create_users(source_connection, destination_connection)
     assert "data_manager" in _get_roles(destination_connection, "alice")
 
@@ -94,6 +143,7 @@ def test_ext_suffix_stripped(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
+    """_summary_."""
     _seed_user(source_connection, "alice#EXT#")
     xmigrate.create_users(source_connection, destination_connection)
     usernames = _get_usernames(destination_connection)
@@ -105,10 +155,11 @@ def test_existing_users_not_duplicated(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
+    """_summary_."""
     _seed_user(source_connection, "alice")
     _seed_user(destination_connection, "alice")
     xmigrate.create_users(source_connection, destination_connection)
-    alice_count = sum(1 for u in _get_usernames(destination_connection) if u == "alice")
+    alice_count = sum(u == "alice" for u in _get_usernames(destination_connection))
     assert alice_count == 1
 
 
@@ -116,6 +167,7 @@ def test_creates_multiple_users(
     source_connection: Generator[xnat.BaseXNATSession],
     destination_connection: Generator[xnat.BaseXNATSession],
 ) -> None:
+    """_summary_."""
     _seed_user(source_connection, "alice")
     _seed_user(source_connection, "bob")
     xmigrate.create_users(source_connection, destination_connection)
