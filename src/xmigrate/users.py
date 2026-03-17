@@ -90,9 +90,6 @@ def create_users(
         }
         destination_connection.post("/xapi/users", json=destination_profile)
 
-    # Re-fetch so destination_profiles reflects newly created users
-    destination_profiles = destination_connection.get("/xapi/users/profiles", format="json").json()
-
     # Set site-wide permission roles for users
     for source_profile in source_profiles:
         username = source_profile["username"].removesuffix("#EXT#")
