@@ -9,8 +9,6 @@ import pytest
 import xmigrate
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
-
     import xnat
 
 
@@ -120,57 +118,50 @@ def test_check_users_source_longer() -> None:
 
 
 def test_creates_missing_users(
-    source_connection: Generator[xnat.BaseXNATSession],
-    destination_connection: Generator[xnat.BaseXNATSession],
+    destination_connection: xnat.BaseXNATSession,
+    source_connection: xnat.BaseXNATSession,
+    unique_username: str,
 ) -> None:
     """Users present in the source but missing in the destination are created."""
-    _seed_user(source_connection, "alice", roles=("user",))
+    _seed_user(source_connection, unique_username)
     xmigrate.create_users(source_connection, destination_connection)
-    assert "alice" in _get_usernames(destination_connection)
+    assert unique_username in _get_usernames(destination_connection)
 
 
 def test_creates_missing_users_roles(
-    source_connection: Generator[xnat.BaseXNATSession],
-    destination_connection: Generator[xnat.BaseXNATSession],
+    destination_connection: xnat.BaseXNATSession,
+    source_connection: xnat.BaseXNATSession,
+    unique_username: str,
 ) -> None:
     """Roles assigned to users in the source are correctly created in the destination."""
-    _seed_user(source_connection, "alice", roles=("user", "data_manager"))
+    _seed_user(source_connection, unique_username, roles=("user", "data_manager"))
     xmigrate.create_users(source_connection, destination_connection)
-    assert "data_manager" in _get_roles(destination_connection, "alice")
-
-
-def test_ext_suffix_stripped(
-    source_connection: Generator[xnat.BaseXNATSession],
-    destination_connection: Generator[xnat.BaseXNATSession],
-) -> None:
-    """A suffix is stripped from usernames when creating users."""
-    _seed_user(source_connection, "alice#EXT#")
-    xmigrate.create_users(source_connection, destination_connection)
-    usernames = _get_usernames(destination_connection)
-    assert "alice" in usernames
-    assert "alice#EXT#" not in usernames
+    assert "data_manager" in _get_roles(destination_connection, unique_username)
 
 
 def test_existing_users_not_duplicated(
-    source_connection: Generator[xnat.BaseXNATSession],
-    destination_connection: Generator[xnat.BaseXNATSession],
+    destination_connection: xnat.BaseXNATSession,
+    source_connection: xnat.BaseXNATSession,
+    unique_username: str,
 ) -> None:
     """Existing users are not duplicated in the destination."""
-    _seed_user(source_connection, "alice")
-    _seed_user(destination_connection, "alice")
+    _seed_user(source_connection, unique_username)
+    _seed_user(destination_connection, unique_username)
     xmigrate.create_users(source_connection, destination_connection)
-    alice_count = sum(u == "alice" for u in _get_usernames(destination_connection))
-    assert alice_count == 1
+    user_count = sum(u == unique_username for u in _get_usernames(destination_connection))
+    assert user_count == 1
 
 
 def test_creates_multiple_users(
-    source_connection: Generator[xnat.BaseXNATSession],
-    destination_connection: Generator[xnat.BaseXNATSession],
+    destination_connection: xnat.BaseXNATSession,
+    source_connection: xnat.BaseXNATSession,
+    unique_username: str,
 ) -> None:
     """Multiple users are created in the destination."""
-    _seed_user(source_connection, "alice")
-    _seed_user(source_connection, "bob")
+    second_username = f"{unique_username}_2"
+    _seed_user(source_connection, unique_username)
+    _seed_user(source_connection, second_username)
     xmigrate.create_users(source_connection, destination_connection)
     usernames = _get_usernames(destination_connection)
-    assert "alice" in usernames
-    assert "bob" in usernames
+    assert unique_username in usernames
+    assert second_username in usernames

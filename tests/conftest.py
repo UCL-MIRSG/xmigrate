@@ -16,6 +16,27 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope="session")
+def destination_connection() -> Generator[xnat.BaseXNATSession, None, None]:
+    """
+    Provide a connection to the destination XNAT instance.
+
+    Yields
+    ------
+        The active XNAT session for the destination instance.
+
+    """
+    config = xnat4tests.Config(
+        docker_container="xnat4tests_destination",
+        docker_image="xnat4tests_destination",
+        xnat_port="8889",
+        xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "destination",
+    )
+    xnat4tests.start_xnat(config)
+    with xnat4tests.connect(config) as conn:
+        yield conn
+
+
+@pytest.fixture(scope="session")
 def source_connection() -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
@@ -36,22 +57,7 @@ def source_connection() -> Generator[xnat.BaseXNATSession, None, None]:
         yield conn
 
 
-@pytest.fixture(scope="session")
-def destination_connection() -> Generator[xnat.BaseXNATSession, None, None]:
-    """
-    Provide a connection to the destination XNAT instance.
-
-    Yields
-    ------
-        The active XNAT session for the destination instance.
-
-    """
-    config = xnat4tests.Config(
-        docker_container="xnat4tests_destination",
-        docker_image="xnat4tests_destination",
-        xnat_port="8889",
-        xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "destination",
-    )
-    xnat4tests.start_xnat(config)
-    with xnat4tests.connect(config) as conn:
-        yield conn
+@pytest.fixture
+def unique_username(request: pytest.FixtureRequest) -> str:
+    """Generate a unique username based on the test name."""
+    return request.node.name.replace("[", "_").replace("]", "_")
