@@ -5,14 +5,14 @@ from pathlib import Path
 import pytest
 import xnat4tests
 from tests.utils import delete_data, delete_sharing_data, XnatConnection
-from xmigrate.main import ProjectInfo
+from xmigrate.xml_mapper import ProjectInfo
 
 
 @pytest.fixture
 def remove_destination_test_data(xnat_connection_destination):
     yield
     delete_data(xnat_connection_destination.session)
-    
+
 @pytest.fixture
 def remove_source_sharing_data(xnat_connection_source):
     yield
@@ -137,11 +137,11 @@ def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
         no_project = int(os.environ["PROJECT"])
     except KeyError:
         no_project = 1
-        
+
     xnat4tests.add_data("dummydicom", upload_method="direct")
     if no_project==2:
         xnat4tests.add_data("openneuro-t1w", upload_method="direct")
-    
+
     connection = XnatConnection(xnat_config_source)
 
     connection_name = "source_xnat4tests"
@@ -176,7 +176,7 @@ def xnat_connection_destination(xnat_config_destination, jar_path, plugin_dir):
         xnat4tests.stop_xnat(xnat_config_destination)
     else:
         connection.close()
-        
+
 @pytest.fixture
 def source_info():
     project = ProjectInfo(
