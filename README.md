@@ -48,48 +48,41 @@ uv sync
 First, configure `xmigrate` using `xmigrate.toml`. See `xmigrate.toml.sample`
 for an example.
 
-Then run the migration using:
+Then run the on the command line the migration for all projects on the source
+using:
 
 ```sh
-xmigrate migrate
+xmigrate migrate_all_projects
 ```
 
-You may want to check all the necessary datatypes have been added to the
-destination XNAT before running the migration with a separate command:
+You may only want to migrate a subset of projects on the source using:
 
 ```sh
-xmigrate check_datatypes
+xmigrate migrate_project_list
 ```
 
-Since the custom forms only need to be created once rather than per project then
-you can run a separate command to create the custom forms:
+For testing, you may also want to set your environment variables using mise.
+
+You can set up a mise.toml as below:
 
 ```sh
-xmigrate migrate_custom_forms
+[env]
+XNAT4TEST_KEEP_INSTANCE=true #This speeds up developer time by keeping the docker containers live
+PROJECT=2 #Adds a 2nd project to the source XNAT without changing the xnat_connection_source fixture
+```
+
+and activate it as below:
+
+```sh
+mise en
+```
+
+To run the integration tests from the command line:
+
+```sh
+pytest
 ```
 
 N.B. Currently, the submission object of the custom forms PUT API call is
-hardcoded:
-
-```python
-current_submission =  {
-            "submission": {
-                "data": {
-                    "zIndex": [],
-                    "xnatDatatype": {
-                        "label": [],
-                        "value": []
-                    },
-                    "isThisASiteWideConfiguration": [],
-                    "xnatProject": [
-                        {
-                            "label": [],
-                            "value": []
-                        }
-                    ]
-                }
-            }
-        }
-```
-
-If the custom forms API changes then this will also need to be changed.
+hardcoded so if the custom forms API changes then this will also need to be
+changed.
