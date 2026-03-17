@@ -1,5 +1,4 @@
 import os
-import pdb
 import re
 import subprocess
 from pathlib import Path
@@ -7,19 +6,19 @@ import tempfile
 
 import pytest
 import xnat4tests
-from tests.utils import delete_data, XnatConnection
-from xmigrate.main import Migration, ProjectInfo
+from tests.utils import delete_data, delete_sharing_data, XnatConnection
+from xmigrate.main import ProjectInfo
 
-
-@pytest.fixture
-def remove_source_test_data(xnat_connection_source):
-    yield
-    delete_data(xnat_connection_source.session)
 
 @pytest.fixture
 def remove_destination_test_data(xnat_connection_destination):
     yield
     delete_data(xnat_connection_destination.session)
+    
+@pytest.fixture
+def remove_source_sharing_data(xnat_connection_source):
+    yield
+    delete_sharing_data(xnat_connection_source.session)
 
 
 @pytest.fixture(scope="session")
