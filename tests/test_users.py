@@ -41,9 +41,20 @@ def _seed_user(
         "username": username,
         "verified": True,
     }
-    connection.post("/xapi/users", json=profile)
+    existing = {p["username"] for p in connection.get("/xapi/users/profiles", format="json").json()}
+    if username in existing:
+        connection.put(
+            f"/xapi/users/{username}",
+            json=profile,
+            accepted_status=[200, 201, 304],
+        )
+    else:
+        connection.post("/xapi/users", json=profile)
     for role in roles:
-        connection.put(f"/xapi/users/{username}/roles/{role}")
+        connection.put(
+            f"/xapi/users/{username}/roles/{role}",
+            accepted_status=[200, 201, 304],
+        )
 
 
 def _get_usernames(connection: xnat.BaseXNATSession) -> set[str]:

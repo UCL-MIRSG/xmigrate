@@ -61,9 +61,7 @@ license-files = [
 name = "xmigrate"
 readme = "README.md"
 requires-python = ">=3.12"
-scripts = {xmigrate = """\
-    xmigrate.cli:app\
-    """}
+scripts = {xmigrate = """xmigrate.cli:app"""}
 urls.homepage = "https://github.com/UCL-MIRSG/xmigrate"
 
 [tool.coverage]
@@ -85,6 +83,9 @@ addopts = [
     "--color=yes",
     "--import-mode=importlib",
     "--verbose",
+]
+filterwarnings = [
+    "ignore:Changing XNAT port from:UserWarning",
 ]
 testpaths = [
     "tests",
