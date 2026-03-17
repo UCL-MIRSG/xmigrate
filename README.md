@@ -77,9 +77,17 @@ and activate it as below:
 mise en
 ```
 
+For development if you want to install a new package, add it to `pyproject.toml` dependency-groups
+and then to update the `uv.lock` file run:
+
+```sh
+uv lock
+```
+
 To run the integration tests from the command line:
 
 ```sh
+uv sync --group test
 pytest
 ```
 
