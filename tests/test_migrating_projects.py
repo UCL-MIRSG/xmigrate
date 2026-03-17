@@ -3,18 +3,17 @@ import os
 import pytest
 
 from xmigrate.main import Migration, ProjectInfo, LOGGER, check_datatypes_matching, create_custom_forms_json, create_users
-from xmigrate.xml_mapper import XMLMapper
+from xnat.exceptions import XNATResponseError
 
-# @pytest.mark.usefixtures("remove_source_test_data")
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_single_project(xnat_connection_source, xnat_connection_destination, source_info):
-    dest_info = source_info
-    dest_info[0].rsync_path = "./.xnat4tests_dest/root/archive/"
+    destination_info = source_info
+    destination_info[0].rsync_path = "./.xnat4tests_destination/root/archive/"
     migration = Migration(
             source_connection=xnat_connection_source.session,
             destination_connection=xnat_connection_destination.session,
             all_source_info=source_info,
-            all_destination_info=dest_info,
+            all_destination_info=destination_info,
             rsync_only=False,
         )
 
@@ -22,7 +21,11 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_destinat
     if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         assert migration.all_destination_info[0].id not in [project.id for project in xnat_connection_destination.session.projects]
     else:
-        assert len([project.subjects for project in xnat_connection_destination.session.projects][0]) == 0
+        destination_project_list = [project.subjects for project in xnat_connection_destination.session.projects]
+        if destination_project_list:
+            assert len(destination_project_list[0]) == 0
+        else:
+            assert not destination_project_list
     
     create_users(xnat_connection_source.session,xnat_connection_destination.session)
     migration.run()
@@ -31,29 +34,36 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_destinat
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_destination, source_info_mult):
-    dest_info_mult = source_info_mult
-    dest_info_mult[0].rsync_path = "./.xnat4tests_dest/root/archive"
-    dest_info_mult[1].rsync_path = "./.xnat4tests_dest/root/archive"
+    destination_info_mult = source_info_mult
+    destination_info_mult[0].rsync_path = "./.xnat4tests_destination/root/archive"
+    destination_info_mult[1].rsync_path = "./.xnat4tests_destination/root/archive"
     migration = Migration(
             source_connection=xnat_connection_source.session,
             destination_connection=xnat_connection_destination.session,
             all_source_info=source_info_mult,
-            all_destination_info=dest_info_mult,
+            all_destination_info=destination_info_mult,
             rsync_only=False,
         )
 
     assert migration.all_source_info[0].id in [project.id for project in xnat_connection_source.session.projects]
     assert migration.all_source_info[1].id in [project.id for project in xnat_connection_source.session.projects]
+        
+    destination_project_list = [project.subjects for project in xnat_connection_destination.session.projects]
+    if destination_project_list:
+        assert len(destination_project_list[0]) == 0
+    else:
+        assert not destination_project_list
     
-    len([project.subjects for project in xnat_connection_destination.session.projects][0]) == 0
     if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         assert migration.all_destination_info[0].id not in [project.id for project in xnat_connection_destination.session.projects]
         assert migration.all_destination_info[1].id not in [project.id for project in xnat_connection_destination.session.projects]
     else:
-        assert len([project.subjects for project in xnat_connection_destination.session.projects][0]) == 0
-        if len([project.id for project in xnat_connection_destination.session.projects]) > 1:
-            len([project.subjects for project in xnat_connection_destination.session.projects][1]) == 0
-            
+        if destination_project_list:
+            assert len(destination_project_list[0]) == 0
+            if len(destination_project_list) > 1:
+                len(destination_project_list[1]) == 0
+        else:
+            assert not destination_project_list
     
     create_users(xnat_connection_source.session,xnat_connection_destination.session)
     migration.run()
@@ -80,7 +90,7 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
             secondary_id=source_sec_id,
             project_name=source_proj_name,
             archive_path="/data/xnat/archive",
-            rsync_path="./.xnat4tests_src/root/archive",
+            rsync_path="./.xnat4tests_source/root/archive",
         )
         for source_proj, source_sec_id, source_proj_name in zip(
             source_projects,
@@ -96,7 +106,7 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
             secondary_id=destination_sec_id,
             project_name=destination_proj_name,
             archive_path="/data/xnat/archive",
-            rsync_path="./.xnat4tests_dest/root/archive",
+            rsync_path="./.xnat4tests_destination/root/archive",
         )
         for destination_proj, destination_sec_id, destination_proj_name in zip(
             destination_projects,
@@ -117,14 +127,22 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
     assert migration.all_source_info[0].id in [project.id for project in xnat_connection_source.session.projects]
     assert migration.all_source_info[1].id in [project.id for project in xnat_connection_source.session.projects]
     
-    len([project.subjects for project in xnat_connection_destination.session.projects][0]) == 0
+    destination_project_list = [project.subjects for project in xnat_connection_destination.session.projects]
+    if destination_project_list:
+        assert len(destination_project_list[0]) == 0
+    else:
+        assert not destination_project_list
+
     if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         assert migration.all_destination_info[0].id not in [project.id for project in xnat_connection_destination.session.projects]
         assert migration.all_destination_info[1].id not in [project.id for project in xnat_connection_destination.session.projects]
     else:
-        assert len([project.subjects for project in xnat_connection_destination.session.projects][0]) == 0
-        if len([project.id for project in xnat_connection_destination.session.projects]) > 1:
-            len([project.subjects for project in xnat_connection_destination.session.projects][1]) == 0
+        if destination_project_list:
+            assert len(destination_project_list[0]) == 0
+            if len(destination_project_list) > 1:
+                len(destination_project_list[1]) == 0
+        else:
+            assert not destination_project_list
 
     migration.run()
     
@@ -133,29 +151,25 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
     assert migration.all_destination_info[0].id in [project.id for project in xnat_connection_destination.session.projects]
     assert migration.all_destination_info[1].id in [project.id for project in xnat_connection_destination.session.projects]
     
-# @pytest.mark.usefixtures("remove_source_sharing_data")
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destination, source_info_mult):
-    
     
     owner_project_id = source_info_mult[0].id
     owner_project_subject_id = xnat_connection_source.session.projects[source_info_mult[0].id].subjects[0].id
     sharing_project_id = source_info_mult[1].id
     owner_project_subject_label = xnat_connection_source.session.projects[source_info_mult[0].id].subjects[0].label
     
-    dest_info_mult = source_info_mult
-    dest_info_mult[0].rsync_path = "./.xnat4tests_dest/root/archive"
-    dest_info_mult[1].rsync_path = "./.xnat4tests_dest/root/archive"
+    destination_info_mult = source_info_mult
+    destination_info_mult[0].rsync_path = "./.xnat4tests_destination/root/archive"
+    destination_info_mult[1].rsync_path = "./.xnat4tests_destination/root/archive"
     migration = Migration(
             source_connection=xnat_connection_source.session,
             destination_connection=xnat_connection_destination.session,
             all_source_info=source_info_mult,
-            all_destination_info=dest_info_mult,
+            all_destination_info=destination_info_mult,
             rsync_only=False,
         )
     
-        
-    from xnat.exceptions import XNATResponseError
     try:
         migration._get_source_xml(f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}")
     except XNATResponseError as e:
@@ -177,17 +191,16 @@ def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destin
     
     assert root_owner.attrib["project"] == owner_project_id
     assert root_sharing.attrib["project"] != sharing_project_id
-        
-    
     create_users(xnat_connection_source.session,xnat_connection_destination.session)
     migration.run()
     
-    owner_project_id = dest_info_mult[0].id
-    owner_project_subject_id = xnat_connection_destination.session.projects[dest_info_mult[0].id].subjects[0].id
-    sharing_project_id = dest_info_mult[1].id
-    owner_project_subject_label = xnat_connection_destination.session.projects[dest_info_mult[0].id].subjects[0].label
+    owner_project_id_dest = destination_info_mult[0].id
+    sharing_project_id_dest = destination_info_mult[1].id
+    owner_project_subject_label_dest = xnat_connection_destination.session.projects[destination_info_mult[0].id].subjects[0].label
     
-    assert migration.all_source_info[0].id in [project.id for project in xnat_connection_source.session.projects]
-    assert migration.all_source_info[1].id in [project.id for project in xnat_connection_source.session.projects]
-    assert migration.all_destination_info[0].id in [project.id for project in xnat_connection_destination.session.projects]
-    assert migration.all_destination_info[1].id in [project.id for project in xnat_connection_destination.session.projects]
+    assert root_owner.attrib["project"] == owner_project_id_dest
+    assert root_sharing.attrib["project"] != sharing_project_id_dest
+
+    response = migration._get_source_xml(f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}")
+    assert response is not None
+    

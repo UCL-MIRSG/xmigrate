@@ -1,8 +1,6 @@
 import os
-import re
 import subprocess
 from pathlib import Path
-import tempfile
 
 import pytest
 import xnat4tests
@@ -42,8 +40,8 @@ def xnat_container_service_version():
 
 @pytest.fixture(scope="session")
 def xnat_config_source(xnat_version, xnat_container_service_version):
-    xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_src" / "root"
-    docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_src" / "build"
+    xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "root"
+    docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "build"
     xnat_root_dir.mkdir(parents=True, exist_ok=True)
     docker_build_dir.mkdir(parents=True, exist_ok=True)
 
@@ -60,8 +58,8 @@ def xnat_config_source(xnat_version, xnat_container_service_version):
 
 @pytest.fixture(scope="session")
 def xnat_config_destination(xnat_version, xnat_container_service_version):
-    xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_dest" / "root"
-    docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_dest" / "build"
+    xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
+    docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_destination" / "build"
     xnat_root_dir.mkdir(parents=True, exist_ok=True)
     docker_build_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,7 +72,6 @@ def xnat_config_destination(xnat_version, xnat_container_service_version):
             "xnat_version": xnat_version,
             "xnat_cs_plugin_version": xnat_container_service_version,
         },
-        # docker_host = "127.0.0.2",
         xnat_port = 8081
     )
 
@@ -148,7 +145,7 @@ def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
     connection = XnatConnection(xnat_config_source)
 
     connection_name = "source_xnat4tests"
-    # install_plugin(connection, jar_path, plugin_dir, connection_name)
+    install_plugin(connection, jar_path, plugin_dir, connection_name)
 
     yield connection
 
@@ -167,7 +164,7 @@ def xnat_connection_destination(xnat_config_destination, jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_destination)
     connection = XnatConnection(xnat_config_destination)
     connection_name = "destination_xnat4tests"
-    # install_plugin(connection, jar_path, plugin_dir, connection_name)
+    install_plugin(connection, jar_path, plugin_dir, connection_name)
 
     yield connection
 
@@ -187,7 +184,7 @@ def source_info():
         secondary_id="dummydicomproject",
         project_name="dummydicomproject",
         archive_path="/data/xnat/archive",
-        rsync_path=".xnat4tests_src/root/archive",
+        rsync_path=".xnat4tests_source/root/archive",
     )
     return [project]
 
@@ -200,7 +197,7 @@ def source_info_mult():
             secondary_id=source_proj,
             project_name=source_proj,
             archive_path="/data/xnat/archive",
-            rsync_path=".xnat4tests_src/root/archive",
+            rsync_path=".xnat4tests_source/root/archive",
         )
         for source_proj in source_projects
     ]
