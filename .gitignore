@@ -171,3 +171,5 @@ ncita_locate
 .DS_Store
 .vscode/
 *.ipynb
+.xnat4tests*
+mise.toml
