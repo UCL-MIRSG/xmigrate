@@ -1,4 +1,3 @@
-import pdb
 import shutil
 import xnat4tests
 import xnat
@@ -62,4 +61,11 @@ def delete_data(session: xnat.XNATSession) -> None:
     metadata_folder=Path(__file__).parents[1] / "output/localhost"
 
     if metadata_folder.exists():
-        shutil.rmtree("output/localhost")
+        shutil.rmtree("output/localhost")    
+
+def delete_sharing_data(session: xnat.XNATSession) -> None:
+    for project in session.projects:
+        for subject in project.subjects.values():
+            session.delete(
+                f"/data/projects/{project.id}/subjects/{subject.id}/projects/{session.projects[1].id}"
+            )
