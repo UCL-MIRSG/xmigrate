@@ -135,7 +135,7 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
     
 # @pytest.mark.usefixtures("remove_source_sharing_data")
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_sharing_projects(xnat_connection_source, xnat_connection_destination, source_info_mult):
+def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destination, source_info_mult):
     
     
     owner_project_id = source_info_mult[0].id
