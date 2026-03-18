@@ -25,19 +25,15 @@ def destination_connection() -> Generator[xnat.BaseXNATSession, None, None]:
         The active XNAT session for the destination instance.
 
     """
-    tempdir = tempfile.TemporaryDirectory()
-    try:
-        config = xnat4tests.Config(
-            docker_container="xnat4tests_destination",
-            docker_image="xnat4tests_destination",
-            xnat_port="8889",
-            xnat_root_dir=pathlib.Path(tempdir.name) / "destination",
-        )
-        xnat4tests.start_xnat(config)
-        with xnat4tests.connect(config) as conn:
-            yield conn
-    finally:
-        tempdir.cleanup()
+    config = xnat4tests.Config(
+        docker_container="xnat4tests_destination",
+        docker_image="xnat4tests_destination",
+        xnat_port="8889",
+        xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "destination",
+    )
+    xnat4tests.start_xnat(config)
+    with xnat4tests.connect(config) as conn:
+        yield conn
 
 
 @pytest.fixture(scope="session")
@@ -50,19 +46,15 @@ def source_connection() -> Generator[xnat.BaseXNATSession, None, None]:
         The active XNAT session for the source instance.
 
     """
-    tempdir = tempfile.TemporaryDirectory()
-    try:
-        config = xnat4tests.Config(
-            docker_container="xnat4tests_source",
-            docker_image="xnat4tests_source",
-            xnat_port="8888",
-            xnat_root_dir=pathlib.Path(tempdir.name) / "source",
-        )
-        xnat4tests.start_xnat(config)
-        with xnat4tests.connect(config) as conn:
-            yield conn
-    finally:
-        tempdir.cleanup()
+    config = xnat4tests.Config(
+        docker_container="xnat4tests_source",
+        docker_image="xnat4tests_source",
+        xnat_port="8888",
+        xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "source",
+    )
+    xnat4tests.start_xnat(config)
+    with xnat4tests.connect(config) as conn:
+        yield conn
 
 
 @pytest.fixture
