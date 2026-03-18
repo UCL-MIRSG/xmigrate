@@ -490,7 +490,6 @@ class Migration:
             If the experiment's datatype is not available on the destination server.
 
         """
-        destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
         if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
             datatype = experiment.fulldata["meta"]["xsi:type"]
             msg = f"Datatype {datatype} not available on destination server for subject {subject.id}. All datatypes {destination_datatypes}"
@@ -909,7 +908,18 @@ class Migration:
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project.id)
 
-        destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
+        start_datatypes = time.time()
+        timeout = 60
+        while time.time() - start_datatypes < timeout:
+            try:
+                destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
+                if destination_datatypes:  # not empty
+                    return destination_datatypes
+            except Exception:
+                msg = f"destination_datatypes are empty: {destination_datatypes}"
+                raise RuntimeError(msg)
+            time.sleep(2)
+
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         subj_path = f"output/{source_name}/{self.destination_info.id}/subjects_id_map.csv"
         subj_full_path = pathlib.Path() / subj_path
@@ -950,6 +960,7 @@ class Migration:
         self._logger.info("Experiments failed: %d", self.exp_failed_count)
         self._logger.info("Scans failed: %d", self.scan_failed_count)
         self._logger.info("Assessors failed: %d", self.assess_failed_count)
+        return None
 
     def _refresh_catalogue(self, resource_path: str) -> None:
         """
