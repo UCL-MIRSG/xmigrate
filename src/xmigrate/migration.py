@@ -492,7 +492,7 @@ class Migration:
         """
         if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
             datatype = experiment.fulldata["meta"]["xsi:type"]
-            msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
+            msg = f"Datatype {datatype} not available on destination server for subject {subject.id}. All datatypes {destination_datatypes}"
             raise RuntimeError(msg)
 
         if experiment.id not in experiments_id_map_list:
