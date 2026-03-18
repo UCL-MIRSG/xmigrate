@@ -40,7 +40,7 @@ class Migration:
     """The source projects information."""
     all_destination_info: list[ProjectInfo]
     """The destination projects information."""
-    rsync_only: bool = False
+    no_rsync: bool = False
     """Conditional for whether to run rsync only."""
 
     def __post_init__(self):  # noqa: ANN204
@@ -878,32 +878,31 @@ class Migration:
         """
         self._create_project()
         source_project = self.source_connection.projects[self.source_info.id]
-        rsync_destination = self.destination_info.rsync_path + "/" + self.destination_info.id
-        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
-        pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
-        command_to_run = [
-            "rsync",
-            "-azP",
-            "--ignore-existing",
-            "--exclude=*.log",
-            "--exclude=.*",
-            "--exclude=*.json",
-            "--stats",
-            "--progress",
-            "--checksum",
-            rsync_source,
-            rsync_destination,
-        ]
+        if not self.no_rsync:
+            rsync_destination = self.destination_info.rsync_path + "/" + self.destination_info.id
+            rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+            pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
-        try:
-            subprocess.check_output(command_to_run)  # noqa: S603
-        except subprocess.CalledProcessError as exc:
-            msg = f"An error occurred running the rsync command; the error was: {exc}"
-            raise RuntimeError(msg) from exc
+            command_to_run = [
+                "rsync",
+                "-azP",
+                "--ignore-existing",
+                "--exclude=*.log",
+                "--exclude=.*",
+                "--exclude=*.json",
+                "--stats",
+                "--progress",
+                "--checksum",
+                rsync_source,
+                rsync_destination,
+            ]
 
-        if self.rsync_only:
-            return
+            try:
+                subprocess.check_output(command_to_run)  # noqa: S603
+            except subprocess.CalledProcessError as exc:
+                msg = f"An error occurred running the rsync command; the error was: {exc}"
+                raise RuntimeError(msg) from exc
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project.id)

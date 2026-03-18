@@ -20,7 +20,7 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_destinat
             destination_connection=xnat_connection_destination.session,
             all_source_info=source_info,
             all_destination_info=destination_info,
-            rsync_only=False,
+            no_rsync=False,
         )
 
     # Check set-up of source XNAT to have 1 single project and destination XNAT to have no subjects in project
@@ -47,7 +47,7 @@ def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_desti
             destination_connection=xnat_connection_destination.session,
             all_source_info=source_info_mult,
             all_destination_info=destination_info_mult,
-            rsync_only=False,
+            no_rsync=True,
         )
 
     # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
@@ -123,7 +123,7 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
         destination_connection=xnat_connection_destination.session,
         all_source_info=all_source_info,
         all_destination_info=all_destination_info,
-        rsync_only=False,
+        no_rsync=True,
     )
 
     # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
@@ -155,7 +155,7 @@ def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destin
             destination_connection=xnat_connection_destination.session,
             all_source_info=source_info_mult,
             all_destination_info=destination_info_mult,
-            rsync_only=False,
+            no_rsync=True,
         )
 
     # Share subject data from project 1 to project 2 in source XNAT
