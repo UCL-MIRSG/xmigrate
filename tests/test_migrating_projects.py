@@ -171,12 +171,6 @@ def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destin
         xnat_connection_source.session.put(f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}")
         assert "status 404, accepted status: [200]" in str(e)
 
-    if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
-        xnat_connection_source.session.put(f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}")
-    else:
-        msg = "Subject already shared on source"
-        LOGGER.info(msg)
-
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
     root_owner = migration._get_source_xml(
             f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}",
