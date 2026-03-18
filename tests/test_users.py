@@ -41,7 +41,7 @@ def _seed_user(
         "username": username,
         "verified": True,
     }
-    existing = {p["username"] for p in connection.get("/xapi/users/profiles", format="json").json()}
+    existing = [p["username"] for p in connection.get("/xapi/users/profiles", format="json").json()]
     if username in existing:
         connection.put(
             f"/xapi/users/{username}",
@@ -57,7 +57,7 @@ def _seed_user(
         )
 
 
-def _get_usernames(connection: xnat.BaseXNATSession) -> set[str]:
+def _get_usernames(connection: xnat.BaseXNATSession) -> list[str]:
     """
     Get the usernames of all users on an XNAT instance.
 
@@ -68,14 +68,14 @@ def _get_usernames(connection: xnat.BaseXNATSession) -> set[str]:
 
     Returns
     -------
-        The set of usernames of all users on the XNAT instance.
+        The list of usernames of all users on the XNAT instance.
 
     """
     profiles = connection.get("/xapi/users/profiles", format="json").json()
-    return {p["username"] for p in profiles}
+    return [p["username"] for p in profiles]
 
 
-def _get_roles(connection: xnat.BaseXNATSession, username: str) -> set[str]:
+def _get_roles(connection: xnat.BaseXNATSession, username: str) -> list[str]:
     """
     Get the roles of a user on an XNAT instance.
 
@@ -88,10 +88,10 @@ def _get_roles(connection: xnat.BaseXNATSession, username: str) -> set[str]:
 
     Returns
     -------
-        The set of roles assigned to the user.
+        The list of roles assigned to the user.
 
     """
-    return set(connection.get(f"/xapi/users/{username}/roles").json())
+    return connection.get(f"/xapi/users/{username}/roles").json()
 
 
 def test_check_users_matching() -> None:
