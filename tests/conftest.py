@@ -1,4 +1,5 @@
 import os
+import pdb
 import subprocess
 from pathlib import Path
 import urllib.request
@@ -143,6 +144,9 @@ def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
         no_project = int(os.environ["PROJECT"])
     except KeyError:
         no_project = 1
+        
+    assert no_project == 2
+    
 
     xnat4tests.add_data("dummydicom", upload_method="direct")
     if no_project==2:
@@ -162,7 +166,7 @@ def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
         connection.close()
         xnat4tests.stop_xnat(xnat_config_source)
     else:
-        # delete_data(connection.session)
+        delete_data(connection.session)
         connection.close()
 
 @pytest.fixture(scope="session")
@@ -206,5 +210,20 @@ def source_info_mult():
             rsync_path=".xnat4tests_source/root/archive",
         )
         for source_proj in source_projects
+    ]
+    return all_projects
+
+@pytest.fixture
+def destination_info_mult():
+    destination_projects=["dummydicomproject", "OPENNEURO_T1W"]
+    all_projects = [
+        ProjectInfo(
+            id=destination_proj,
+            secondary_id=destination_proj,
+            project_name=destination_proj,
+            archive_path="/data/xnat/archive",
+            rsync_path=".xnat4tests_destination/root/archive",
+        )
+        for destination_proj in destination_projects
     ]
     return all_projects

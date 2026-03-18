@@ -1,4 +1,7 @@
 import os
+import pdb
+import shutil
+from pathlib import Path
 
 import pytest
 
@@ -33,18 +36,15 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_destinat
 
     migration.run()
     # Check project has migrated into destination
-    source_projects_list = [project.id for project in xnat_connection_source.session.projects]
-    assert migration.all_source_info[0].id in source_projects_list
     destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
     assert migration.all_destination_info[0].id in destination_projects_list
+    destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
+    assert len(destination_project_subjects_list[0]) != 0
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_destination, source_info_mult):
+def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_destination, source_info_mult, destination_info_mult):
 
     # Set up migration instance using Migration class for 2 projects
-    destination_info_mult = source_info_mult
-    destination_info_mult[0].rsync_path = "./.xnat4tests_destination/root/archive"
-    destination_info_mult[1].rsync_path = "./.xnat4tests_destination/root/archive"
     migration = Migration(
             source_connection=xnat_connection_source.session,
             destination_connection=xnat_connection_destination.session,
@@ -70,15 +70,18 @@ def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_desti
 
     migration.run()
     # Check 2 projects have migrated into destination
-    source_projects_list = [project.id for project in xnat_connection_source.session.projects]
-    assert migration.all_source_info[0].id in source_projects_list
-    assert migration.all_source_info[1].id in source_projects_list
     destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
     assert migration.all_destination_info[0].id in destination_projects_list
     assert migration.all_destination_info[1].id in destination_projects_list
+    destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
+    assert len(destination_project_subjects_list[0]) != 0
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_all_projects(xnat_connection_source, xnat_connection_destination):
+    
+    metadata_folder=Path(__file__).parents[1] / "output/localhost"
+    
+    assert not metadata_folder.exists()  
 
     # Without needing to specify a project list, set up ProjectInfo instance to feed into Migration instance
     rows = [(p.id, p.secondary_id, p.project) for p in xnat_connection_source.session.projects]
@@ -147,20 +150,16 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
 
     # Check 2 projects have migrated into destination
     migration.run()
-    source_projects_list = [project.id for project in xnat_connection_source.session.projects]
-    assert migration.all_source_info[0].id in source_projects_list
-    assert migration.all_source_info[1].id in source_projects_list
     destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
     assert migration.all_destination_info[0].id in destination_projects_list
     assert migration.all_destination_info[1].id in destination_projects_list
+    destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
+    assert len(destination_project_subjects_list[0]) != 0
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destination, source_info_mult):
+def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destination, source_info_mult, destination_info_mult):
 
     # Set up migration instance using Migration class for 2 projects including shared data
-    destination_info_mult = source_info_mult
-    destination_info_mult[0].rsync_path = "./.xnat4tests_destination/root/archive"
-    destination_info_mult[1].rsync_path = "./.xnat4tests_destination/root/archive"
     migration = Migration(
             source_connection=xnat_connection_source.session,
             destination_connection=xnat_connection_destination.session,

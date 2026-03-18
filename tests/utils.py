@@ -1,3 +1,4 @@
+import pdb
 import shutil
 import xnat4tests
 import xnat
