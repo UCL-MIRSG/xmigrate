@@ -33,7 +33,7 @@ def build(session: nox.Session) -> None:
 )
 def coverage(session: nox.Session) -> None:
     """Run tests and compute coverage for the tests."""
-    session.run("pytest", "--cov", "--cov-report=xml", *session.posargs)
+    session.run("pytest", "--cov", "--cov-report=lcov", *session.posargs)
 
 
 @nox_uv.session(uv_groups=["docs"])
