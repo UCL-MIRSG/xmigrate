@@ -866,7 +866,7 @@ class Migration:
         with pathlib.Path(path).open("w") as file:
             json.dump(dest_project_ownership, file, indent=4)
 
-    def _create_resources(self) -> None:
+    def _create_resources(self) -> None:  # noqa: PLR0912, PLR0915
         """
         Create all resources on the destination XNAT instance.
 
@@ -914,10 +914,10 @@ class Migration:
             try:
                 destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
                 if destination_datatypes:  # not empty
-                    return destination_datatypes
-            except Exception:
+                    pass
+            except Exception(KeyError) as e:
                 msg = f"destination_datatypes are empty: {destination_datatypes}"
-                raise RuntimeError(msg)
+                raise RuntimeError(msg) from e
             time.sleep(2)
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
@@ -960,7 +960,6 @@ class Migration:
         self._logger.info("Experiments failed: %d", self.exp_failed_count)
         self._logger.info("Scans failed: %d", self.scan_failed_count)
         self._logger.info("Assessors failed: %d", self.assess_failed_count)
-        return None
 
     def _refresh_catalogue(self, resource_path: str) -> None:
         """
