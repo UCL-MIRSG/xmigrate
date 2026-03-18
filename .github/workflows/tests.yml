@@ -39,6 +39,9 @@ jobs:
       - name: Install only dev dependencies
         run: uv sync --only-dev
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+
       - name: Test with nox
         run: uv run nox -s tests-${{ matrix.python-version }}
         env:
