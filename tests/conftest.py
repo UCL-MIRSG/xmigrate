@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pathlib
-import tempfile
 from typing import TYPE_CHECKING
 
 import pytest
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture(scope="session")
-def destination_connection() -> Generator[xnat.BaseXNATSession, None, None]:
+def destination_connection(tmp_path_factory: pytest.TempdirFactory) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
 
@@ -29,7 +28,7 @@ def destination_connection() -> Generator[xnat.BaseXNATSession, None, None]:
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
         xnat_port="8889",
-        xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "destination",
+        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
     )
     xnat4tests.start_xnat(config)
     with xnat4tests.connect(config) as conn:
@@ -37,7 +36,7 @@ def destination_connection() -> Generator[xnat.BaseXNATSession, None, None]:
 
 
 @pytest.fixture(scope="session")
-def source_connection() -> Generator[xnat.BaseXNATSession, None, None]:
+def source_connection(tmp_path_factory: pytest.TempdirFactory) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -50,7 +49,7 @@ def source_connection() -> Generator[xnat.BaseXNATSession, None, None]:
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
         xnat_port="8888",
-        xnat_root_dir=pathlib.Path(tempfile.mkdtemp()) / "source",
+        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
     )
     xnat4tests.start_xnat(config)
     with xnat4tests.connect(config) as conn:
