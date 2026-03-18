@@ -490,6 +490,7 @@ class Migration:
             If the experiment's datatype is not available on the destination server.
 
         """
+        destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
         if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
             datatype = experiment.fulldata["meta"]["xsi:type"]
             msg = f"Datatype {datatype} not available on destination server for subject {subject.id}. All datatypes {destination_datatypes}"
