@@ -38,7 +38,7 @@ def test_check_datatypes_matching_missing_on_destination() -> None:
     destination = _make_connection(["xnat:mrSessionData"])
     with pytest.raises(
         ValueError,
-        match=r"Source has datatypes not enabled on destination.*ctSessionData",
+        match=r"Source has datatypes not enabled on destination: {'xnat:ctSessionData'}",
     ):
         xmigrate.check_datatypes_matching(source, destination)
     source.get.assert_called_once_with("/xapi/access/displays/createable")
