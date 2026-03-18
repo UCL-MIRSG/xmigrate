@@ -8,7 +8,20 @@ import xmigrate
 
 
 def _make_connection(datatypes: list[str]) -> unittest.mock.MagicMock:
-    """Create a mock XNAT connection returning the given datatype element names."""
+    """
+    Create a mock XNAT connection returning the given datatype element names.
+
+    Parameters
+    ----------
+    datatypes
+        The list of datatype element names to be returned by the mock connection.
+
+
+    Returns
+    -------
+        A mock XNAT connection.
+
+    """
     conn = unittest.mock.MagicMock(spec_set=["get"])
     conn.get.return_value.json.return_value = [{"elementName": dt} for dt in datatypes]
     return conn
