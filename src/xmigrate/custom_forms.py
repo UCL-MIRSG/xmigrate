@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
-def create_custom_forms_json(
+def create_custom_forms_json(  # noqa: PLR0915
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
 ) -> None:
@@ -38,7 +38,11 @@ def create_custom_forms_json(
 
     source_titles = []
     destination_titles = []
-    for (source_custom_form, destination_custom_form) in (zip(source_custom_forms,destination_custom_forms, strict=False)):
+    for source_custom_form, destination_custom_form in zip(
+        source_custom_forms,
+        destination_custom_forms,
+        strict=False,
+    ):
         source_obj = json.loads(source_custom_form["contents"])
         source_title = source_obj["title"]
         destination_obj = json.loads(destination_custom_form["contents"])
