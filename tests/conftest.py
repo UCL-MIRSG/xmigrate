@@ -1,6 +1,7 @@
 import os
 import subprocess
 from pathlib import Path
+import urllib.request
 
 import pytest
 import xnat4tests
@@ -81,6 +82,11 @@ def jar_path():
     """Path of OHIF viewer jar"""
 
     jar_dir = Path(__file__).parents[1] / "input"
+    jar_dir.mkdir(parents=True, exist_ok=True)
+    ohif_jar = jar_dir / "ohif-viewer-3.7.1-fat.jar"
+    if not ohif_jar.is_file():
+        urllib.request.urlretrieve("https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-3.7.2.jar", "input/ohif-viewer-3.7.1-fat.jar")
+    
     jar_path = list(jar_dir.glob("ohif-*fat.jar"))[0]
 
     if not jar_path.exists():
