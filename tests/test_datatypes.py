@@ -9,7 +9,7 @@ import xmigrate
 
 def _make_connection(datatypes: list[str]) -> unittest.mock.MagicMock:
     """Create a mock XNAT connection returning the given datatype element names."""
-    conn = unittest.mock.MagicMock()
+    conn = unittest.mock.MagicMock(spec_set=["get"])
     conn.get.return_value.json.return_value = [{"elementName": dt} for dt in datatypes]
     return conn
 
@@ -19,6 +19,8 @@ def test_check_datatypes_matching_identical() -> None:
     source = _make_connection(["xnat:mrSessionData", "xnat:ctSessionData"])
     destination = _make_connection(["xnat:mrSessionData", "xnat:ctSessionData"])
     xmigrate.check_datatypes_matching(source, destination)
+    source.get.assert_called_once_with("/xapi/access/displays/createable")
+    destination.get.assert_called_once_with("/xapi/access/displays/createable")
 
 
 def test_check_datatypes_matching_destination_superset() -> None:
@@ -26,14 +28,21 @@ def test_check_datatypes_matching_destination_superset() -> None:
     source = _make_connection(["xnat:mrSessionData"])
     destination = _make_connection(["xnat:mrSessionData", "xnat:ctSessionData"])
     xmigrate.check_datatypes_matching(source, destination)
+    source.get.assert_called_once_with("/xapi/access/displays/createable")
+    destination.get.assert_called_once_with("/xapi/access/displays/createable")
 
 
 def test_check_datatypes_matching_missing_on_destination() -> None:
     """ValueError raised when source has datatypes not enabled on destination."""
     source = _make_connection(["xnat:mrSessionData", "xnat:ctSessionData"])
     destination = _make_connection(["xnat:mrSessionData"])
-    with pytest.raises(ValueError, match="Source has datatypes not enabled on destination"):
+    with pytest.raises(
+        ValueError,
+        match=r"Source has datatypes not enabled on destination.*ctSessionData",
+    ):
         xmigrate.check_datatypes_matching(source, destination)
+    source.get.assert_called_once_with("/xapi/access/displays/createable")
+    destination.get.assert_called_once_with("/xapi/access/displays/createable")
 
 
 def test_check_datatypes_matching_xdat_filtered_out() -> None:
@@ -41,6 +50,8 @@ def test_check_datatypes_matching_xdat_filtered_out() -> None:
     source = _make_connection(["xnat:mrSessionData", "xdat:something"])
     destination = _make_connection(["xnat:mrSessionData"])
     xmigrate.check_datatypes_matching(source, destination)
+    source.get.assert_called_once_with("/xapi/access/displays/createable")
+    destination.get.assert_called_once_with("/xapi/access/displays/createable")
 
 
 def test_check_datatypes_matching_empty_source() -> None:
@@ -48,3 +59,5 @@ def test_check_datatypes_matching_empty_source() -> None:
     source = _make_connection([])
     destination = _make_connection(["xnat:mrSessionData"])
     xmigrate.check_datatypes_matching(source, destination)
+    source.get.assert_called_once_with("/xapi/access/displays/createable")
+    destination.get.assert_called_once_with("/xapi/access/displays/createable")
