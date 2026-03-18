@@ -41,6 +41,8 @@ jobs:
 
       - name: Setup tmate session
         uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
 
       - name: Test with nox
         run: uv run nox -s tests-${{ matrix.python-version }}
