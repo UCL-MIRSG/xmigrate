@@ -6,11 +6,20 @@ on:
     branches:
       - main
   pull_request:
-    paths-ignore:
-      - "**.md"
+    types:
+      - opened
+      - ready_for_review
+      - reopened
+      - synchronize
+
+concurrency:
+  cancel-in-progress: true
+  group: >-
+    ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
   tests:
+    if: github.event.pull_request.draft == false
     name: Run Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
