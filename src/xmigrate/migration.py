@@ -491,7 +491,6 @@ class Migration:
 
         """
         if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
-            breakpoint()  # noqa: T100
             datatype = experiment.fulldata["meta"]["xsi:type"]
             msg = f"Datatype {datatype} not available on destination server for subject {subject.id}. All datatypes {destination_datatypes}"
             raise RuntimeError(msg)
