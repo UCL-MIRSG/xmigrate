@@ -375,7 +375,7 @@ class Migration:
         subject: xnat.core.XNATListing,
         subjects_id_map_list: list,
         source_name: str,
-    ) -> None:
+    ) -> bool:
         """
         Check if subject exists on the destination XNAT instance.
 
@@ -407,9 +407,10 @@ class Migration:
                 destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label],
                 map_type=XnatType.subject,
             )
+            sharing_subject_exists = False
         return sharing_subject_exists
 
-    def _create_subject(self, subject: xnat.core.XNATListing) -> None:
+    def _create_subject(self, subject: xnat.core.XNATListing) -> bool:
         """
         Create a subject on the destination XNAT instance.
 
@@ -459,6 +460,7 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
+        return False
 
     def _check_experiment_exists(
         self,
@@ -492,7 +494,7 @@ class Migration:
         """
         if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
             datatype = experiment.fulldata["meta"]["xsi:type"]
-            msg = f"Datatype {datatype} not available on destination server for subject {subject.id}. All datatypes {destination_datatypes}"
+            msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
             raise RuntimeError(msg)
 
         if experiment.id not in experiments_id_map_list:
@@ -913,8 +915,8 @@ class Migration:
             try:
                 destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
                 if destination_datatypes:  # not empty
-                    pass
-            except Exception(KeyError) as e:
+                    break
+            except Exception as e:
                 msg = f"destination_datatypes are empty: {destination_datatypes}"
                 raise RuntimeError(msg) from e
             time.sleep(2)

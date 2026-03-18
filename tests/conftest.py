@@ -1,12 +1,11 @@
 import os
-import pdb
 import subprocess
 from pathlib import Path
 import urllib.request
 
 import pytest
 import xnat4tests
-from tests.utils import delete_data, delete_sharing_data, XnatConnection
+from tests.utils import delete_data, XnatConnection
 from xmigrate.xml_mapper import ProjectInfo
 
 
@@ -14,11 +13,6 @@ from xmigrate.xml_mapper import ProjectInfo
 def remove_destination_test_data(xnat_connection_destination):
     yield
     delete_data(xnat_connection_destination.session)
-
-@pytest.fixture
-def remove_source_sharing_data(xnat_connection_source):
-    yield
-    delete_sharing_data(xnat_connection_source.session)
 
 
 @pytest.fixture(scope="session")
@@ -87,7 +81,7 @@ def jar_path():
     ohif_jar = jar_dir / "ohif-viewer-3.7.1-fat.jar"
     if not ohif_jar.is_file():
         urllib.request.urlretrieve("https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-3.7.2.jar", "input/ohif-viewer-3.7.1-fat.jar")
-    
+
     jar_path = list(jar_dir.glob("ohif-*fat.jar"))[0]
 
     if not jar_path.exists():
@@ -144,9 +138,9 @@ def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
         no_project = int(os.environ["PROJECT"])
     except KeyError:
         no_project = 1
-        
+
     assert no_project == 2
-    
+
 
     xnat4tests.add_data("dummydicom", upload_method="direct")
     if no_project==2:

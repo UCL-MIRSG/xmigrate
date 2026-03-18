@@ -1,8 +1,7 @@
-import pdb
 import shutil
 import xnat4tests
 import xnat
-import requests
+import requests # type: ignore
 import time
 from pathlib import Path
 
@@ -53,20 +52,16 @@ class XnatConnection:
 def delete_data(session: xnat.XNATSession) -> None:
     for project in session.projects:
         for subject in project.subjects.values():
-            session.delete(
-                path=f"/data/projects/{project.id}/subjects/{subject.label}",
-                query={"removeFiles": "True"},
-            )
+            if project.id == 'OPENNEURO_T1W' and subject.label == 'dummydicomsubject':
+                pass
+            else:
+                session.delete(
+                    path=f"/data/projects/{project.id}/subjects/{subject.label}",
+                    query={"removeFiles": "True"},
+                )
         project.subjects.clearcache()
 
     metadata_folder=Path(__file__).parents[1] / "output/localhost"
 
     if metadata_folder.exists():
-        shutil.rmtree("output/localhost")    
-
-def delete_sharing_data(session: xnat.XNATSession) -> None:
-    for project in session.projects:
-        for subject in project.subjects.values():
-            session.delete(
-                f"/data/projects/{project.id}/subjects/{subject.id}/projects/{session.projects[1].id}"
-            )
+        shutil.rmtree("output/localhost")

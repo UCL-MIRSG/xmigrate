@@ -29,6 +29,9 @@ test = [
     "xnat4tests",
 ]
 
+[mypy-xmigrate]
+ignore_missing_imports = true
+
 [project]
 authors = [
     {email = "arc.medical-imaging@ucl.ac.uk", name = "MIRSG Authors"},

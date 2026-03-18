@@ -1,5 +1,3 @@
-import os
-import shutil
 from pathlib import Path
 
 import pytest
@@ -71,10 +69,10 @@ def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_desti
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_all_projects(xnat_connection_source, xnat_connection_destination):
-    
+
     metadata_folder=Path(__file__).parents[1] / "output/localhost"
-    
-    assert not metadata_folder.exists()  
+
+    assert not metadata_folder.exists()
 
     # Without needing to specify a project list, set up ProjectInfo instance to feed into Migration instance
     rows = [(p.id, p.secondary_id, p.project) for p in xnat_connection_source.session.projects]
