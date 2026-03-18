@@ -41,3 +41,5 @@ jobs:
 
       - name: Test with nox
         run: uv run nox -s tests-${{ matrix.python-version }}
+        env:
+          PROJECT: 2
