@@ -11,12 +11,38 @@ import xmigrate
 
 
 def _make_source(forms: list[dict]) -> unittest.mock.MagicMock:
+    """
+    Create a mock source connection returning the given forms.
+
+    Parameters
+    ----------
+    forms
+        The list of forms to be returned by the mock source.
+
+    Returns
+    -------
+        A mock source connection.
+
+    """
     conn = unittest.mock.MagicMock()
     conn.get_json.return_value = forms
     return conn
 
 
 def _make_destination(project_ids: list[str] | None = None) -> unittest.mock.MagicMock:
+    """
+    Create a mock destination connection returning the given project IDs.
+
+    Parameters
+    ----------
+    project_ids
+        The list of project IDs to be returned by the mock destination.
+
+    Returns
+    -------
+        A mock destination connection.
+
+    """
     conn = unittest.mock.MagicMock()
     if project_ids is not None:
         conn.get.return_value.json.return_value = {"ResultSet": {"Result": [{"ID": pid} for pid in project_ids]}}
@@ -24,22 +50,43 @@ def _make_destination(project_ids: list[str] | None = None) -> unittest.mock.Mag
 
 
 def _make_form(
-    scope: str = "Project",
-    projects: list[dict] | None = None,
-    path: str = "datatype/xnat:mrSessionData",
-    zindex: int = 0,
     contents: dict | None = None,
+    path: str = "datatype/xnat:mrSessionData",
+    projects: list[dict] | None = None,
+    scope: str = "Project",
+    zindex: int = 0,
 ) -> dict:
+    """
+    Create a form dictionary with the given parameters.
+
+    Parameters
+    ----------
+    contents
+        The contents of the form.
+    path
+        The path of the form.
+    projects
+        The list of projects the form applies to.
+    scope
+        The scope of the form.
+    zindex
+        The display order of the form.
+
+    Returns
+    -------
+        A dictionary representing the form.
+
+    """
     if contents is None:
         contents = {"title": "My Form", "fields": []}
     if projects is None:
         projects = [{"entityId": "proj1"}]
     return {
         "appliesToList": projects,
+        "contents": json.dumps(contents),
+        "formDisplayOrder": zindex,
         "path": path,
         "scope": scope,
-        "formDisplayOrder": zindex,
-        "contents": json.dumps(contents),
     }
 
 
@@ -137,7 +184,13 @@ def test_no_forms_does_nothing() -> None:
 
 def test_multiple_projects_in_form() -> None:
     """Multiple projects are all included in the xnatProject list."""
-    form = _make_form(projects=[{"entityId": "proj1"}, {"entityId": "proj2"}, {"entityId": "proj3"}])
+    form = _make_form(
+        projects=[
+            {"entityId": "proj1"},
+            {"entityId": "proj2"},
+            {"entityId": "proj3"},
+        ]
+    )
     source = _make_source([form])
     destination = _make_destination()
 
