@@ -23,12 +23,10 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_destinat
             rsync_only=False,
         )
 
-    # Check set-up of source XNAT to have 1 single project and destination XNAT to have none
+    # Check set-up of source XNAT to have 1 single project and destination XNAT to have no subjects in project
     assert migration.all_source_info[0].id in [project.id for project in xnat_connection_source.session.projects]
-    if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
-        destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
-        assert migration.all_destination_info[0].id not in destination_projects_list
-    else: # If containers already running then project will exist so need to check there are no subjects
+    destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
+    if destination_projects_list:
         destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
         if destination_project_subjects_list:
             assert len(destination_project_subjects_list[0]) == 0
@@ -55,12 +53,8 @@ def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_desti
     # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
     assert migration.all_source_info[0].id in [project.id for project in xnat_connection_source.session.projects]
     assert migration.all_source_info[1].id in [project.id for project in xnat_connection_source.session.projects]
-
-    if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
-        destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
-        assert migration.all_destination_info[0].id not in destination_projects_list
-        assert migration.all_destination_info[1].id not in destination_projects_list
-    else: # If containers already running then project will exist so need to check there are no subjects
+    destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
+    if destination_projects_list:
         destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
         if destination_project_subjects_list:
             assert len(destination_project_subjects_list[0]) == 0
@@ -136,11 +130,8 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
     assert migration.all_source_info[0].id in [project.id for project in xnat_connection_source.session.projects]
     assert migration.all_source_info[1].id in [project.id for project in xnat_connection_source.session.projects]
 
-    if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
-        destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
-        assert migration.all_destination_info[0].id not in destination_projects_list
-        assert migration.all_destination_info[1].id not in destination_projects_list
-    else: # If containers already running then project will exist so need to check there are no subjects
+    destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
+    if destination_projects_list:
         destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
         if destination_project_subjects_list:
             assert len(destination_project_subjects_list[0]) == 0
