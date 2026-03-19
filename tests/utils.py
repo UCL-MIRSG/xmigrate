@@ -4,6 +4,7 @@ import shutil
 import time
 from pathlib import Path
 
+import defusedxml.ElementTree as ET  # noqa: N817
 import requests  # type: ignore  # noqa: PGH003
 import xnat4tests
 
@@ -78,3 +79,25 @@ def delete_data(session: xnat.XNATSession) -> None:
 
     if metadata_folder.exists():
         shutil.rmtree("output/localhost")
+
+
+def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
+    """
+    Retrieve the XML representation of an XNAT item.
+
+    Parameters
+    ----------
+    uri
+        The URI of the XNAT item.
+
+    Returns
+    -------
+        The root XML element of the item.
+
+    """
+    response = session.get(
+        uri,
+        query=dict(format="xml"),  # noqa: C408
+    )
+    response.raise_for_status()
+    return ET.fromstring(response.text)

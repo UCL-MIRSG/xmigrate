@@ -6,6 +6,7 @@ import pytest
 
 from xnat.exceptions import XNATResponseError
 
+from tests.utils import get_xml
 from xmigrate.migration import Migration
 from xmigrate.xml_mapper import ProjectInfo
 
@@ -147,9 +148,9 @@ def test_migrate_sharing_projects(
 
     # Check if subject has already been shared and if not then share the data on source XNAT
     with pytest.raises(XNATResponseError, match="status 404"):
-        xnat_connection_source.session.get(
+        get_xml(
+            xnat_connection_source.session,
             f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
-            query={"format": "xml"},
         )
 
     xnat_connection_source.session.put(
@@ -157,13 +158,12 @@ def test_migrate_sharing_projects(
     )
 
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
-    root_owner = xnat_connection_source.session.get(
-        f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}",
-        query={"format": "xml"},
+    root_owner = get_xml(
+        xnat_connection_source.session, f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}"
     )
-    root_sharing = xnat_connection_source.session.get(
-        f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
-        query={"format": "xml"},
+
+    root_sharing = get_xml(
+        xnat_connection_source.session, f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}"
     )
     assert root_owner.attrib["project"] == owner_project_id
     assert root_sharing.attrib["project"] != sharing_project_id
@@ -177,9 +177,9 @@ def test_migrate_sharing_projects(
         xnat_connection_destination.session.projects[destination_info_mult[0].id].subjects[0].label
     )
 
-    response = xnat_connection_destination.session.get(
+    response = get_xml(
+        xnat_connection_destination.session,
         f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",
-        query={"format": "xml"},
     )
     assert response is not None
 
