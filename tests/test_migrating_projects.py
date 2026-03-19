@@ -1,32 +1,36 @@
+"""Tests for testing single project migration, multiple projects migration and sharing project migration."""
+
 from pathlib import Path
 
 import pytest
 
-from xmigrate.migration import Migration,  LOGGER
-from xmigrate.xml_mapper import ProjectInfo
 from xnat.exceptions import XNATResponseError
+
+from xmigrate.migration import Migration
+from xmigrate.xml_mapper import ProjectInfo
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_single_project(xnat_connection_source, xnat_connection_destination, source_info):
-    """Test the migration of a single project from source to destination XNAT"""
-
+def test_migrate_single_project(xnat_connection_source, xnat_connection_destination, source_info) -> None:  # noqa: ANN001
+    """Test the migration of a single project from source to destination XNAT."""
     # Set up migration instance using Migration class
     destination_info = source_info
     destination_info[0].rsync_path = "./.xnat4tests_destination/root/archive/"
     migration = Migration(
-            source_connection=xnat_connection_source.session,
-            destination_connection=xnat_connection_destination.session,
-            all_source_info=source_info,
-            all_destination_info=destination_info,
-            no_rsync=False,
-        )
+        source_connection=xnat_connection_source.session,
+        destination_connection=xnat_connection_destination.session,
+        all_source_info=source_info,
+        all_destination_info=destination_info,
+        no_rsync=False,
+    )
 
     # Check set-up of source XNAT to have 1 single project and destination XNAT to have no subjects in project
     assert migration.all_source_info[0].id in [project.id for project in xnat_connection_source.session.projects]
     destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
     if destination_projects_list:
-        destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
+        destination_project_subjects_list = [
+            project.subjects for project in xnat_connection_destination.session.projects
+        ]
         if destination_project_subjects_list:
             assert len(destination_project_subjects_list[0]) == 0
 
@@ -38,12 +42,10 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_destinat
     assert len(destination_project_subjects_list[0]) != 0
 
 
-
-
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_all_projects(xnat_connection_source, xnat_connection_destination):
-
-    metadata_folder=Path(__file__).parents[1] / "output/localhost"
+def test_migrate_all_projects(xnat_connection_source, xnat_connection_destination) -> None:  # noqa: ANN001
+    """Test the migration of all 2 projects from source to destination XNAT."""
+    metadata_folder = Path(__file__).parents[1] / "output/localhost"
 
     assert not metadata_folder.exists()
 
@@ -103,11 +105,13 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
 
     destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
     if destination_projects_list:
-        destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
+        destination_project_subjects_list = [
+            project.subjects for project in xnat_connection_destination.session.projects
+        ]
         if destination_project_subjects_list:
             assert len(destination_project_subjects_list[0]) == 0
-            if len(destination_project_subjects_list) > 1: # If list containing subjects for 2 projects
-                len(destination_project_subjects_list[1]) == 0
+            if len(destination_project_subjects_list) > 1:  # If list containing subjects for 2 projects
+                assert len(destination_project_subjects_list[1]) == 0
 
     # Check 2 projects have migrated into destination
     migration.run()
@@ -119,16 +123,21 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destination, source_info_mult, destination_info_mult):
-
+def test_migrate_sharing_projects(
+    xnat_connection_source,  # noqa: ANN001
+    xnat_connection_destination,  # noqa: ANN001
+    source_info_mult,  # noqa: ANN001
+    destination_info_mult,  # noqa: ANN001
+) -> None:
+    """Test the migration of a multiple project from source to destination XNAT."""
     # Set up migration instance using Migration class for 2 projects including shared data
     migration = Migration(
-            source_connection=xnat_connection_source.session,
-            destination_connection=xnat_connection_destination.session,
-            all_source_info=source_info_mult,
-            all_destination_info=destination_info_mult,
-            no_rsync=True,
-        )
+        source_connection=xnat_connection_source.session,
+        destination_connection=xnat_connection_destination.session,
+        all_source_info=source_info_mult,
+        all_destination_info=destination_info_mult,
+        no_rsync=True,
+    )
 
     # Share subject data from project 1 to project 2 in source XNAT
     owner_project_id = source_info_mult[0].id
@@ -137,19 +146,25 @@ def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destin
     owner_project_subject_label = xnat_connection_source.session.projects[source_info_mult[0].id].subjects[0].label
 
     # Check if subject has already been shared and if not then share the data on source XNAT
-    try:
-        migration._get_source_xml(f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}")
-    except XNATResponseError as e:
-        xnat_connection_source.session.put(f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}")
-        assert "status 404, accepted status: [200]" in str(e)
+    with pytest.raises(XNATResponseError, match="status 404"):
+        xnat_connection_source.session.get(
+            f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
+            query={"format": "xml"},
+        )
+
+    xnat_connection_source.session.put(
+        f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}"
+    )
 
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
-    root_owner = migration._get_source_xml(
-            f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}",
-        )
-    root_sharing = migration._get_source_xml(
-            f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
-        )
+    root_owner = xnat_connection_source.session.get(
+        f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}",
+        query={"format": "xml"},
+    )
+    root_sharing = xnat_connection_source.session.get(
+        f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
+        query={"format": "xml"},
+    )
     assert root_owner.attrib["project"] == owner_project_id
     assert root_sharing.attrib["project"] != sharing_project_id
 
@@ -158,9 +173,14 @@ def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destin
     # Check that root_sharing for project 2 xml has project 1 as owner on destination XNAT
     owner_project_id_dest = destination_info_mult[0].id
     sharing_project_id_dest = destination_info_mult[1].id
-    owner_project_subject_label_dest = xnat_connection_destination.session.projects[destination_info_mult[0].id].subjects[0].label
+    owner_project_subject_label_dest = (
+        xnat_connection_destination.session.projects[destination_info_mult[0].id].subjects[0].label
+    )
 
-    response = migration._get_source_xml(f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}")
+    response = xnat_connection_destination.session.get(
+        f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",
+        query={"format": "xml"},
+    )
     assert response is not None
 
     assert root_owner.attrib["project"] == owner_project_id_dest
