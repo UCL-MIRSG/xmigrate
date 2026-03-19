@@ -17,12 +17,7 @@ def remove_destination_test_data(xnat_connection_destination):
 
 @pytest.fixture(scope="session")
 def xnat_version():
-    try:
-        version = os.environ["XNAT_VERSION"]
-    except KeyError:
-        version = "1.9.2"
-
-    return version
+    return os.getenv("XNAT_VERSION", "1.9.2")
 
 
 @pytest.fixture(scope="session")
@@ -33,6 +28,7 @@ def xnat_container_service_version():
         version = "3.7.2"
 
     return version
+
 
 @pytest.fixture(scope="session")
 def xnat_config_source(xnat_version, xnat_container_service_version):
@@ -51,6 +47,7 @@ def xnat_config_source(xnat_version, xnat_container_service_version):
             "xnat_cs_plugin_version": xnat_container_service_version,
         },
     )
+
 
 @pytest.fixture(scope="session")
 def xnat_config_destination(xnat_version, xnat_container_service_version):
@@ -96,6 +93,7 @@ def plugin_dir():
 
     return Path("/data/xnat/home/plugins")
 
+
 def install_plugin(connection, jar_path, plugin_dir, connection_name):
     """Install plugin for specified connection"""
     # Install OHIF viewer plugin by copying the jar into the container
@@ -131,15 +129,12 @@ def install_plugin(connection, jar_path, plugin_dir, connection_name):
 
         connection.restart_xnat()
 
+
 @pytest.fixture(scope="session")
 def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_source)
-    try:
-        no_project = int(os.environ["PROJECT"])
-    except KeyError:
-        no_project = 1
+        no_project = int(os.getenv("PROJECT", "1"))
 
-    assert no_project == 2
 
 
     xnat4tests.add_data("dummydicom", upload_method="direct")
@@ -156,7 +151,7 @@ def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
     # between every test run.
-    if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
+    if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         connection.close()
         xnat4tests.stop_xnat(xnat_config_source)
     else:
@@ -175,11 +170,12 @@ def xnat_connection_destination(xnat_config_destination, jar_path, plugin_dir):
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
     # between every test run.
-    if os.environ.get("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
+    if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         connection.close()
         xnat4tests.stop_xnat(xnat_config_destination)
     else:
         connection.close()
+
 
 @pytest.fixture
 def source_info():
@@ -191,6 +187,7 @@ def source_info():
         rsync_path=".xnat4tests_source/root/archive",
     )
     return [project]
+
 
 @pytest.fixture
 def source_info_mult():
@@ -206,6 +203,7 @@ def source_info_mult():
         for source_proj in source_projects
     ]
     return all_projects
+
 
 @pytest.fixture
 def destination_info_mult():

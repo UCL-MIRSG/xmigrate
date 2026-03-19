@@ -6,6 +6,7 @@ from xmigrate.migration import Migration,  LOGGER
 from xmigrate.xml_mapper import ProjectInfo
 from xnat.exceptions import XNATResponseError
 
+
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_single_project(xnat_connection_source, xnat_connection_destination, source_info):
     """Test the migration of a single project from source to destination XNAT"""
@@ -35,6 +36,7 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_destinat
     assert migration.all_destination_info[0].id in destination_projects_list
     destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
     assert len(destination_project_subjects_list[0]) != 0
+
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_destination, source_info_mult, destination_info_mult):
@@ -66,6 +68,7 @@ def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_desti
     assert migration.all_destination_info[1].id in destination_projects_list
     destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
     assert len(destination_project_subjects_list[0]) != 0
+
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_all_projects(xnat_connection_source, xnat_connection_destination):
@@ -143,6 +146,7 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
     assert migration.all_destination_info[1].id in destination_projects_list
     destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
     assert len(destination_project_subjects_list[0]) != 0
+
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_sharing_projects(xnat_connection_source, xnat_connection_destination, source_info_mult, destination_info_mult):
