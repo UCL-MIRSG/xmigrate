@@ -94,7 +94,6 @@ testpaths = [
 ]
 
 [tool.ruff]
-extend-exclude = ["tests"]
 fix = true
 force-exclude = true
 line-length = 120
