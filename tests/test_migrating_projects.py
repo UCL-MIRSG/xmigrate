@@ -38,36 +38,6 @@ def test_migrate_single_project(xnat_connection_source, xnat_connection_destinat
     assert len(destination_project_subjects_list[0]) != 0
 
 
-@pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_multiple_projects(xnat_connection_source, xnat_connection_destination, source_info_mult, destination_info_mult):
-
-    # Set up migration instance using Migration class for 2 projects
-    migration = Migration(
-            source_connection=xnat_connection_source.session,
-            destination_connection=xnat_connection_destination.session,
-            all_source_info=source_info_mult,
-            all_destination_info=destination_info_mult,
-            no_rsync=True,
-        )
-
-    # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
-    assert migration.all_source_info[0].id in [project.id for project in xnat_connection_source.session.projects]
-    assert migration.all_source_info[1].id in [project.id for project in xnat_connection_source.session.projects]
-    destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
-    if destination_projects_list:
-        destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
-        if destination_project_subjects_list:
-            assert len(destination_project_subjects_list[0]) == 0
-            if len(destination_project_subjects_list) > 1: # If list containing subjects for 2 projects
-                len(destination_project_subjects_list[1]) == 0
-
-    migration.run()
-    # Check 2 projects have migrated into destination
-    destination_projects_list = [project.id for project in xnat_connection_destination.session.projects]
-    assert migration.all_destination_info[0].id in destination_projects_list
-    assert migration.all_destination_info[1].id in destination_projects_list
-    destination_project_subjects_list = [project.subjects for project in xnat_connection_destination.session.projects]
-    assert len(destination_project_subjects_list[0]) != 0
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")

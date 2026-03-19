@@ -173,3 +173,6 @@ ncita_locate
 *.ipynb
 .xnat4tests*
 mise.toml
+data/
+input/
+output/

@@ -40,7 +40,7 @@ Then install `xmigrate` in editable mode using `uv`:
 ```sh
 uv venv --python=3.12
 source .venv/bin/activate
-uv sync
+uv sync --group test
 ```
 
 ### Running `xmigrate`
@@ -87,15 +87,9 @@ uv lock
 To run the integration tests from the command line:
 
 ```sh
-uv sync --group test
+cd xmigrate
 pytest
 ```
-
-Note, you'll need to install the OHIF viewer plugin which can be done by
-downloading the
-[.jar file](https://bitbucket.org/icrimaginginformatics/ohif-viewer-xnat-plugin/downloads/?tab=tags)
-and creating a directory called `input/` or any other location if you change the
-`jar_path` pytest fixture.
 
 N.B. Currently, the submission object of the custom forms PUT API call is
 hardcoded so if the custom forms API changes then this will also need to be

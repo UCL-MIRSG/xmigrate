@@ -20,18 +20,10 @@ def xnat_version():
     return os.getenv("XNAT_VERSION", "1.9.2")
 
 
-@pytest.fixture(scope="session")
-def xnat_container_service_version():
-    try:
-        version = os.environ["XNAT_CS_VERSION"]
-    except KeyError:
-        version = "3.7.2"
-
-    return version
 
 
 @pytest.fixture(scope="session")
-def xnat_config_source(xnat_version, xnat_container_service_version):
+def xnat_config_source(xnat_version):
     xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "root"
     docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "build"
     xnat_root_dir.mkdir(parents=True, exist_ok=True)
@@ -44,7 +36,6 @@ def xnat_config_source(xnat_version, xnat_container_service_version):
         docker_container="source_xnat4tests",
         build_args={
             "xnat_version": xnat_version,
-            "xnat_cs_plugin_version": xnat_container_service_version,
         },
     )
 
@@ -133,9 +124,7 @@ def install_plugin(connection, jar_path, plugin_dir, connection_name):
 @pytest.fixture(scope="session")
 def xnat_connection_source(xnat_config_source, jar_path, plugin_dir):
     xnat4tests.start_xnat(xnat_config_source)
-        no_project = int(os.getenv("PROJECT", "1"))
-
-
+    no_project = int(os.getenv("PROJECT", "1"))
 
     xnat4tests.add_data("dummydicom", upload_method="direct")
     if no_project==2:
