@@ -1,6 +1,7 @@
 """Tests for testing single project migration, multiple projects migration and sharing project migration."""
 
 from pathlib import Path
+import pdb
 
 import pytest
 
@@ -91,6 +92,8 @@ def test_migrate_all_projects(xnat_connection_source, xnat_connection_destinatio
             strict=True,
         )
     ]
+    
+    pdb.set_trace()
 
     migration = Migration(
         source_connection=xnat_connection_source.session,
@@ -145,17 +148,17 @@ def test_migrate_sharing_projects(
     owner_project_subject_id = xnat_connection_source.session.projects[source_info_mult[0].id].subjects[0].id
     sharing_project_id = source_info_mult[1].id
     owner_project_subject_label = xnat_connection_source.session.projects[source_info_mult[0].id].subjects[0].label
+    pdb.set_trace()
 
     # Check if subject has already been shared and if not then share the data on source XNAT
-    with pytest.raises(XNATResponseError, match="status 404"):
+    try:
         get_xml(
             xnat_connection_source.session,
             f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
         )
-
-    xnat_connection_source.session.put(
-        f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}"
-    )
+    except XNATResponseError as e:
+        xnat_connection_source.session.put(f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}")
+        assert "status 404, accepted status: [200]" in str(e)  # noqa: PT017
 
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
     root_owner = get_xml(
@@ -176,12 +179,23 @@ def test_migrate_sharing_projects(
     owner_project_subject_label_dest = (
         xnat_connection_destination.session.projects[destination_info_mult[0].id].subjects[0].label
     )
+    pdb.set_trace()
 
     response = get_xml(
         xnat_connection_destination.session,
         f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",
     )
     assert response is not None
+
+    root_owner = get_xml(
+        xnat_connection_destination.session,
+        f"/data/projects/{owner_project_id_dest}/subjects/{owner_project_subject_label_dest}"
+    )
+
+    root_sharing = get_xml(
+        xnat_connection_destination.session,
+        f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}"
+    )
 
     assert root_owner.attrib["project"] == owner_project_id_dest
     assert root_sharing.attrib["project"] != sharing_project_id_dest

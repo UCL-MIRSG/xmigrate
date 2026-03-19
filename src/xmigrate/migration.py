@@ -4,6 +4,7 @@ import dataclasses
 import json
 import logging
 import pathlib
+import pdb
 import subprocess
 import time
 import urllib.parse
@@ -390,6 +391,7 @@ class Migration:
 
         """
         if subject.id not in subjects_id_map_list:
+            pdb.set_trace()
             sharing_subject_exists = self._create_subject(subject)
             if not sharing_subject_exists:
                 self._create_custom_forms_data(subject)
@@ -400,6 +402,7 @@ class Migration:
                 output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
             )
         else:
+            pdb.set_trace()
             msg = f"Skipping creation of subject {subject.id} as already exists on destination."
             self._logger.info(msg)
             self.mapper.update_id_map(
@@ -939,6 +942,7 @@ class Migration:
             experiments_id_map_list = []
 
         for subject in source_project.subjects:
+            pdb.set_trace()
             sharing_subject_exists = self._check_subject_exists(subject, subjects_id_map_list, source_name)
             if sharing_subject_exists:
                 return
@@ -1010,6 +1014,7 @@ class Migration:
         self._logger.info("Applying sharing configurations...")
 
         # Share subjects
+        pdb.set_trace()
         for label, sharing_info in self.subject_sharing.items():
             owner = sharing_info["owner"]
 
@@ -1171,6 +1176,8 @@ class Migration:
                 output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
             )
             self._refresh_catalogues()
+            
+        pdb.set_trace()
 
         self._apply_sharing()
 
