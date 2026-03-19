@@ -2,11 +2,12 @@
 
 import shutil
 import time
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import defusedxml.ElementTree as ET  # noqa: N817
 import requests  # type: ignore  # noqa: PGH003
 import xnat4tests
+from defusedxml.ElementTree import fromstring
 
 import xnat
 
@@ -100,4 +101,4 @@ def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
         query=dict(format="xml"),  # noqa: C408
     )
     response.raise_for_status()
-    return ET.fromstring(response.text)
+    return fromstring(response.text)
