@@ -24,11 +24,11 @@ def jar_path():  # noqa: ANN201
     """Path of OHIF viewer jar."""
     jar_dir = Path(__file__).parents[1] / "input"
     jar_dir.mkdir(parents=True, exist_ok=True)
-    ohif_jar = jar_dir / "ohif-viewer-3.7.1-fat.jar"
+    ohif_jar = jar_dir / "ohif-viewer-3.7.2-fat.jar"
     if not ohif_jar.is_file():
         urllib.request.urlretrieve(
             "https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-3.7.2.jar",
-            "input/ohif-viewer-3.7.1-fat.jar",
+            "input/ohif-viewer-3.7.2-fat.jar",
         )
 
     jar_path = next(iter(jar_dir.glob("ohif-*fat.jar")))
