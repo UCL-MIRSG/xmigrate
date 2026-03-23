@@ -882,8 +882,8 @@ class Migration:
         source_project = self.source_connection.projects[self.source_info.id]
 
         if not self.no_rsync:
-            rsync_destination = self.destination_info.rsync_path + "/" + self.destination_info.id
-            rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+            rsync_destination = f"{self.destination_info.rsync_path}/{self.destination_info.id}"
+            rsync_source = f"{self.source_info.rsync_path}/{self.source_info.id}/"
             pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
             command_to_run = [
