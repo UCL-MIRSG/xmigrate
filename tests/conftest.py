@@ -156,7 +156,7 @@ def destination_connection(
     config = xnat4tests.Config(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
-        xnat_port="8081",
+        xnat_port="8889",
         xnat_root_dir=xnat_root_dir,
         docker_build_dir=docker_build_dir,
         build_args={
@@ -205,7 +205,7 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path) -> Gener
     config = xnat4tests.Config(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
-        xnat_port="8080",
+        xnat_port="8888",
         xnat_root_dir=xnat_root_dir,
         docker_build_dir=docker_build_dir,
         build_args={
@@ -215,10 +215,10 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path) -> Gener
     xnat4tests.start_xnat(config)
 
     no_project = int(os.getenv("PROJECT", "1"))
-    xnat4tests.add_data("dummydicom", upload_method="direct")
+    xnat4tests.add_data("dummydicom", config_name=config, upload_method="direct")
     multi_proj = 2
     if no_project == multi_proj:
-        xnat4tests.add_data("openneuro-t1w", upload_method="direct")
+        xnat4tests.add_data("openneuro-t1w", config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name)
