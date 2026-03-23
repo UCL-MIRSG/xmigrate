@@ -30,7 +30,6 @@ test = [
     "xnat4tests",
 ]
 
-
 [project]
 authors = [
     {email = "arc.medical-imaging@ucl.ac.uk", name = "MIRSG Authors"},
