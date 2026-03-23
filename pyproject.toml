@@ -30,7 +30,7 @@ test = [
     "xnat4tests",
 ]
 
-[mypy-xmigrate]
+[mypy-tests]
 ignore_missing_imports = true
 
 [project]
