@@ -108,23 +108,21 @@ def test_migrate_all_projects(
 
     # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
     assert migration.all_source_info[0].id in [project.id for project in source_connection.projects]
-    assert migration.all_source_info[1].id in [project.id for project in destination_connection.projects]
+    assert migration.all_source_info[1].id in [project.id for project in source_connection.projects]
 
     destination_projects_list = [project.id for project in destination_connection.projects]
     if destination_projects_list:
-        destination_project_subjects_list = [project.subjects for project in destination_connection.projects]
-        if destination_project_subjects_list:
-            assert len(destination_project_subjects_list[0]) == 0
-            if len(destination_project_subjects_list) > 1:  # If list containing subjects for 2 projects
-                assert len(destination_project_subjects_list[1]) == 0
+        total_subjects = sum(len(project.subjects) for project in destination_connection.projects)
+        assert total_subjects == 0
 
     # Check 2 projects have migrated into destination
     migration.run()
     destination_projects_list = [project.id for project in destination_connection.projects]
     assert migration.all_destination_info[0].id in destination_projects_list
     assert migration.all_destination_info[1].id in destination_projects_list
-    destination_project_subjects_list = [project.subjects for project in destination_connection.projects]
-    assert len(destination_project_subjects_list[0]) != 0
+    total_subjects = sum(len(project.subjects) for project in destination_connection.projects)
+    all_project_subjects = 3
+    assert total_subjects == all_project_subjects
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
@@ -172,6 +170,12 @@ def test_migrate_sharing_projects(
     assert root_sharing.attrib["project"] != sharing_project_id
 
     migration.run()
+    destination_projects_list = [project.id for project in destination_connection.projects]
+    assert migration.all_destination_info[0].id in destination_projects_list
+    assert migration.all_destination_info[1].id in destination_projects_list
+    total_subjects = sum(len(project.subjects) for project in destination_connection.projects)
+    all_project_subjects = 3
+    assert total_subjects == all_project_subjects
 
     # Check that root_sharing for project 2 xml has project 1 as owner on destination XNAT
     owner_project_id_dest = destination_info_mult[0].id
