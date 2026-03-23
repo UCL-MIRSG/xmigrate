@@ -41,7 +41,7 @@ Then install `xmigrate` in editable mode using `uv`:
 ```sh
 uv venv --python=3.12
 source .venv/bin/activate
-uv sync --group test
+uv sync
 ```
 
 ### Running `xmigrate`
@@ -49,49 +49,48 @@ uv sync --group test
 First, configure `xmigrate` using `xmigrate.toml`. See `xmigrate.toml.sample`
 for an example.
 
-Then run the on the command line the migration for all projects on the source
-using:
+Then run the migration using:
 
 ```sh
-xmigrate migrate_all_projects
+xmigrate migrate
 ```
 
-You may only want to migrate a subset of projects on the source using:
+You may want to check all the necessary datatypes have been added to the
+destination XNAT before running the migration with a separate command:
 
 ```sh
-xmigrate migrate_project_list
+xmigrate check_datatypes
 ```
 
-For testing, you may also want to set your environment variables using mise.
-
-You can set up a mise.toml as below:
-
-```sh
-[env]
-XNAT4TEST_KEEP_INSTANCE=true #This speeds up developer time by keeping the docker containers live
-PROJECT=2 #Adds a 2nd project to the source XNAT without changing the xnat_connection_source fixture
-```
-
-and activate it as below:
+Since the custom forms only need to be created once rather than per project then
+you can run a separate command to create the custom forms:
 
 ```sh
-mise en
-```
-
-For development if you want to install a new package, add it to `pyproject.toml`
-dependency-groups and then to update the `uv.lock` file run:
-
-```sh
-uv lock
-```
-
-To run the integration tests from the command line:
-
-```sh
-cd xmigrate
-pytest
+xmigrate migrate_custom_forms
 ```
 
 N.B. Currently, the submission object of the custom forms PUT API call is
-hardcoded so if the custom forms API changes then this will also need to be
-changed.
+hardcoded:
+
+```python
+current_submission =  {
+            "submission": {
+                "data": {
+                    "zIndex": [],
+                    "xnatDatatype": {
+                        "label": [],
+                        "value": []
+                    },
+                    "isThisASiteWideConfiguration": [],
+                    "xnatProject": [
+                        {
+                            "label": [],
+                            "value": []
+                        }
+                    ]
+                }
+            }
+        }
+```
+
+If the custom forms API changes then this will also need to be changed.
