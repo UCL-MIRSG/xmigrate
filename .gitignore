@@ -166,14 +166,4 @@ _version.py
 # template.xml
 *.xml
 xmigrate.toml
-archive
-ncita_locate
-.DS_Store
-.vscode/
-*.ipynb
-.xnat4tests*
-mise.toml
-data/
-input/
-output/
 *.lcov

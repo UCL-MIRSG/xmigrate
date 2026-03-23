@@ -30,8 +30,6 @@ test = [
     "xnat4tests",
 ]
 
-[mypy-xmigrate]
-ignore_missing_imports = true
 
 [project]
 authors = [
