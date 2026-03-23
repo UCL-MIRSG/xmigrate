@@ -96,7 +96,7 @@ def source_info() -> list[ProjectInfo]:
         secondary_id="dummydicomproject",
         project_name="dummydicomproject",
         archive_path="/data/xnat/archive",
-        rsync_path=".xnat4tests_source/root/archive",
+        rsync_path="source/root/archive",
     )
     return [project]
 
@@ -111,7 +111,7 @@ def source_info_mult() -> ProjectInfo:
             secondary_id=source_proj,
             project_name=source_proj,
             archive_path="/data/xnat/archive",
-            rsync_path=".xnat4tests_source/root/archive",
+            rsync_path="source/root/archive",
         )
         for source_proj in source_projects
     ]
@@ -127,7 +127,7 @@ def destination_info_mult() -> list[ProjectInfo]:
             secondary_id=destination_proj,
             project_name=destination_proj,
             archive_path="/data/xnat/archive",
-            rsync_path=".xnat4tests_destination/root/archive",
+            rsync_path="destination/root/archive",
         )
         for destination_proj in destination_projects
     ]
@@ -158,8 +158,7 @@ def destination_connection(
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name)
-    xnat4tests.restart_xnat(config)
-    xnat4tests.start_xnat(config)
+    xnat4tests.start_xnat(config, rebuild=False)
     with xnat4tests.connect(config) as conn:
         yield conn
 
@@ -200,8 +199,7 @@ def source_connection(
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name)
 
-    xnat4tests.restart_xnat(config)
-    xnat4tests.start_xnat(config)
+    xnat4tests.start_xnat(config, rebuild=False)
 
     no_project = int(os.getenv("PROJECT", "1"))
     xnat4tests.add_data("dummydicom", upload_method="direct")
