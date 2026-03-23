@@ -22,14 +22,14 @@ if TYPE_CHECKING:
 
 
 @pytest.fixture
-def remove_destination_test_data(xnat_connection_destination):  # noqa: ANN001, ANN201
+def remove_destination_test_data(destination_connection: Generator[xnat.BaseXNATSession, None, None]):  # noqa: ANN201
     """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
     yield
-    delete_data(xnat_connection_destination.session)
+    delete_data(destination_connection)
 
 
 @pytest.fixture(scope="session")
-def jar_path():  # noqa: ANN201
+def jar_path() -> pathlib.Path:
     """Path of OHIF viewer jar."""
     jar_dir = Path(__file__).parents[1] / "input"
     jar_dir.mkdir(parents=True, exist_ok=True)
@@ -50,12 +50,12 @@ def jar_path():  # noqa: ANN201
 
 
 @pytest.fixture(scope="session")
-def plugin_dir():  # noqa: ANN201
+def plugin_dir() -> pathlib.Path:
     """Path to plugin directory inside the container."""
     return Path("/data/xnat/home/plugins")
 
 
-def install_plugin(connection, jar_path, plugin_dir, connection_name) -> None:  # noqa: ANN001
+def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path, connection_name: str) -> None:
     """Install plugin for specified connection."""
     # Install OHIF viewer plugin by copying the jar into the container
     status = subprocess.run(  # noqa: S603
@@ -87,11 +87,9 @@ def install_plugin(connection, jar_path, plugin_dir, connection_name) -> None:  
             msg = f"Command {e.cmd} returned with error code {e.returncode}: {e.output}"
             raise RuntimeError(msg) from e
 
-        connection.restart_xnat()
-
 
 @pytest.fixture
-def source_info():  # noqa: ANN201
+def source_info() -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for source project."""
     project = ProjectInfo(
         id="dummydicomproject",
@@ -104,7 +102,7 @@ def source_info():  # noqa: ANN201
 
 
 @pytest.fixture
-def source_info_mult():  # noqa: ANN201
+def source_info_mult() -> ProjectInfo:
     """Fixture to set up ProjectInfo instance for multiple source projects."""
     source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
     return [
@@ -120,7 +118,7 @@ def source_info_mult():  # noqa: ANN201
 
 
 @pytest.fixture
-def destination_info_mult():  # noqa: ANN201
+def destination_info_mult() -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple destination projects."""
     destination_projects = ["dummydicomproject", "OPENNEURO_T1W"]
     return [
@@ -136,7 +134,9 @@ def destination_info_mult():  # noqa: ANN201
 
 
 @pytest.fixture(scope="session")
-def destination_connection(tmp_path_factory: pytest.TempdirFactory) -> Generator[xnat.BaseXNATSession, None, None]:
+def destination_connection(
+    tmp_path_factory: pytest.TempdirFactory, jar_path: pathlib.Path, plugin_dir: pathlib.Path
+) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
 
@@ -148,31 +148,35 @@ def destination_connection(tmp_path_factory: pytest.TempdirFactory) -> Generator
     config = xnat4tests.Config(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
-        xnat_port="8889",
-        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination/root")),
-        docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("destination/build")),
+        xnat_port="8081",
+        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
+        docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
         },
     )
     xnat4tests.start_xnat(config)
+    connection_name = "xnat4tests_destination"
+    install_plugin(jar_path, plugin_dir, connection_name)
+    xnat4tests.restart_xnat(config)
+    xnat4tests.start_xnat(config)
     with xnat4tests.connect(config) as conn:
-        connection_name = "xnat4tests_source"
-        install_plugin(conn, jar_path, plugin_dir, connection_name)
         yield conn
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
     # between every test run.
     if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
-        conn.close()
         xnat4tests.stop_xnat(config)
     else:
-        conn.close()
+        with xnat4tests.connect(config) as conn:
+            delete_data(conn)
 
 
 @pytest.fixture(scope="session")
-def source_connection(tmp_path_factory: pytest.TempdirFactory) -> Generator[xnat.BaseXNATSession, None, None]:
+def source_connection(
+    tmp_path_factory: pytest.TempdirFactory, jar_path: pathlib.Path, plugin_dir: pathlib.Path
+) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -184,13 +188,19 @@ def source_connection(tmp_path_factory: pytest.TempdirFactory) -> Generator[xnat
     config = xnat4tests.Config(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
-        xnat_port="8888",
-        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source/root")),
-        docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("source/build")),
+        xnat_port="8080",
+        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
+        docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
         },
     )
+    xnat4tests.start_xnat(config)
+
+    connection_name = "xnat4tests_source"
+    install_plugin(jar_path, plugin_dir, connection_name)
+
+    xnat4tests.restart_xnat(config)
     xnat4tests.start_xnat(config)
 
     no_project = int(os.getenv("PROJECT", "1"))
@@ -199,19 +209,13 @@ def source_connection(tmp_path_factory: pytest.TempdirFactory) -> Generator[xnat
     if no_project == multi_proj:
         xnat4tests.add_data("openneuro-t1w", upload_method="direct")
     with xnat4tests.connect(config) as conn:
-        connection_name = "xnat4tests_source"
-        install_plugin(conn, jar_path, plugin_dir, connection_name)
         yield conn
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
     # between every test run.
     if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
-        conn.close()
         xnat4tests.stop_xnat(config)
-    else:
-        delete_data(conn.session)
-        conn.close()
 
 
 @pytest.fixture
