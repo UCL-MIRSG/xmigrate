@@ -176,3 +176,4 @@ mise.toml
 data/
 input/
 output/
+*.lcov

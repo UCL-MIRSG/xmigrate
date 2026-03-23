@@ -5,6 +5,7 @@
 [![Linting status][linting-badge]][linting-link]
 [![Documentation status][documentation-badge]][documentation-link]
 [![License][license-badge]](./LICENSE.md)
+[![Coverage Status](https://coveralls.io/repos/github/UCL-MIRSG/xmigrate/badge.svg?branch=main)](https://coveralls.io/github/UCL-MIRSG/xmigrate?branch=main)
 
 <!-- prettier-ignore-start -->
 [tests-badge]:              https://github.com/UCL-MIRSG/xmigrate/actions/workflows/tests.yml/badge.svg
