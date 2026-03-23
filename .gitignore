@@ -168,3 +168,4 @@ _version.py
 xmigrate.toml
 archive
 ncita_locate
+*.lcov
