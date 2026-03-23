@@ -1,61 +1,10 @@
-"""Utils with XnatConnection class for handling xnat4tests connection and delete_data function."""
+"""Utils for testing the XNAT migration tool."""
 
 import shutil
-import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import requests  # type: ignore  # noqa: PGH003
-import xnat4tests
-
 import xnat
-
-
-class XnatConnection:
-    """
-    Handle connection to the xnat4tests xnat.
-
-    Allows the same connection to be re-used in most cases (keeping tests fast), but handles creating a
-    new connection in the case of xnat restart.
-    """
-
-    def __init__(self, config: xnat4tests.Config) -> None:  # noqa: D107
-        self.config = config
-        self.session = None
-        self._connect_to_xnat()
-
-    def restart_xnat(self) -> None:
-        """restart_xnat method for restarting xnat when installing plugin."""
-        self.close()
-        xnat4tests.restart_xnat(self.config)
-        self._connect_to_xnat()
-
-    def close(self):  # noqa: ANN201
-        """Close XNAT connection."""
-        self.session.disconnect()
-
-    def _connect_to_xnat(self) -> None:
-        """
-        Connect to the XNAT instance.
-
-        Tries multiple times to allow time for initial startup - based on code in xnat4tests.start_xnat.
-        """
-        for attempts in range(self.config.connection_attempts):
-            try:
-                session = xnat4tests.connect(self.config)
-            except (
-                xnat.exceptions.XNATError,
-                requests.ConnectionError,
-                requests.ReadTimeout,
-            ) as e:
-                if attempts == self.config.connection_attempts:
-                    msg = "XNAT did not start in time"
-                    raise RuntimeError(msg) from e
-                time.sleep(self.config.connection_attempt_sleep)
-            else:
-                break
-
-        self.session = session
 
 
 def delete_data(session: xnat.XNATSession) -> None:
