@@ -56,38 +56,46 @@ def plugin_dir() -> pathlib.Path:
     return Path("/data/xnat/home/plugins")
 
 
-def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
-                   connection_name: str)-> None:
+def install_plugin(
+    jar_path: pathlib.Path,
+    plugin_dir: pathlib.Path,
+    connection_name: str,
+    config,
+) -> None:
     """Install plugin for specified connection."""
-    # Install OHIF viewer plugin by copying the jar into the container
-    status = subprocess.run(  # noqa: S603
-        [  # noqa: S607
-            "docker",
-            "exec",
-            connection_name,
-            "ls",
-            plugin_dir.as_posix(),
-        ],
+    
+    # Check existing plugins
+    result = subprocess.run(
+        ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],
         check=True,
         capture_output=True,
         text=True,
     )
-    plugins_list = status.stdout.split("\n")
+    plugins_list = result.stdout.splitlines()
 
-    if jar_path.name not in plugins_list:
-        try:
-            subprocess.run(  # noqa: S603
-                [  # noqa: S607
-                    "docker",
-                    "cp",
-                    str(jar_path),
-                    f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            msg = f"Command {e.cmd} returned with error code {e.returncode}: {e.output}"
-            raise RuntimeError(msg) from e
+    # If already installed → do nothing
+    if jar_path.name in plugins_list:
+        print(f"Plugin {jar_path.name} already installed, skipping restart.")
+        return
+
+    # Otherwise copy plugin
+    try:
+        subprocess.run(
+            [
+                "docker",
+                "cp",
+                str(jar_path),
+                f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
+            ],
+            check=True,
+        )
+        print(f"Installed plugin {jar_path.name}, restarting XNAT...")
+    except subprocess.CalledProcessError as e:
+        msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
+        raise RuntimeError(msg) from e
+
+    # Only restart if we actually installed something
+    xnat4tests.restart_xnat(config)
 
 
 def wait_for_connection(config: xnat4tests.Config, timeout=60) -> Generator[xnat.BaseXNATSession, None, None]:
@@ -176,9 +184,8 @@ def destination_connection(
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
-    install_plugin(jar_path, plugin_dir, connection_name)
-    xnat4tests.restart_xnat(config)
-    conn=wait_for_connection(config, timeout=60)
+    install_plugin(jar_path, plugin_dir, connection_name, config)
+    conn=wait_for_connection(config, timeout=180)
 
     yield conn
 
@@ -229,7 +236,7 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    install_plugin(jar_path, plugin_dir, connection_name)
+    install_plugin(jar_path, plugin_dir, connection_name,config)
     xnat4tests.restart_xnat(config)
     conn=wait_for_connection(config, timeout=60)
 
