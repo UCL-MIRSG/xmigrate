@@ -90,7 +90,8 @@ def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
             msg = f"Command {e.cmd} returned with error code {e.returncode}: {e.output}"
             raise RuntimeError(msg) from e
 
-    xnat4tests.restart_xnat(config)
+    if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
+        xnat4tests.restart_xnat(config)
 
 def wait_for_connection(config: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
     """Retry connection."""
@@ -192,9 +193,13 @@ def destination_connection(
     else:
         delete_data(conn)
 
+@pytest.fixture(scope="session")
+def source_datasets() -> list[str]:
+    """Fixture to set up source datasets."""
+    return ["dummydicom"]
 
 @pytest.fixture(scope="session")
-def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path) -> Generator[xnat.BaseXNATSession, None, None]:
+def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, source_datasets: list[str]) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -221,9 +226,11 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path) -> Gener
     )
     xnat4tests.start_xnat(config)
 
+    for dataset in source_datasets:
+        xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
+
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name, config)
-    xnat4tests.restart_xnat(config)
     conn=wait_for_connection(config)
 
     yield conn

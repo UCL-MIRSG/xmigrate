@@ -6,7 +6,7 @@ from pathlib import Path
 
 import xnat
 
-BASE_OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+BASE_OUTPUT_DIR = Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output"
 
 def delete_data(session: xnat.XNATSession) -> None:
     """
