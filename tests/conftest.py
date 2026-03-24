@@ -192,25 +192,6 @@ def destination_connection(
     else:
         delete_data(conn)
 
-@pytest.fixture
-def load_source_datasets(source_connection: xnat.BaseXNATSession, request: pytest.FixtureRequest):
-    """Fixture loads datasets per test using request.param."""
-    conn, config = source_connection
-    datasets = getattr(request, "param", ["dummydicom"])  # default single dataset
-    for dataset in datasets:
-        xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
-
-    # Clear cache so XNAT session sees all projects
-    conn.projects.clearcache()
-    for project in conn.projects:
-        project.subjects.clearcache()
-
-    return conn
-
-@pytest.fixture(scope="session")
-def source_datasets() -> list[str]:
-    """Default source_datasets for single project migration."""
-    return ["dummydicom"]
 
 @pytest.fixture(scope="session")
 def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path) -> Generator[xnat.BaseXNATSession, None, None]:
@@ -239,7 +220,6 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path) -> Gener
         },
     )
     xnat4tests.start_xnat(config)
-
 
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name, config)
