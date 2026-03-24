@@ -827,7 +827,7 @@ class Migration:
         destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-        folder_path = pathlib.Path() / "output" / source_name
+        folder_path = pathlib.Path(__file__).resolve().parent / "output" / source_name
         folder_path.mkdir(parents=True, exist_ok=True)
         dest_project_id = self.destination_info.id
 
@@ -868,7 +868,7 @@ class Migration:
         with pathlib.Path(path).open("w") as file:
             json.dump(dest_project_ownership, file, indent=4)
 
-    def _create_resources(self) -> None:  # noqa: PLR0912, PLR0915
+    def _create_resources(self) -> None:
         """
         Create all resources on the destination XNAT instance.
 
