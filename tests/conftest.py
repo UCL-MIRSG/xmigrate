@@ -156,7 +156,7 @@ def destination_info_mult() -> list[ProjectInfo]:
 
 @pytest.fixture(scope="session")
 def destination_connection(
-    jar_path: pathlib.Path, plugin_dir: pathlib.Path
+    jar_path: pathlib.Path, plugin_dir: pathlib.Path, tmp_path_factory: pytest.TempdirFactory,
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
@@ -166,18 +166,12 @@ def destination_connection(
         The active XNAT session for the destination instance.
 
     """
-    # Pytest rotates temp dirs so when keeping container up, still mounted to old path
-    # Docker fails to restart the container because the mounted path no longer exists
-    xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
-    docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_destination" / "build"
-    xnat_root_dir.mkdir(parents=True, exist_ok=True)
-    docker_build_dir.mkdir(parents=True, exist_ok=True)
     config = xnat4tests.Config(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
         xnat_port="8889",
-        xnat_root_dir=xnat_root_dir,
-        docker_build_dir=docker_build_dir,
+        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
+        docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
         },
@@ -204,7 +198,7 @@ def source_datasets() -> list[str]:
 
 @pytest.fixture(scope="session")
 def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request: pytest.FixtureRequest,
-                      source_datasets: list[str]) -> Generator[xnat.BaseXNATSession, None, None]:
+    source_datasets: list[str], tmp_path_factory: pytest.TempdirFactory) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -224,8 +218,8 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
         xnat_port="8888",
-        xnat_root_dir=xnat_root_dir,
-        docker_build_dir=docker_build_dir,
+        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
+        docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
         },
