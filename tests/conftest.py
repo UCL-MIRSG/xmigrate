@@ -58,7 +58,7 @@ def plugin_dir() -> pathlib.Path:
 
 
 def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
-                   connection_name: str, config: xnat4tests.Config)-> None:
+                   connection_name: str)-> None:
     """Install plugin for specified connection."""
     # Install OHIF viewer plugin by copying the jar into the container
     status = subprocess.run(  # noqa: S603
@@ -178,7 +178,7 @@ def destination_connection(
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
-    install_plugin(jar_path, plugin_dir, connection_name, config)
+    install_plugin(jar_path, plugin_dir, connection_name)
     xnat4tests.restart_xnat(config)
     conn=wait_for_connection(config)
 
@@ -198,7 +198,8 @@ def source_datasets() -> list[str]:
     return ["dummydicom"]
 
 @pytest.fixture(scope="session")
-def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, source_datasets: list[str]) -> Generator[xnat.BaseXNATSession, None, None]:
+def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
+                      request: pytest.FixtureRequest, source_datasets: list[str]) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -207,6 +208,7 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, source_d
         The active XNAT session for the source instance.
 
     """
+    datasets = getattr(request, "param", source_datasets)
     # Pytest rotates temp dirs so when keeping container up, still mounted to old path
     # Docker fails to restart the container because the mounted path no longer exists
     xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "root"
@@ -225,11 +227,11 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, source_d
     )
     xnat4tests.start_xnat(config)
 
-    for dataset in source_datasets:
+    for dataset in datasets:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    install_plugin(jar_path, plugin_dir, connection_name, config)
+    install_plugin(jar_path, plugin_dir, connection_name)
     xnat4tests.restart_xnat(config)
     conn=wait_for_connection(config)
 
