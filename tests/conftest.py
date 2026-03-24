@@ -196,8 +196,8 @@ def destination_connection(
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
-    wait_for_xnat_ready(config.xnat_uri, timeout=120)
-    conn=wait_for_connection(config, timeout=180)
+    wait_for_xnat_ready(config.xnat_uri, timeout=300)
+    conn=wait_for_connection(config, timeout=300)
 
     yield conn
 
@@ -249,8 +249,8 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
 
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name,config)
-    wait_for_xnat_ready(config.xnat_uri, timeout=120)
-    conn=wait_for_connection(config, timeout=180)
+    wait_for_xnat_ready(config.xnat_uri, timeout=300)
+    conn=wait_for_connection(config, timeout=300)
 
     yield conn
 
