@@ -26,6 +26,7 @@ LOGGER = logging.getLogger(__name__)
 
 BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "output"
 
+
 @dataclasses.dataclass
 class Migration:
     """Class to handle migration of XNAT projects."""
@@ -910,12 +911,13 @@ class Migration:
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project.id)
 
+        destination_datatypes: dict = {}
         start_datatypes = time.time()
         timeout = 60
         while time.time() - start_datatypes < timeout:
             try:
                 destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
-                if destination_datatypes:  # not empty
+                if destination_datatypes:
                     break
             except Exception as e:
                 msg = f"destination_datatypes are empty: {destination_datatypes}"

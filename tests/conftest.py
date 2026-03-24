@@ -90,8 +90,6 @@ def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
             msg = f"Command {e.cmd} returned with error code {e.returncode}: {e.output}"
             raise RuntimeError(msg) from e
 
-    if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
-        xnat4tests.restart_xnat(config)
 
 def wait_for_connection(config: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
     """Retry connection."""
@@ -181,6 +179,7 @@ def destination_connection(
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
+    xnat4tests.restart_xnat(config)
     conn=wait_for_connection(config)
 
     yield conn
@@ -231,6 +230,7 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, source_d
 
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name, config)
+    xnat4tests.restart_xnat(config)
     conn=wait_for_connection(config)
 
     yield conn
