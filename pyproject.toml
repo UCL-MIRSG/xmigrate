@@ -24,6 +24,7 @@ lint = [
     "prek",
 ]
 test = [
+    "defusedxml",
     "pytest",
     "pytest-cov",
     "xnat4tests",
