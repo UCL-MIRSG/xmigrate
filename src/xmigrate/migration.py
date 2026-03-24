@@ -914,15 +914,19 @@ class Migration:
         destination_datatypes: dict = {}
         start_datatypes = time.time()
         timeout = 60
+
         while time.time() - start_datatypes < timeout:
             try:
                 destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
                 if destination_datatypes:
                     break
-            except Exception as e:
-                msg = f"destination_datatypes are empty: {destination_datatypes}"
-                raise RuntimeError(msg) from e
+            except Exception:
+                # Ignore and retry
+                pass
+
             time.sleep(2)
+        else:
+            raise RuntimeError("destination_datatypes not available after timeout")
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
