@@ -26,7 +26,6 @@ LOGGER = logging.getLogger(__name__)
 
 BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "output"
 
-
 @dataclasses.dataclass
 class Migration:
     """Class to handle migration of XNAT projects."""
@@ -134,7 +133,7 @@ class Migration:
     def _get_resource_metadata(
         self,
         resource: str,
-        output_dir: pathlib.Path = pathlib.Path("./output"),
+        output_dir: pathlib.Path,
     ) -> None:
         """
         Retrieve resource metadata and write to CSV.
@@ -161,7 +160,7 @@ class Migration:
         self,
         resource: str,
         id_map: dict[str, str],
-        output_dir: pathlib.Path = pathlib.Path("./output"),
+        output_dir: pathlib.Path,
     ) -> None:
         """
         Write ID map to CSV.
@@ -399,7 +398,7 @@ class Migration:
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
-                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
+                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
             )
         else:
             msg = f"Skipping creation of subject {subject.id} as already exists on destination."
@@ -505,7 +504,7 @@ class Migration:
             self._export_id_map(
                 resource="experiments",
                 id_map=self.mapper.id_map[XnatType.experiment],
-                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
+                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
             )
         else:
             msg = f"Skipping creation of experiment {experiment.id} as already exists on destination."
@@ -924,16 +923,15 @@ class Migration:
             time.sleep(2)
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-        subj_path = f"output/{source_name}/{self.destination_info.id}/subjects_id_map.csv"
-        subj_full_path = BASE_OUTPUT_DIR / subj_path
+        output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
+        subj_full_path = output_dir / "subjects_id_map.csv"
         if subj_full_path.is_file():
             subjects_id_map = pd.read_csv(subj_full_path)
             subjects_id_map_list = subjects_id_map["source_id"].tolist()
         else:
             subjects_id_map_list = []
 
-        exp_path = f"output/{source_name}/{self.destination_info.id}/experiments_id_map.csv"
-        exp_full_path = BASE_OUTPUT_DIR / exp_path
+        exp_full_path = output_dir / "experiments_id_map.csv"
         if exp_full_path.is_file():
             experiments_id_map = pd.read_csv(exp_full_path)
             experiments_id_map_list = experiments_id_map["source_id"].tolist()
@@ -1146,31 +1144,29 @@ class Migration:
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
 
             source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-            path = f"output/{source_name}/{self.destination_info.id}"
-            full_path = f"output/{source_name}/{self.destination_info.id}/subjects_metadata.csv"
-            metadata_path_subjects = pathlib.Path() / full_path
-            if metadata_path_subjects.is_file():
+            path = BASE_OUTPUT_DIR / source_name / self.destination_info.id
+            full_path = path / "subjects_metadata.csv"
+            if full_path.is_file():
                 self._logger.info("Skipping _get_resource_metadata as subjects_metadata.csv file exists")
             else:
-                self._get_resource_metadata(resource="subjects", output_dir=pathlib.Path(path))
+                self._get_resource_metadata(resource="subjects", output_dir=path)
 
-            full_path = f"output/{source_name}/{self.destination_info.id}/experiments_metadata.csv"
-            metadata_path_experiments = pathlib.Path() / full_path
-            if metadata_path_experiments.is_file():
+            full_path = path / "experiments_metadata.csv"
+            if full_path.is_file():
                 self._logger.info("Skipping _get_resource_metadata as experiments_metadata.csv file exists")
             else:
-                self._get_resource_metadata(resource="experiments", output_dir=pathlib.Path(path))
+                self._get_resource_metadata(resource="experiments", output_dir=path)
             self._create_resources()
             self._set_project_configs()
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
-                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
+                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
             )
             self._export_id_map(
                 resource="experiments",
                 id_map=self.mapper.id_map[XnatType.experiment],
-                output_dir=pathlib.Path(f"./output/{source_name}/{self.destination_info.id}"),
+                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
             )
             self._refresh_catalogues()
 
