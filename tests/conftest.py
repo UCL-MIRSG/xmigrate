@@ -57,7 +57,8 @@ def plugin_dir() -> pathlib.Path:
     return Path("/data/xnat/home/plugins")
 
 
-def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path, connection_name: str) -> None:
+def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
+                   connection_name: str, config: xnat4tests.Config)-> None:
     """Install plugin for specified connection."""
     # Install OHIF viewer plugin by copying the jar into the container
     status = subprocess.run(  # noqa: S603
@@ -89,6 +90,19 @@ def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path, connection_
             msg = f"Command {e.cmd} returned with error code {e.returncode}: {e.output}"
             raise RuntimeError(msg) from e
 
+    xnat4tests.restart_xnat(config)
+
+def wait_for_connection(config: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
+    """Retry connection."""
+    success = False
+    while not success:
+        try:
+            conn = xnat4tests.connect(config)
+            success = True
+        except (requests.ReadTimeout, requests.ConnectionError):
+            time.sleep(1)
+
+    return conn
 
 @pytest.fixture
 def source_info() -> list[ProjectInfo]:
@@ -165,15 +179,8 @@ def destination_connection(
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
-    install_plugin(jar_path, plugin_dir, connection_name)
-    xnat4tests.restart_xnat(config)
-    success = False
-    while not success:
-        try:
-            conn = xnat4tests.connect(config)
-            success = True
-        except (requests.ReadTimeout, requests.ConnectionError):
-            time.sleep(1)
+    install_plugin(jar_path, plugin_dir, connection_name, config)
+    conn=wait_for_connection(config)
 
     yield conn
 
@@ -185,6 +192,25 @@ def destination_connection(
     else:
         delete_data(conn)
 
+@pytest.fixture
+def load_source_datasets(source_connection: xnat.BaseXNATSession, request: pytest.FixtureRequest):
+    """Fixture loads datasets per test using request.param."""
+    conn, config = source_connection
+    datasets = getattr(request, "param", ["dummydicom"])  # default single dataset
+    for dataset in datasets:
+        xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
+
+    # Clear cache so XNAT session sees all projects
+    conn.projects.clearcache()
+    for project in conn.projects:
+        project.subjects.clearcache()
+
+    return conn
+
+@pytest.fixture(scope="session")
+def source_datasets() -> list[str]:
+    """Default source_datasets for single project migration."""
+    return ["dummydicom"]
 
 @pytest.fixture(scope="session")
 def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path) -> Generator[xnat.BaseXNATSession, None, None]:
@@ -214,22 +240,11 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path) -> Gener
     )
     xnat4tests.start_xnat(config)
 
-    no_project = int(os.getenv("PROJECT", "1"))
-    xnat4tests.add_data("dummydicom", config_name=config, upload_method="direct")
-    multi_proj = 2
-    if no_project == multi_proj:
-        xnat4tests.add_data("openneuro-t1w", config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    install_plugin(jar_path, plugin_dir, connection_name)
+    install_plugin(jar_path, plugin_dir, connection_name, config)
     xnat4tests.restart_xnat(config)
-    success = False
-    while not success:
-        try:
-            conn = xnat4tests.connect(config)
-            success = True
-        except (requests.ReadTimeout, requests.ConnectionError):
-            time.sleep(1)
+    conn=wait_for_connection(config)
 
     yield conn
 
