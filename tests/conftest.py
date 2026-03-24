@@ -97,6 +97,21 @@ def install_plugin(
     # Only restart if we actually installed something
     xnat4tests.restart_xnat(config)
 
+def wait_for_xnat(url, timeout=180):
+    start = time.time()
+    last_error = None
+
+    while time.time() - start < timeout:
+        try:
+            r = requests.get(url, timeout=5)
+            if r.status_code < 500:
+                return
+        except Exception as e:
+            last_error = e
+
+        time.sleep(2)
+
+    raise RuntimeError(f"XNAT not ready after {timeout}s: {last_error}")
 
 def wait_for_connection(config: xnat4tests.Config, timeout=60) -> Generator[xnat.BaseXNATSession, None, None]:
     """Retry connection."""
@@ -179,6 +194,7 @@ def destination_connection(
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
+    wait_for_xnat(config.xnat_uri, timeout=120)
     conn=wait_for_connection(config, timeout=180)
 
     yield conn
