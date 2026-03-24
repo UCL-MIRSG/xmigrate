@@ -1,7 +1,6 @@
 """Fixtures for testing the XNAT migration tool."""
 
 from __future__ import annotations
-
 import os
 import pathlib
 import subprocess
@@ -117,7 +116,7 @@ def source_info() -> list[ProjectInfo]:
 
 
 @pytest.fixture
-def source_info_mult() -> ProjectInfo:
+def source_info_mult() -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple source projects."""
     source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
     return [
@@ -198,8 +197,8 @@ def source_datasets() -> list[str]:
     return ["dummydicom"]
 
 @pytest.fixture(scope="session")
-def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
-                      request: pytest.FixtureRequest, source_datasets: list[str]) -> Generator[xnat.BaseXNATSession, None, None]:
+def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request: pytest.FixtureRequest,
+                      source_datasets: list[str]) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -208,7 +207,7 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
         The active XNAT session for the source instance.
 
     """
-    datasets = getattr(request, "param", source_datasets)
+    datasets = request.param if hasattr(request, "param") else source_datasets
     # Pytest rotates temp dirs so when keeping container up, still mounted to old path
     # Docker fails to restart the container because the mounted path no longer exists
     xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "root"
