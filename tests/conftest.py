@@ -90,17 +90,16 @@ def install_plugin(jar_path: pathlib.Path, plugin_dir: pathlib.Path,
             raise RuntimeError(msg) from e
 
 
-def wait_for_connection(config: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
+def wait_for_connection(config: xnat4tests.Config, timeout=60) -> Generator[xnat.BaseXNATSession, None, None]:
     """Retry connection."""
-    success = False
-    while not success:
+    start = time.time()
+    while True:
         try:
-            conn = xnat4tests.connect(config)
-            success = True
+            return xnat4tests.connect(config)
         except (requests.ReadTimeout, requests.ConnectionError):
-            time.sleep(1)
-
-    return conn
+            if time.time() - start > timeout:
+                raise TimeoutError(f"XNAT did not start after {timeout} seconds")
+            time.sleep(2)
 
 @pytest.fixture
 def source_info() -> list[ProjectInfo]:
@@ -179,7 +178,7 @@ def destination_connection(
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name)
     xnat4tests.restart_xnat(config)
-    conn=wait_for_connection(config)
+    conn=wait_for_connection(config, timeout=60)
 
     yield conn
 
@@ -232,7 +231,7 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name)
     xnat4tests.restart_xnat(config)
-    conn=wait_for_connection(config)
+    conn=wait_for_connection(config, timeout=60)
 
     yield conn
 
