@@ -27,7 +27,7 @@ def delete_data(session: xnat.XNATSession) -> None:
     metadata_folder = Path(__file__).resolve().parent / "output/localhost"
 
     if metadata_folder.exists():
-        shutil.rmtree("output/localhost")
+        shutil.rmtree(str(metadata_folder))
 
 
 def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
