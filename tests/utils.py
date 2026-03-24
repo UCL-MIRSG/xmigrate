@@ -6,12 +6,20 @@ from pathlib import Path
 
 import xnat
 
+BASE_OUTPUT_DIR = Path(__file__).resolve().parent / "output"
 
 def delete_data(session: xnat.XNATSession) -> None:
     """
-    Delete data (usually on destination XNAT) for subjects and metadata dir e.g. output/localhost.
+    Fixture calls this function.
 
-    Can't delete project if re-using XNAT instance as the project name can't be reused.
+    Deletes all subject data (projects can't be deleted if re-running tests with same container).
+    Also, deletes metadata folder.
+
+    Parameters
+    ----------
+    session
+        The xnatpy sessions.
+
     """
     for project in session.projects:
         for subject in project.subjects.values():
@@ -24,8 +32,7 @@ def delete_data(session: xnat.XNATSession) -> None:
                 )
         project.subjects.clearcache()
 
-    metadata_folder = Path(__file__).resolve().parent / "output/localhost"
-
+    metadata_folder = BASE_OUTPUT_DIR / "localhost"
     if metadata_folder.exists():
         shutil.rmtree(str(metadata_folder))
 
