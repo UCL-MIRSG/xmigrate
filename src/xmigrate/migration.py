@@ -882,8 +882,8 @@ class Migration:
         source_project = self.source_connection.projects[self.source_info.id]
 
         if not self.no_rsync:
-            rsync_destination = self.destination_info.rsync_path + "/" + self.destination_info.id
-            rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
+            rsync_destination = f"{self.destination_info.rsync_path}/{self.destination_info.id}"
+            rsync_source = f"{self.source_info.rsync_path}/{self.source_info.id}/"
             pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
             command_to_run = [
@@ -908,18 +908,7 @@ class Migration:
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project.id)
-
-        start_datatypes = time.time()
-        timeout = 60
-        while time.time() - start_datatypes < timeout:
-            try:
-                destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
-                if destination_datatypes:  # not empty
-                    break
-            except Exception as e:
-                msg = f"destination_datatypes are empty: {destination_datatypes}"
-                raise RuntimeError(msg) from e
-            time.sleep(2)
+        destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         subj_path = f"output/{source_name}/{self.destination_info.id}/subjects_id_map.csv"
