@@ -113,18 +113,25 @@ def wait_for_xnat_ready(url: str, timeout: int = 300) -> None:
         time.sleep(5)
     raise RuntimeError(f"XNAT not ready after {timeout}s: {last_error}")
 
-def wait_for_connection(config, timeout: int = 300):
-    """Return xnat connection once XNAT API responds."""
+def wait_for_connection(config, timeout=180):
+    """
+    Poll the XNAT server until it responds, or raise after timeout.
+    """
     start = time.time()
     last_error = None
+
     while time.time() - start < timeout:
         try:
-            conn = xnat4tests.connect(config)
-            return conn
+            session = xnat.connect(config.xnat_uri, user="admin", password="admin")
+            # Try a simple request to confirm server is ready
+            response = session.get("/xapi/")
+            if response.status_code < 500:
+                return session
         except Exception as e:
             last_error = e
-        time.sleep(5)
-    raise RuntimeError(f"Failed to connect to XNAT after {timeout}s: {last_error}")
+        time.sleep(2)
+
+    raise RuntimeError(f"XNAT not ready after {timeout}s: {last_error}")
 
 @pytest.fixture
 def source_info() -> list[ProjectInfo]:
@@ -196,8 +203,8 @@ def destination_connection(
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
-    wait_for_xnat_ready(config.xnat_uri, timeout=300)
-    conn=wait_for_connection(config, timeout=300)
+    # wait_for_xnat_ready(config.xnat_uri, timeout=300)
+    conn=wait_for_connection(config, timeout=180)
 
     yield conn
 
@@ -249,8 +256,8 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
 
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name,config)
-    wait_for_xnat_ready(config.xnat_uri, timeout=300)
-    conn=wait_for_connection(config, timeout=300)
+    # wait_for_xnat_ready(config.xnat_uri, timeout=300)
+    conn=wait_for_connection(config, timeout=180)
 
     yield conn
 
