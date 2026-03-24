@@ -1,7 +1,6 @@
 """Tests for testing single project migration, multiple projects migration and sharing project migration."""
 
 import pathlib
-import pdb
 
 import pytest
 
@@ -53,7 +52,7 @@ def test_migrate_all_projects(
     destination_connection: xnat.BaseXNATSession,
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
-    metadata_folder = pathlib.Path(__file__).parents[1] / "output/localhost"
+    metadata_folder = pathlib.Path(__file__).resolve().parent / "output/localhost"
 
     assert not metadata_folder.exists()
 
@@ -184,7 +183,6 @@ def test_migrate_sharing_projects(
     sharing_project_id_dest = destination_info_mult[1].id
     owner_project_subject_label_dest = destination_connection.projects[destination_info_mult[0].id].subjects[0].label
 
-    pdb.set_trace()
     response = get_xml(
         destination_connection,
         f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",
