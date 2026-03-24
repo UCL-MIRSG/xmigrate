@@ -1,6 +1,7 @@
 """Tests for testing single project migration, multiple projects migration and sharing project migration."""
 
 import pathlib
+import pdb
 
 import pytest
 
@@ -158,6 +159,7 @@ def test_migrate_sharing_projects(
         source_connection.put(
             f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}"
         )
+        source_connection.projects[sharing_project_id].subjects.clearcache()
         assert "status 404, accepted status: [200]" in str(e)  # noqa: PT017
 
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
@@ -182,6 +184,7 @@ def test_migrate_sharing_projects(
     sharing_project_id_dest = destination_info_mult[1].id
     owner_project_subject_label_dest = destination_connection.projects[destination_info_mult[0].id].subjects[0].label
 
+    pdb.set_trace()
     response = get_xml(
         destination_connection,
         f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",

@@ -24,7 +24,7 @@ def delete_data(session: xnat.XNATSession) -> None:
                 )
         project.subjects.clearcache()
 
-    metadata_folder = Path(__file__).parents[1] / "output/localhost"
+    metadata_folder = Path(__file__).resolve().parent / "output/localhost"
 
     if metadata_folder.exists():
         shutil.rmtree("output/localhost")

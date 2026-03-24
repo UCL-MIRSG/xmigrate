@@ -923,17 +923,23 @@ class Migration:
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         subj_path = f"output/{source_name}/{self.destination_info.id}/subjects_id_map.csv"
-        subj_full_path = pathlib.Path() / subj_path
+        subj_full_path = pathlib.Path(__file__).resolve().parent / subj_path
+        subj_path_str = str(subj_full_path)
         if subj_full_path.is_file():
-            subjects_id_map = pd.read_csv(subj_path)
+            subjects_id_map = pd.read_csv(subj_path_str)
             subjects_id_map_list = subjects_id_map["source_id"].tolist()
         else:
             subjects_id_map_list = []
 
+        subj_path = f"output/{source_name}/{self.destination_info.id}/subjects_id_map.csv"
+        subj_full_path = pathlib.Path(__file__).resolve().parent / subj_path
+        subj_path_str = str(subj_full_path)
+
         exp_path = f"output/{source_name}/{self.destination_info.id}/experiments_id_map.csv"
-        exp_full_path = pathlib.Path() / exp_path
+        exp_full_path = pathlib.Path(__file__).resolve().parent / exp_path
+        exp_path_str = str(exp_full_path)
         if exp_full_path.is_file():
-            experiments_id_map = pd.read_csv(exp_path)
+            experiments_id_map = pd.read_csv(exp_path_str)
             experiments_id_map_list = experiments_id_map["source_id"].tolist()
         else:
             experiments_id_map_list = []
