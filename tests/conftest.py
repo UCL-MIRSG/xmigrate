@@ -97,21 +97,6 @@ def install_plugin(
     # Only restart if we actually installed something
     xnat4tests.restart_xnat(config)
 
-def wait_for_xnat_ready(url: str, timeout: int = 300) -> None:
-    """Wait for XNAT to respond with schemas/datatypes endpoint."""
-    start = time.time()
-    last_error = None
-    while time.time() - start < timeout:
-        try:
-            r = requests.get(f"{url}/xapi/schemas/datatypes", timeout=5)
-            if r.status_code == 200 and r.json():
-                print(f"XNAT ready at {url}")
-                return
-        except Exception as e:
-            last_error = e
-        print("Waiting for XNAT to be ready...")
-        time.sleep(5)
-    raise RuntimeError(f"XNAT not ready after {timeout}s: {last_error}")
 
 def wait_for_connection(config):
     success = False
@@ -193,7 +178,7 @@ def destination_connection(
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     # install_plugin(jar_path, plugin_dir, connection_name, config)
-    # wait_for_xnat_ready(config.xnat_uri, timeout=300)
+    wait_for_connection(config)
     conn=(config)
 
     yield conn
@@ -246,7 +231,7 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
 
     connection_name = "xnat4tests_source"
     # install_plugin(jar_path, plugin_dir, connection_name,config)
-    # wait_for_xnat_ready(config.xnat_uri, timeout=300)
+    wait_for_connection(config)
     conn=wait_for_connection(config)
 
     yield conn
