@@ -38,7 +38,7 @@ def create_custom_forms_json(
     LOGGER.info("There are %d custom forms being created", len(source_custom_forms))
 
     # Loop through custom forms
-    for _form_idx, source_custom_form in enumerate(source_custom_forms):
+    for source_custom_form in source_custom_forms:
         # Create empty submission object
         current_submission = {
             "submission": {
