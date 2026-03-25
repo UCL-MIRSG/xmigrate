@@ -194,20 +194,10 @@ def destination_connection(
 
 
 @pytest.fixture(scope="session")
-def source_datasets(request: pytest.FixtureRequest) -> list[str]:
-    """Fixture to set up source datasets."""
-    # Use param if this fixture is parametrized via indirect
-    if hasattr(request, "param"):
-        return request.param
-    return ["dummydicom"]
-
-
-@pytest.fixture(scope="session")
 def source_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     tmp_path_factory: pytest.TempdirFactory,
-    source_datasets: list[str],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
@@ -229,7 +219,7 @@ def source_connection(
     )
     xnat4tests.start_xnat(config)
 
-    for dataset in source_datasets:
+    for dataset in ["dummydicom", "openneuro-t1w"]:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
