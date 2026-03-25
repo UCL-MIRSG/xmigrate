@@ -174,13 +174,13 @@ def destination_connection(
         xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
-            "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2")
+            "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
         },
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
-    conn=wait_for_connection(config)
+    conn = wait_for_connection(config)
 
     yield conn
 
@@ -191,8 +191,6 @@ def destination_connection(
         xnat4tests.stop_xnat(config)
     else:
         delete_data(xnat4tests.connect(config))
-
-
 
 
 @pytest.fixture(scope="session")
@@ -216,7 +214,7 @@ def source_connection(
         xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
-            "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2")
+            "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
         },
     )
     xnat4tests.start_xnat(config)
@@ -225,8 +223,8 @@ def source_connection(
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    install_plugin(jar_path, plugin_dir, connection_name,config)
-    conn=wait_for_connection(config)
+    install_plugin(jar_path, plugin_dir, connection_name, config)
+    conn = wait_for_connection(config)
 
     yield conn
 

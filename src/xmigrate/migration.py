@@ -920,13 +920,16 @@ class Migration:
                 destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
                 if destination_datatypes:
                     break
-            except Exception:
+            except XNATResponseError as e:
+                msg = f"Ignore and retry {e}"
+                self._logger.warning(msg)
                 # Ignore and retry
-                pass
+                pass  # noqa: PIE790
 
             time.sleep(2)
         else:
-            raise RuntimeError("destination_datatypes not available after timeout")
+            msg = "destination_datatypes not available after timeout"
+            raise RuntimeError(msg)
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
