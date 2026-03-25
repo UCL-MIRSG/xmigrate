@@ -175,7 +175,7 @@ def destination_connection(
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
         },
     )
-    xnat4tests.start_xnat(config, rebuild=False)
+    xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     # install_plugin(jar_path, plugin_dir, connection_name, config)
     # conn=wait_for_connection(config)
@@ -223,7 +223,7 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
         },
     )
-    xnat4tests.start_xnat(config, rebuild=False)
+    xnat4tests.start_xnat(config)
 
     for dataset in ["dummydicom", "openneuro-t1w"]:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
