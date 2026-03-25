@@ -169,7 +169,7 @@ def migrate_all_projects(  # noqa: PLR0913
         The password for the destination XNAT instance.
     destination_rsync
         The local path for the destination XNAT instance's rsync.
-    no_rsync, optional
+    no_rsync
         Flag indicating whether to skipping running rsync.
 
     """
