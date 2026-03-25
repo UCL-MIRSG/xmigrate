@@ -61,12 +61,12 @@ def install_plugin(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     connection_name: str,
-    config,
+    config: xnat4tests.Config,
 ) -> None:
     """Install plugin for specified connection."""
     # Check existing plugins
-    result = subprocess.run(
-        ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],
+    result = subprocess.run(  # noqa: S603
+        ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],  # noqa: S607
         check=True,
         capture_output=True,
         text=True,
@@ -75,13 +75,12 @@ def install_plugin(
 
     # If already installed → do nothing
     if jar_path.name in plugins_list:
-        print(f"Plugin {jar_path.name} already installed, skipping restart.")
         return
 
     # Otherwise copy plugin
     try:
-        subprocess.run(
-            [
+        subprocess.run(  # noqa: S603
+            [  # noqa: S607
                 "docker",
                 "cp",
                 str(jar_path),
@@ -89,7 +88,6 @@ def install_plugin(
             ],
             check=True,
         )
-        print(f"Installed plugin {jar_path.name}, restarting XNAT...")
     except subprocess.CalledProcessError as e:
         msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
         raise RuntimeError(msg) from e
@@ -98,7 +96,8 @@ def install_plugin(
     xnat4tests.restart_xnat(config)
 
 
-def wait_for_connection(config):
+def wait_for_connection(config: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
+    """Wait for connection after restarting XNAT during install_plugin."""
     success = False
     while not success:
         try:
@@ -229,7 +228,7 @@ def source_connection(
     )
     xnat4tests.start_xnat(config)
 
-    for dataset in ["dummydicom", "openneuro-t1w"]:
+    for dataset in datasets:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
