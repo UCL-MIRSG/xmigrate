@@ -113,25 +113,15 @@ def wait_for_xnat_ready(url: str, timeout: int = 300) -> None:
         time.sleep(5)
     raise RuntimeError(f"XNAT not ready after {timeout}s: {last_error}")
 
-def wait_for_connection(config, timeout=180):
-    """
-    Poll the XNAT server until it responds, or raise after timeout.
-    """
-    start = time.time()
-    last_error = None
-
-    while time.time() - start < timeout:
+def wait_for_connection(config):
+    success = False
+    while not success:
         try:
-            session = xnat4tests.connect(config)
-            # Try a simple request to confirm server is ready
-            response = session.get("/xapi/")
-            if response.status_code < 500:
-                return session
-        except Exception as e:
-            last_error = e
-        time.sleep(2)
-
-    raise RuntimeError(f"XNAT not ready after {timeout}s: {last_error}")
+            conn = xnat4tests.connect(config)
+            success = True
+        except (requests.ReadTimeout, requests.ConnectionError):
+            time.sleep(1)
+    return conn
 
 @pytest.fixture
 def source_info() -> list[ProjectInfo]:
@@ -202,9 +192,9 @@ def destination_connection(
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
-    install_plugin(jar_path, plugin_dir, connection_name, config)
+    # install_plugin(jar_path, plugin_dir, connection_name, config)
     # wait_for_xnat_ready(config.xnat_uri, timeout=300)
-    conn=wait_for_connection(config, timeout=180)
+    conn=(config)
 
     yield conn
 
@@ -255,9 +245,9 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    install_plugin(jar_path, plugin_dir, connection_name,config)
+    # install_plugin(jar_path, plugin_dir, connection_name,config)
     # wait_for_xnat_ready(config.xnat_uri, timeout=300)
-    conn=wait_for_connection(config, timeout=180)
+    conn=wait_for_connection(config)
 
     yield conn
 
