@@ -168,18 +168,11 @@ def destination_connection(
         The active XNAT session for the destination instance.
 
     """
-    # Pytest rotates temp dirs so when keeping container up, still mounted to old path
-    # Docker fails to restart the container because the mounted path no longer exists
-    xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
-    docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_destination" / "build"
-    xnat_root_dir.mkdir(parents=True, exist_ok=True)
-    docker_build_dir.mkdir(parents=True, exist_ok=True)
     config = xnat4tests.Config(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
         xnat_port="8889",
         xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
-        # docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2")
@@ -187,10 +180,10 @@ def destination_connection(
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
-    # install_plugin(jar_path, plugin_dir, connection_name, config)
-    # conn=wait_for_connection(config)
+    install_plugin(jar_path, plugin_dir, connection_name, config)
+    conn=wait_for_connection(config)
 
-    yield xnat4tests.connect(config)
+    yield conn
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
@@ -224,18 +217,11 @@ def source_connection(
 
     """
     datasets = request.param if hasattr(request, "param") else source_datasets
-    # Pytest rotates temp dirs so when keeping container up, still mounted to old path
-    # Docker fails to restart the container because the mounted path no longer exists
-    xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "root"
-    docker_build_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "build"
-    xnat_root_dir.mkdir(parents=True, exist_ok=True)
-    docker_build_dir.mkdir(parents=True, exist_ok=True)
     config = xnat4tests.Config(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
         xnat_port="8888",
         xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
-        # docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2")
@@ -247,10 +233,10 @@ def source_connection(
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    # install_plugin(jar_path, plugin_dir, connection_name,config)
-    # conn=wait_for_connection(config)
+    install_plugin(jar_path, plugin_dir, connection_name,config)
+    conn=wait_for_connection(config)
 
-    yield xnat4tests.connect(config)
+    yield conn
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
