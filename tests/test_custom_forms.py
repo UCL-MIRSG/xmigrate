@@ -142,7 +142,8 @@ def test_zindex_is_set() -> None:
     xmigrate.create_custom_forms_json(source, destination)
 
     payload = json.loads(destination.put.call_args[1]["data"])
-    assert payload["submission"]["data"]["zIndex"] == 3
+    zindex = 3
+    assert payload["submission"]["data"]["zIndex"] == zindex
 
 
 def test_multiple_forms_are_created() -> None:
@@ -156,7 +157,8 @@ def test_multiple_forms_are_created() -> None:
 
     xmigrate.create_custom_forms_json(source, destination)
 
-    assert destination.put.call_count == 2
+    call_count = 2
+    assert destination.put.call_count == call_count
 
 
 def test_runtime_error_raised_on_put_failure() -> None:
@@ -164,6 +166,7 @@ def test_runtime_error_raised_on_put_failure() -> None:
     form = _make_form()
     source = _make_source([form])
     destination = _make_destination()
+
     mock_response = unittest.mock.MagicMock()
     mock_response.text = "PUT failed"
     destination.put.side_effect = XNATResponseError("PUT failed", response=mock_response)
