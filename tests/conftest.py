@@ -178,10 +178,9 @@ def destination_connection(
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     # install_plugin(jar_path, plugin_dir, connection_name, config)
-    wait_for_connection(config)
-    conn=(config)
+    # conn=wait_for_connection(config)
 
-    yield conn
+    yield xnat4tests.connect(config)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
@@ -189,7 +188,7 @@ def destination_connection(
     if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         xnat4tests.stop_xnat(config)
     else:
-        delete_data(conn)
+        delete_data(xnat4tests.connect(config))
 
 @pytest.fixture(scope="session")
 def source_datasets() -> list[str]:
@@ -231,10 +230,9 @@ def source_connection(jar_path: pathlib.Path, plugin_dir: pathlib.Path, request:
 
     connection_name = "xnat4tests_source"
     # install_plugin(jar_path, plugin_dir, connection_name,config)
-    wait_for_connection(config)
-    conn=wait_for_connection(config)
+    # conn=wait_for_connection(config)
 
-    yield conn
+    yield xnat4tests.connect(config)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
