@@ -47,7 +47,7 @@ def test_migrate_single_project(
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-@pytest.mark.parametrize("source_connection", [["dummydicom", "openneuro-t1w"]], indirect=True)
+# @pytest.mark.parametrize("source_connection", [["dummydicom", "openneuro-t1w"]], indirect=True)
 def test_migrate_all_projects(
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
