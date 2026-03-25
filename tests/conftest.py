@@ -122,7 +122,7 @@ def wait_for_connection(config, timeout=180):
 
     while time.time() - start < timeout:
         try:
-            session = xnat.connect(config.xnat_uri, user="admin", password="admin")
+            session = xnat4tests.connect(config)
             # Try a simple request to confirm server is ready
             response = session.get("/xapi/")
             if response.status_code < 500:
