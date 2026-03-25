@@ -69,7 +69,6 @@ You can set up a mise.toml as below:
 ```sh
 [env]
 XNAT4TEST_KEEP_INSTANCE=true #This speeds up developer time by keeping the docker containers live
-PROJECT=2 #Adds a 2nd project to the source XNAT without changing the xnat_connection_source fixture
 ```
 
 and activate it as below:
