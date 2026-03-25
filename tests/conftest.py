@@ -104,7 +104,7 @@ def wait_for_connection(config: xnat4tests.Config) -> Generator[xnat.BaseXNATSes
             conn = xnat4tests.connect(config)
             success = True
         except (requests.ReadTimeout, requests.ConnectionError):
-            time.sleep(1)
+            time.sleep(30)
     return conn
 
 
@@ -180,9 +180,8 @@ def destination_connection(
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
-    conn = wait_for_connection(config)
 
-    yield conn
+    yield wait_for_connection(config)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
@@ -224,9 +223,8 @@ def source_connection(
 
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name, config)
-    conn = wait_for_connection(config)
 
-    yield conn
+    yield wait_for_connection(config)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times

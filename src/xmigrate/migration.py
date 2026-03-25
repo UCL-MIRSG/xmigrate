@@ -870,7 +870,7 @@ class Migration:
         with pathlib.Path(path).open("w") as file:
             json.dump(dest_project_ownership, file, indent=4)
 
-    def _create_resources(self) -> None:  # noqa: PLR0912, PLR0915
+    def _create_resources(self) -> None:
         """
         Create all resources on the destination XNAT instance.
 
@@ -911,25 +911,7 @@ class Migration:
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project.id)
 
-        destination_datatypes: dict = {}
-        start_datatypes = time.time()
-        timeout = 60
-
-        while time.time() - start_datatypes < timeout:
-            try:
-                destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
-                if destination_datatypes:
-                    break
-            except XNATResponseError as e:
-                msg = f"Ignore and retry {e}"
-                self._logger.warning(msg)
-                # Ignore and retry
-                pass  # noqa: PIE790
-
-            time.sleep(2)
-        else:
-            msg = "destination_datatypes not available after timeout"
-            raise RuntimeError(msg)
+        destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
