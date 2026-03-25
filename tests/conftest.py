@@ -178,7 +178,7 @@ def destination_connection(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
         xnat_port="8889",
-        # xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
+        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
         # docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
@@ -233,7 +233,7 @@ def source_connection(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
         xnat_port="8888",
-        # xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
+        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
         # docker_build_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
