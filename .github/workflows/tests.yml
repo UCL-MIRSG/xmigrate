@@ -52,6 +52,12 @@ jobs:
         run: uv run nox -s coverage-${{ matrix.python-version }}
         env:
           FORCE_COLOR: 1
+      
+      - name: Debug Docker
+        if: failure()
+        run: |
+          docker ps -a
+          docker logs $(docker ps -aq) || true
 
       - name: Upload core coverage to Coveralls
         uses: coverallsapp/github-action@5cbfd81b66ca5d10c19b062c04de0199c215fb6e # v2
