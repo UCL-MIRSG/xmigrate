@@ -52,7 +52,7 @@ jobs:
         run: uv run nox -s coverage-${{ matrix.python-version }}
         env:
           FORCE_COLOR: 1
-      
+
       - name: Debug Docker
         if: failure()
         run: |
