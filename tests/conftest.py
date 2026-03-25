@@ -193,18 +193,12 @@ def destination_connection(
         delete_data(xnat4tests.connect(config))
 
 
-@pytest.fixture(scope="session")
-def source_datasets() -> list[str]:
-    """Fixture to set up source datasets."""
-    return ["dummydicom"]
 
 
 @pytest.fixture(scope="session")
 def source_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
-    request: pytest.FixtureRequest,
-    source_datasets: list[str],
     tmp_path_factory: pytest.TempdirFactory,
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
@@ -215,7 +209,6 @@ def source_connection(
         The active XNAT session for the source instance.
 
     """
-    datasets = request.param if hasattr(request, "param") else source_datasets
     config = xnat4tests.Config(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
