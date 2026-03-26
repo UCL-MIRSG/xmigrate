@@ -98,7 +98,6 @@ def test_project_scoped_form_is_created() -> None:
 
     xmigrate.create_custom_forms_json(source, destination)
 
-    print(destination.mock_calls)
     destination.put.assert_called_once()
     args, kwargs = destination.put.call_args
     assert args[0] == "/xapi/customforms/save"
