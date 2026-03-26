@@ -41,7 +41,7 @@ jobs:
         run: uv sync --only-dev
 
       - name: Test with nox
-        run: uv run nox -s coverage-${{ matrix.python-version }}
+        run: uv run nox -s coverage-${{ matrix.python-version }} -- -s
         env:
           FORCE_COLOR: 1
 
