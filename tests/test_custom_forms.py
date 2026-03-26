@@ -25,7 +25,7 @@ def _make_source(forms: list[dict]) -> unittest.mock.MagicMock:
 
     """
     conn = unittest.mock.MagicMock()
-    conn.get_json.return_value = forms
+    conn.get_json.side_effect = lambda *args, **kwargs: forms
     return conn
 
 
