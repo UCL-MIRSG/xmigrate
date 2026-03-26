@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import pathlib
 import subprocess
@@ -21,6 +22,8 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     import xnat
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -96,16 +99,49 @@ def install_plugin(
     xnat4tests.restart_xnat(config)
 
 
-def wait_for_connection(config: xnat4tests.Config) -> Generator[xnat.BaseXNATSession, None, None]:
-    """Wait for connection after restarting XNAT during install_plugin."""
-    success = False
-    while not success:
+def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
+    """
+    Wait for XNAT to become available and datatypes to be ready.
+
+    Tries up to max_retries times:
+      - Connects if not already connected
+      - Checks datatypes
+    """
+    max_retries = 30
+    conn = None
+
+    for attempt in range(1, max_retries + 1):
         try:
-            conn = xnat4tests.connect(config)
-            success = True
-        except (requests.ReadTimeout, requests.ConnectionError):
-            time.sleep(30)
-    return conn
+            # Connect if needed
+            if conn is None:
+                conn = xnat4tests.connect(config)
+                msg = f"[{attempt}] Connected to XNAT"
+                logger.info(msg)
+
+            # Check if datatypes are ready
+            datatypes = conn.get("/xapi/schemas/datatypes").json()
+            if len(datatypes) > 0:
+                msg = f"[{attempt}] Datatypes ready"
+                logger.info(msg)
+                return conn  # success
+            msg = f"[{attempt}] Datatypes not ready yet"
+            logger.info(msg)
+
+        except (requests.ReadTimeout, requests.ConnectionError) as e:
+            msg = f"[{attempt}] Connection failed, will retry: {e}"
+            logger.info(msg)
+            conn = None  # force reconnect next loop
+        except (requests.RequestException, ValueError) as e:
+            msg = f"[{attempt}] Datatypes request failed, retrying: {e}"
+            logger.info(msg)
+
+        time.sleep(1)
+
+    # Clean up if never ready
+    if conn is not None:
+        conn.disconnect()
+    msg = f"XNAT never became ready after {max_retries} attempts"
+    raise RuntimeError(msg)
 
 
 @pytest.fixture
