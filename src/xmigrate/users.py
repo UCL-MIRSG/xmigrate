@@ -4,9 +4,11 @@ import logging
 
 import xnat
 
-# Configure a module-level logger. Keep basicConfig here for simple CLI runs;
-# packages importing this module can configure logging more specifically.
-logging.basicConfig(level=logging.INFO)
+if __name__ == "__main__":
+    # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
+    # packages importing this module can configure logging more specifically.
+    logging.basicConfig(level=logging.INFO)
+
 LOGGER = logging.getLogger(__name__)
 
 

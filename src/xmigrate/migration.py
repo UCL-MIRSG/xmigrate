@@ -19,9 +19,11 @@ from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.users import create_users
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
-# Configure a module-level logger. Keep basicConfig here for simple CLI runs;
-# packages importing this module can configure logging more specifically.
-logging.basicConfig(level=logging.INFO)
+if __name__ == "__main__":
+    # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
+    # packages importing this module can configure logging more specifically.
+    logging.basicConfig(level=logging.INFO)
+
 LOGGER = logging.getLogger(__name__)
 
 
