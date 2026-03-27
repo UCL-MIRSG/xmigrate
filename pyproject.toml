@@ -83,7 +83,6 @@ python_version = "3.12"
 [tool.pytest.ini_options]
 addopts = [
     "--color=yes",
-    "--import-mode=importlib",
     "--verbose",
 ]
 filterwarnings = [
