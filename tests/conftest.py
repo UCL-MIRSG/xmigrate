@@ -29,8 +29,9 @@ logger = logging.getLogger(__name__)
 @pytest.fixture
 def remove_destination_test_data(destination_connection: Generator[xnat.BaseXNATSession, None, None]):  # noqa: ANN201
     """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
+    destination_conn, destination_tmp_path = destination_connection
     yield
-    delete_data(destination_connection)
+    delete_data(destination_conn, destination_tmp_path)
 
 
 @pytest.fixture(scope="session")
@@ -174,6 +175,19 @@ def source_info_mult() -> list[ProjectInfo]:
 
 
 @pytest.fixture
+def destination_info() -> list[ProjectInfo]:
+    """Fixture to set up ProjectInfo instance for source project."""
+    project = ProjectInfo(
+        id="dummydicomproject",
+        secondary_id="dummydicomproject",
+        project_name="dummydicomproject",
+        archive_path="/data/xnat/archive",
+        rsync_path=".xnat4tests_destination/root/archive",
+    )
+    return [project]
+
+
+@pytest.fixture
 def destination_info_mult() -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple destination projects."""
     destination_projects = ["dummydicomproject", "OPENNEURO_T1W"]
@@ -203,11 +217,12 @@ def destination_connection(
         The active XNAT session for the destination instance.
 
     """
+    xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("destination"))
     config = xnat4tests.Config(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
         xnat_port="8889",
-        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("destination")),
+        xnat_root_dir=xnat_root_dir,
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
@@ -217,7 +232,7 @@ def destination_connection(
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
 
-    yield wait_for_connection(config)
+    yield wait_for_connection(config), xnat_root_dir
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
@@ -225,7 +240,7 @@ def destination_connection(
     if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         xnat4tests.stop_xnat(config)
     else:
-        delete_data(xnat4tests.connect(config))
+        delete_data(xnat4tests.connect(config), xnat_root_dir)
 
 
 @pytest.fixture(scope="session")
@@ -242,11 +257,12 @@ def source_connection(
         The active XNAT session for the source instance.
 
     """
+    xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("source"))
     config = xnat4tests.Config(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
         xnat_port="8888",
-        xnat_root_dir=pathlib.Path(tmp_path_factory.mktemp("source")),
+        xnat_root_dir=xnat_root_dir,
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
@@ -260,7 +276,7 @@ def source_connection(
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name, config)
 
-    yield wait_for_connection(config)
+    yield wait_for_connection(config), xnat_root_dir
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times

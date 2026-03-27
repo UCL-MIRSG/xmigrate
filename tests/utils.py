@@ -9,7 +9,7 @@ import xnat
 BASE_OUTPUT_DIR = Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output"
 
 
-def delete_data(session: xnat.XNATSession) -> None:
+def delete_data(session: xnat.XNATSession, destination_tmp_path: Path) -> None:
     """
     Fixture calls this function.
 
@@ -32,6 +32,16 @@ def delete_data(session: xnat.XNATSession) -> None:
                     query={"removeFiles": "True"},
                 )
         project.subjects.clearcache()
+
+    archive_path = destination_tmp_path / "archive"
+
+    if archive_path.exists():
+        for project in archive_path.iterdir():
+            if project.is_dir():
+                shutil.rmtree(project)
+    else:
+        msg = f"Archive path: {archive_path} doesn't exist when it should"
+        raise ValueError(msg)
 
     metadata_folder = BASE_OUTPUT_DIR / "localhost"
     if metadata_folder.exists():
