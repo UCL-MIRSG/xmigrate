@@ -89,9 +89,6 @@ addopts = [
 filterwarnings = [
     "ignore:Changing XNAT port from:UserWarning",
 ]
-pythonpath = [
-    "src",
-]
 testpaths = [
     "tests",
 ]
