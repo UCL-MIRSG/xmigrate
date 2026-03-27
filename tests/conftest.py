@@ -182,7 +182,7 @@ def destination_info() -> list[ProjectInfo]:
         secondary_id="dummydicomproject",
         project_name="dummydicomproject",
         archive_path="/data/xnat/archive",
-        rsync_path=".xnat4tests_destination/root/archive",
+        rsync_path="destination/root/archive",
     )
     return [project]
 
