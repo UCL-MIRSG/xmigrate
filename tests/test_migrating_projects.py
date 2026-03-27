@@ -1,5 +1,6 @@
 """Tests for testing single project migration, multiple projects migration and sharing project migration."""
 
+import os
 import pathlib
 
 import pytest
@@ -14,8 +15,8 @@ from xmigrate.xml_mapper import ProjectInfo
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_single_project(
-    source_connection: xnat.BaseXNATSession,
-    destination_connection: xnat.BaseXNATSession,
+    source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
+    destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
     source_info: ProjectInfo,
     destination_info: ProjectInfo,
 ) -> None:
@@ -41,6 +42,8 @@ def test_migrate_single_project(
     # Now assign these to your ProjectInfo
     source_info[0].rsync_path = source_archive_path
     destination_info[0].rsync_path = destination_archive_path
+    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
+    no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
 
     # Set up migration instance using Migration class
     migration = Migration(
@@ -48,7 +51,7 @@ def test_migrate_single_project(
         destination_connection=destination_conn,
         all_source_info=source_info,
         all_destination_info=destination_info,
-        no_rsync=False,
+        no_rsync=no_rsync,
     )
 
     # Check set-up of source XNAT to have 1 single project and destination XNAT to have no subjects in project
@@ -78,8 +81,8 @@ def test_migrate_single_project(
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_all_projects(
-    source_connection: xnat.BaseXNATSession,
-    destination_connection: xnat.BaseXNATSession,
+    source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
+    destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
     source_conn, source_tmp_path = source_connection
@@ -157,13 +160,14 @@ def test_migrate_all_projects(
             strict=True,
         )
     ]
-
+    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
+    no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
     migration = Migration(
         source_connection=source_conn,
         destination_connection=destination_conn,
         all_source_info=all_source_info,
         all_destination_info=all_destination_info,
-        no_rsync=False,
+        no_rsync=no_rsync,
     )
 
     # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
@@ -208,8 +212,8 @@ def test_migrate_all_projects(
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_sharing_projects(  # noqa: PLR0915
-    source_connection: xnat.BaseXNATSession,
-    destination_connection: xnat.BaseXNATSession,
+    source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
+    destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
     source_info_mult: ProjectInfo,
     destination_info_mult: ProjectInfo,
 ) -> None:
@@ -251,12 +255,14 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
     destination_info_mult[0].rsync_path = destination_archive_path
     destination_info_mult[1].rsync_path = destination_archive_path
 
+    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
+    no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
     migration = Migration(
         source_connection=source_conn,
         destination_connection=destination_conn,
         all_source_info=source_info_mult,
         all_destination_info=destination_info_mult,
-        no_rsync=False,
+        no_rsync=no_rsync,
     )
 
     # Share subject data from project 1 to project 2 in source XNAT

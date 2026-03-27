@@ -208,7 +208,7 @@ def destination_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     tmp_path_factory: pytest.TempdirFactory,
-) -> Generator[xnat.BaseXNATSession, None, None]:
+) -> Generator[tuple[xnat.BaseXNATSession, Path], None, None]:
     """
     Provide a connection to the destination XNAT instance.
 
@@ -217,7 +217,16 @@ def destination_connection(
         The active XNAT session for the destination instance.
 
     """
-    xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("destination"))
+    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
+
+    if keep_instance:
+        # Use a fixed host directory to back the container
+        xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
+        xnat_root_dir.mkdir(parents=True, exist_ok=True)
+
+    else:
+        # Fresh tmp folder for new instance
+        xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("destination"))
     config = xnat4tests.Config(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
@@ -248,7 +257,7 @@ def source_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     tmp_path_factory: pytest.TempdirFactory,
-) -> Generator[xnat.BaseXNATSession, None, None]:
+) -> Generator[tuple[xnat.BaseXNATSession, Path], None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -257,7 +266,14 @@ def source_connection(
         The active XNAT session for the source instance.
 
     """
-    xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("source"))
+    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
+    # Determine host root directory for the container
+    if keep_instance:
+        xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "root"
+        xnat_root_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        xnat_root_dir = Path(tmp_path_factory.mktemp("source"))
+
     config = xnat4tests.Config(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",

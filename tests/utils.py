@@ -39,9 +39,6 @@ def delete_data(session: xnat.XNATSession, destination_tmp_path: Path) -> None:
         for project in archive_path.iterdir():
             if project.is_dir():
                 shutil.rmtree(project)
-    else:
-        msg = f"Archive path: {archive_path} doesn't exist when it should"
-        raise ValueError(msg)
 
     metadata_folder = BASE_OUTPUT_DIR / "localhost"
     if metadata_folder.exists():
