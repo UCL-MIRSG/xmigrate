@@ -40,7 +40,7 @@ def migrate_project_list(  # noqa: PLR0913
     destination_secondary_ids: list[str] | None = None,
     destination_project_names: list[str] | None = None,
     *,
-    rsync_only: bool = False,
+    no_rsync: bool = False,
 ) -> None:
     """
     Migrate a project or projects from source to destination XNAT instance.
@@ -72,8 +72,8 @@ def migrate_project_list(  # noqa: PLR0913
         A list of secondary IDs for the destination projects.
     destination_project_names
         A list of names for the destination projects.
-    rsync_only
-        If True, only perform rsync operations without migrating other data.
+    no_rsync
+        Flag indicating whether to skipping running rsync.
 
     """
     destination_projects = destination_projects if destination_projects is not None else source_projects
@@ -129,7 +129,7 @@ def migrate_project_list(  # noqa: PLR0913
             destination_connection=destination_connection,
             all_source_info=all_source_info,
             all_destination_info=all_destination_info,
-            rsync_only=rsync_only,
+            no_rsync=no_rsync,
         )
 
         migration.run()
@@ -145,7 +145,7 @@ def migrate_all_projects(  # noqa: PLR0913
     destination_password: str,
     destination_rsync: str,
     *,
-    rsync_only: bool = False,
+    no_rsync: bool = False,
 ) -> None:
     """
     Migrate all projects from source to destination XNAT instance.
@@ -169,8 +169,8 @@ def migrate_all_projects(  # noqa: PLR0913
         The password for the destination XNAT instance.
     destination_rsync
         The local path for the destination XNAT instance's rsync.
-    rsync_only, optional
-        Flag indicating whether to run rsync only.
+    no_rsync, optional
+        Flag indicating whether to skipping running rsync.
 
     """
     with (
@@ -236,7 +236,7 @@ def migrate_all_projects(  # noqa: PLR0913
             destination_connection=destination_connection,
             all_source_info=all_source_info,
             all_destination_info=all_destination_info,
-            rsync_only=rsync_only,
+            no_rsync=no_rsync,
         )
 
         migration.run()

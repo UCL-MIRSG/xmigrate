@@ -14,7 +14,7 @@ if __name__ == "__main__":
 LOGGER = logging.getLogger(__name__)
 
 
-def create_custom_forms_json(
+def create_custom_forms_json(  # noqa: PLR0915
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
 ) -> None:
@@ -36,6 +36,27 @@ def create_custom_forms_json(
     """
     # Get custom forms from source as json
     source_custom_forms = source_connection.get_json("/xapi/customforms")
+    destination_custom_forms = destination_connection.get_json("/xapi/customforms")
+
+    source_titles = []
+    destination_titles = []
+    for source_custom_form, destination_custom_form in zip(
+        source_custom_forms,
+        destination_custom_forms,
+        strict=False,
+    ):
+        source_obj = json.loads(source_custom_form["contents"])
+        source_title = source_obj["title"]
+        destination_obj = json.loads(destination_custom_form["contents"])
+        destination_title = destination_obj["title"]
+        source_titles.append(source_title)
+        destination_titles.append(destination_title)
+
+    source_titles.sort()
+    destination_titles.sort()
+    if source_titles == destination_titles:
+        LOGGER.info("Customs form already exist on destination so no need to migrate them.")
+        return
 
     LOGGER.info("There are %d custom forms being created", len(source_custom_forms))
 

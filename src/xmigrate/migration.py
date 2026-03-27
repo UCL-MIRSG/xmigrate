@@ -42,7 +42,7 @@ class Migration:
     """The source projects information."""
     all_destination_info: list[ProjectInfo]
     """The destination projects information."""
-    rsync_only: bool = False
+    no_rsync: bool = False
     """Conditional for whether to run rsync only."""
 
     def __post_init__(self):  # noqa: ANN204
@@ -377,7 +377,7 @@ class Migration:
         subject: xnat.core.XNATListing,
         subjects_id_map_list: list,
         source_name: str,
-    ) -> None:
+    ) -> bool:
         """
         Check if subject exists on the destination XNAT instance.
 
@@ -392,8 +392,10 @@ class Migration:
 
         """
         if subject.id not in subjects_id_map_list:
-            self._create_subject(subject)
-            self._create_custom_forms_data(subject)
+            sharing_subject_exists = self._create_subject(subject)
+            if not sharing_subject_exists:
+                self._create_custom_forms_data(subject)
+
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
@@ -407,8 +409,10 @@ class Migration:
                 destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label],
                 map_type=XnatType.subject,
             )
+            sharing_subject_exists = False
+        return sharing_subject_exists
 
-    def _create_subject(self, subject: xnat.core.XNATListing) -> None:
+    def _create_subject(self, subject: xnat.core.XNATListing) -> bool:
         """
         Create a subject on the destination XNAT instance.
 
@@ -429,7 +433,7 @@ class Migration:
             sharing_info["projects"].append(self.destination_info.id)
             sharing_info["source_id"] = subject.id  # Store the source ID
             self.subject_sharing[subject.label] = sharing_info
-            return
+            return True
         # otherwise, this project is the owner
         sharing_info["owner"] = self.destination_info.id
         sharing_info["label"] = subject.label
@@ -458,6 +462,7 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
+        return False
 
     def _check_experiment_exists(
         self,
@@ -877,37 +882,36 @@ class Migration:
         """
         self._create_project()
         source_project = self.source_connection.projects[self.source_info.id]
-        rsync_destination = self.destination_info.rsync_path + "/" + self.destination_info.id
-        rsync_source = self.source_info.rsync_path + "/" + self.source_info.id + "/"
-        pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
-        command_to_run = [
-            "rsync",
-            "-azP",
-            "--ignore-existing",
-            "--exclude=*.log",
-            "--exclude=.*",
-            "--exclude=*.json",
-            "--stats",
-            "--progress",
-            "--checksum",
-            rsync_source,
-            rsync_destination,
-        ]
+        if not self.no_rsync:
+            rsync_destination = f"{self.destination_info.rsync_path}/{self.destination_info.id}"
+            rsync_source = f"{self.source_info.rsync_path}/{self.source_info.id}/"
+            pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
-        try:
-            subprocess.check_output(command_to_run)  # noqa: S603
-        except subprocess.CalledProcessError as exc:
-            msg = f"An error occurred running the rsync command; the error was: {exc}"
-            raise RuntimeError(msg) from exc
+            command_to_run = [
+                "rsync",
+                "-azP",
+                "--ignore-existing",
+                "--exclude=*.log",
+                "--exclude=.*",
+                "--exclude=*.json",
+                "--stats",
+                "--progress",
+                "--checksum",
+                rsync_source,
+                rsync_destination,
+            ]
 
-        if self.rsync_only:
-            return
+            try:
+                subprocess.check_output(command_to_run)  # noqa: S603
+            except subprocess.CalledProcessError as exc:
+                msg = f"An error occurred running the rsync command; the error was: {exc}"
+                raise RuntimeError(msg) from exc
 
         self._create_custom_forms_data(source_project)
-        self._assign_user_permissions_per_project(source_project)
-
+        self._assign_user_permissions_per_project(source_project.id)
         destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
+
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         subj_path = f"output/{source_name}/{self.destination_info.id}/subjects_id_map.csv"
         subj_full_path = pathlib.Path() / subj_path
@@ -926,7 +930,9 @@ class Migration:
             experiments_id_map_list = []
 
         for subject in source_project.subjects:
-            self._check_subject_exists(subject, subjects_id_map_list, source_name)
+            sharing_subject_exists = self._check_subject_exists(subject, subjects_id_map_list, source_name)
+            if sharing_subject_exists:
+                return
             for experiment in subject.experiments:
                 self._check_experiment_exists(
                     experiment,
