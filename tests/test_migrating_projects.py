@@ -17,8 +17,8 @@ def test_migrate_all_projects(
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
     xnat_root_dirs: dict[str, pathlib.Path],
-    source_info_mult: ProjectInfo,
-    destination_info_mult: ProjectInfo,
+    source_info: ProjectInfo,
+    destination_info: ProjectInfo,
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
     # Check source files do exist
@@ -55,8 +55,8 @@ def test_migrate_all_projects(
     migration = Migration(
         source_connection=source_connection,
         destination_connection=destination_connection,
-        all_source_info=source_info_mult,
-        all_destination_info=destination_info_mult,
+        all_source_info=source_info,
+        all_destination_info=destination_info,
         no_rsync=False,
     )
 
@@ -105,8 +105,8 @@ def test_migrate_sharing_projects(
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
     xnat_root_dirs: dict[str, pathlib.Path],
-    source_info_mult: ProjectInfo,
-    destination_info_mult: ProjectInfo,
+    source_info: ProjectInfo,
+    destination_info: ProjectInfo,
 ) -> None:
     """Test the migration of a multiple project from source to destination XNAT."""
     # Check source files do exist
@@ -139,16 +139,16 @@ def test_migrate_sharing_projects(
     migration = Migration(
         source_connection=source_connection,
         destination_connection=destination_connection,
-        all_source_info=source_info_mult,
-        all_destination_info=destination_info_mult,
+        all_source_info=source_info,
+        all_destination_info=destination_info,
         no_rsync=False,
     )
 
     # Share subject data from project 1 to project 2 in source XNAT
-    owner_project_id = source_info_mult[0].id
-    owner_project_subject_id = source_connection.projects[source_info_mult[0].id].subjects[0].id
-    sharing_project_id = source_info_mult[1].id
-    owner_project_subject_label = source_connection.projects[source_info_mult[0].id].subjects[0].label
+    owner_project_id = source_info[0].id
+    owner_project_subject_id = source_connection.projects[source_info[0].id].subjects[0].id
+    sharing_project_id = source_info[1].id
+    owner_project_subject_label = source_connection.projects[source_info[0].id].subjects[0].label
 
     # Check if subject has already been shared and if not then share the data on source XNAT
     try:
@@ -202,9 +202,9 @@ def test_migrate_sharing_projects(
     assert len(subjects_files[1]) > 0
 
     # Check that root_sharing for project 2 xml has project 1 as owner on destination XNAT
-    owner_project_id_dest = destination_info_mult[0].id
-    sharing_project_id_dest = destination_info_mult[1].id
-    owner_project_subject_label_dest = destination_connection.projects[destination_info_mult[0].id].subjects[0].label
+    owner_project_id_dest = destination_info[0].id
+    sharing_project_id_dest = destination_info[1].id
+    owner_project_subject_label_dest = destination_connection.projects[destination_info[0].id].subjects[0].label
 
     response = get_xml(
         destination_connection,

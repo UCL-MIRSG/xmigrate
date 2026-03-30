@@ -26,10 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def remove_destination_test_data(destination_connection: xnat.BaseXNATSession, destination_xnat_root_dir: pathlib.Path):  # noqa: ANN201
+def remove_destination_test_data(destination_connection: xnat.BaseXNATSession, xnat_root_dirs: pathlib.Path):  # noqa: ANN201
     """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
     yield
-    delete_data(destination_connection, destination_xnat_root_dir)
+    delete_data(destination_connection, xnat_root_dirs["destination"])
 
 
 @pytest.fixture(scope="session")
@@ -199,7 +199,7 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
 
 @pytest.fixture(scope="session")
 def destination_connection(
-    jar_path: pathlib.Path, plugin_dir: pathlib.Path, destination_xnat_root_dir: pathlib.Path
+    jar_path: pathlib.Path, plugin_dir: pathlib.Path, xnat_root_dirs: dict[str, pathlib.Path]
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
@@ -213,7 +213,7 @@ def destination_connection(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
         xnat_port="8889",
-        xnat_root_dir=destination_xnat_root_dir,
+        xnat_root_dir=xnat_root_dirs["destination"],
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
@@ -231,14 +231,14 @@ def destination_connection(
     if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         xnat4tests.stop_xnat(config)
     else:
-        delete_data(xnat4tests.connect(config), destination_xnat_root_dir)
+        delete_data(xnat4tests.connect(config), xnat_root_dirs["destination"])
 
 
 @pytest.fixture(scope="session")
 def source_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
-    source_xnat_root_dir: pathlib.Path,
+    xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
@@ -252,7 +252,7 @@ def source_connection(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
         xnat_port="8888",
-        xnat_root_dir=source_xnat_root_dir,
+        xnat_root_dir=xnat_root_dirs["source"],
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
