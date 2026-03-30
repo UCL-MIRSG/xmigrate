@@ -13,18 +13,17 @@ from xmigrate.xml_mapper import ProjectInfo
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_all_projects(  # noqa: PLR0913
+def test_migrate_all_projects(
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
-    destination_xnat_root_dir: pathlib.Path,
-    source_xnat_root_dir: pathlib.Path,
+    xnat_root_dirs: dict[str, pathlib.Path],
     source_info_mult: ProjectInfo,
     destination_info_mult: ProjectInfo,
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
     # Check source files do exist
     # Path to the SCANS directory for dummydicomproject
-    source_archive_path = source_xnat_root_dir / "archive"
+    source_archive_path = xnat_root_dirs["source"] / "archive"
     dummydicom_path = source_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -45,7 +44,7 @@ def test_migrate_all_projects(  # noqa: PLR0913
 
     # Check destination files don't exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_xnat_root_dir / "archive"
+    destination_archive_path = xnat_root_dirs["destination"] / "archive"
 
     assert not any(destination_archive_path.iterdir())
 
@@ -81,7 +80,7 @@ def test_migrate_all_projects(  # noqa: PLR0913
 
     # Check destination files do exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_xnat_root_dir / "archive"
+    destination_archive_path = xnat_root_dirs["destination"] / "archive"
     dummydicom_path = destination_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -102,18 +101,17 @@ def test_migrate_all_projects(  # noqa: PLR0913
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_sharing_projects(  # noqa: PLR0913
+def test_migrate_sharing_projects(
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
-    destination_xnat_root_dir: pathlib.Path,
-    source_xnat_root_dir: pathlib.Path,
+    xnat_root_dirs: dict[str, pathlib.Path],
     source_info_mult: ProjectInfo,
     destination_info_mult: ProjectInfo,
 ) -> None:
     """Test the migration of a multiple project from source to destination XNAT."""
     # Check source files do exist
     # Path to the SCANS directory for dummydicomproject
-    source_archive_path = source_xnat_root_dir / "archive"
+    source_archive_path = xnat_root_dirs["source"] / "archive"
     dummydicom_path = source_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -134,7 +132,7 @@ def test_migrate_sharing_projects(  # noqa: PLR0913
 
     # Check destination files don't exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_xnat_root_dir / "archive"
+    destination_archive_path = xnat_root_dirs["destination"] / "archive"
 
     assert not any(destination_archive_path.iterdir())
 
@@ -184,7 +182,7 @@ def test_migrate_sharing_projects(  # noqa: PLR0913
 
     # Check destination files do exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_xnat_root_dir / "archive"
+    destination_archive_path = xnat_root_dirs["destination"] / "archive"
     dummydicom_path = destination_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files

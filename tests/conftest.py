@@ -33,6 +33,60 @@ def remove_destination_test_data(destination_connection: xnat.BaseXNATSession, d
 
 
 @pytest.fixture(scope="session")
+def xnat_root_dirs(tmp_path_factory: pytest.TempdirFactory) -> dict[str, pathlib.Path]:
+    """Return fixed or temporary directories for source and destination xnat_root_dir."""
+    keep_instance = os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
+
+    if keep_instance:
+        source_path = pathlib.Path(__file__).parents[1] / ".xnat4tests_source" / "root"
+        source_path.mkdir(parents=True, exist_ok=True)
+        destination_path = pathlib.Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
+        destination_path.mkdir(parents=True, exist_ok=True)
+    else:
+        source_path = pathlib.Path(tmp_path_factory.mktemp("source"))
+        destination_path = pathlib.Path(tmp_path_factory.mktemp("destination"))
+
+    return {
+        "source": source_path,
+        "destination": destination_path,
+    }
+
+
+@pytest.fixture
+def destination_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
+    """Fixture to set up ProjectInfo instance for multiple destination projects."""
+    destination_projects = ["dummydicomproject", "OPENNEURO_T1W"]
+    rsync_path = xnat_root_dirs["destination"] / "archive"
+    return [
+        ProjectInfo(
+            id=destination_proj,
+            secondary_id=destination_proj,
+            project_name=destination_proj,
+            archive_path="/data/xnat/archive",
+            rsync_path=rsync_path,
+        )
+        for destination_proj in destination_projects
+    ]
+
+
+@pytest.fixture
+def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
+    """Fixture to set up ProjectInfo instance for multiple source projects."""
+    source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
+    rsync_path = xnat_root_dirs["source"] / "archive"
+    return [
+        ProjectInfo(
+            id=source_proj,
+            secondary_id=source_proj,
+            project_name=source_proj,
+            archive_path="/data/xnat/archive",
+            rsync_path=rsync_path,
+        )
+        for source_proj in source_projects
+    ]
+
+
+@pytest.fixture(scope="session")
 def jar_path() -> pathlib.Path:
     """Path of OHIF viewer jar."""
     jar_dir = pathlib.Path(__file__).parents[1] / "input"
@@ -143,39 +197,6 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
     raise RuntimeError(msg)
 
 
-@pytest.fixture
-def destination_info_mult(destination_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
-    """Fixture to set up ProjectInfo instance for multiple destination projects."""
-    destination_projects = ["dummydicomproject", "OPENNEURO_T1W"]
-    rsync_path = destination_xnat_root_dir / "archive"
-    return [
-        ProjectInfo(
-            id=destination_proj,
-            secondary_id=destination_proj,
-            project_name=destination_proj,
-            archive_path="/data/xnat/archive",
-            rsync_path=rsync_path,
-        )
-        for destination_proj in destination_projects
-    ]
-
-
-@pytest.fixture(scope="session")
-def destination_xnat_root_dir(tmp_path_factory: pytest.TempdirFactory) -> pathlib.Path:
-    """Return a fixed or temporary directory for xnat_root_dir."""
-    keep_instance = os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
-
-    if keep_instance:
-        # Use a fixed host directory for the container
-        xnat_root_dir = pathlib.Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
-        xnat_root_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        # Fresh tmp folder for new container instance
-        xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("destination"))
-
-    return xnat_root_dir
-
-
 @pytest.fixture(scope="session")
 def destination_connection(
     jar_path: pathlib.Path, plugin_dir: pathlib.Path, destination_xnat_root_dir: pathlib.Path
@@ -211,39 +232,6 @@ def destination_connection(
         xnat4tests.stop_xnat(config)
     else:
         delete_data(xnat4tests.connect(config), destination_xnat_root_dir)
-
-
-@pytest.fixture
-def source_info_mult(source_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
-    """Fixture to set up ProjectInfo instance for multiple source projects."""
-    source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
-    rsync_path = source_xnat_root_dir / "archive"
-    return [
-        ProjectInfo(
-            id=source_proj,
-            secondary_id=source_proj,
-            project_name=source_proj,
-            archive_path="/data/xnat/archive",
-            rsync_path=rsync_path,
-        )
-        for source_proj in source_projects
-    ]
-
-
-@pytest.fixture(scope="session")
-def source_xnat_root_dir(tmp_path_factory: pytest.TempdirFactory) -> pathlib.Path:
-    """Return a fixed or temporary directory for xnat_root_dir."""
-    keep_instance = os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
-
-    if keep_instance:
-        # Use a fixed host directory for the container
-        xnat_root_dir = pathlib.Path(__file__).parents[1] / ".xnat4tests_source" / "root"
-        xnat_root_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        # Fresh tmp folder for new container instance
-        xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("source"))
-
-    return xnat_root_dir
 
 
 @pytest.fixture(scope="session")
