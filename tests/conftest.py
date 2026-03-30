@@ -36,21 +36,22 @@ def remove_destination_test_data(
 
 @pytest.fixture(scope="session")
 def xnat_root_dirs(tmp_path_factory: pytest.TempdirFactory) -> dict[str, pathlib.Path]:
-    """Return fixed or temporary directories for source and destination xnat_root_dir."""
-    keep_instance = os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
+    def _xnat_root_dir(xnat_name: str) -> pathlib.Path:
+        keep_instance = os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
 
-    if keep_instance:
-        source_path = pathlib.Path(__file__).parents[1] / ".xnat4tests_source" / "root"
-        source_path.mkdir(parents=True, exist_ok=True)
-        destination_path = pathlib.Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
-        destination_path.mkdir(parents=True, exist_ok=True)
-    else:
-        source_path = pathlib.Path(tmp_path_factory.mktemp("source"))
-        destination_path = pathlib.Path(tmp_path_factory.mktemp("destination"))
+        if keep_instance:
+            # Use a fixed host directory to back the container
+            xnat_root_dir = pathlib.Path(__file__).parents[1] / f".xnat4tests_{xnat_name}" / "root"
+            xnat_root_dir.mkdir(parents=True, exist_ok=True)
 
+        else:
+            # Fresh tmp folder for new instance
+            xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp(xnat_name))
+
+        return xnat_root_dir
     return {
-        "source": source_path,
-        "destination": destination_path,
+        "destination": _xnat_root_dir("destination"),
+        "source": _xnat_root_dir("source")
     }
 
 
