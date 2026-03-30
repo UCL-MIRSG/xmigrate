@@ -8,7 +8,6 @@ import pathlib
 import subprocess
 import time
 import urllib.request
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -27,11 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
-def remove_destination_test_data(destination_connection: Generator[xnat.BaseXNATSession, None, None]):  # noqa: ANN201
+def remove_destination_test_data(destination_connection: xnat.BaseXNATSession, destination_xnat_root_dir: pathlib.Path):  # noqa: ANN201
     """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
-    destination_conn, destination_tmp_path = destination_connection
     yield
-    delete_data(destination_conn, destination_tmp_path)
+    delete_data(destination_connection, destination_xnat_root_dir)
 
 
 @pytest.fixture(scope="session")
@@ -58,7 +56,7 @@ def jar_path() -> pathlib.Path:
 @pytest.fixture(scope="session")
 def plugin_dir() -> pathlib.Path:
     """Path to plugin directory inside the container."""
-    return Path("/data/xnat/home/plugins")
+    return pathlib.Path("/data/xnat/home/plugins")
 
 
 def install_plugin(
@@ -146,69 +144,56 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
 
 
 @pytest.fixture
-def source_info() -> list[ProjectInfo]:
+def destination_info(destination_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for source project."""
+    rsync_path = destination_xnat_root_dir / "archive"
     project = ProjectInfo(
         id="dummydicomproject",
         secondary_id="dummydicomproject",
         project_name="dummydicomproject",
         archive_path="/data/xnat/archive",
-        rsync_path="source/root/archive",
+        rsync_path=rsync_path,
     )
     return [project]
 
 
 @pytest.fixture
-def source_info_mult() -> list[ProjectInfo]:
-    """Fixture to set up ProjectInfo instance for multiple source projects."""
-    source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
-    return [
-        ProjectInfo(
-            id=source_proj,
-            secondary_id=source_proj,
-            project_name=source_proj,
-            archive_path="/data/xnat/archive",
-            rsync_path="source/root/archive",
-        )
-        for source_proj in source_projects
-    ]
-
-
-@pytest.fixture
-def destination_info() -> list[ProjectInfo]:
-    """Fixture to set up ProjectInfo instance for source project."""
-    project = ProjectInfo(
-        id="dummydicomproject",
-        secondary_id="dummydicomproject",
-        project_name="dummydicomproject",
-        archive_path="/data/xnat/archive",
-        rsync_path="destination/root/archive",
-    )
-    return [project]
-
-
-@pytest.fixture
-def destination_info_mult() -> list[ProjectInfo]:
+def destination_info_mult(destination_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple destination projects."""
     destination_projects = ["dummydicomproject", "OPENNEURO_T1W"]
+    rsync_path = destination_xnat_root_dir / "archive"
     return [
         ProjectInfo(
             id=destination_proj,
             secondary_id=destination_proj,
             project_name=destination_proj,
             archive_path="/data/xnat/archive",
-            rsync_path="destination/root/archive",
+            rsync_path=rsync_path,
         )
         for destination_proj in destination_projects
     ]
 
 
 @pytest.fixture(scope="session")
+def destination_xnat_root_dir(tmp_path_factory: pytest.TempdirFactory) -> pathlib.Path:
+    """Return a fixed or temporary directory for xnat_root_dir."""
+    keep_instance = os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
+
+    if keep_instance:
+        # Use a fixed host directory for the container
+        xnat_root_dir = pathlib.Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
+        xnat_root_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        # Fresh tmp folder for new container instance
+        xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("destination"))
+
+    return xnat_root_dir
+
+
+@pytest.fixture(scope="session")
 def destination_connection(
-    jar_path: pathlib.Path,
-    plugin_dir: pathlib.Path,
-    tmp_path_factory: pytest.TempdirFactory,
-) -> Generator[tuple[xnat.BaseXNATSession, Path], None, None]:
+    jar_path: pathlib.Path, plugin_dir: pathlib.Path, destination_xnat_root_dir: pathlib.Path
+) -> Generator[tuple[xnat.BaseXNATSession, pathlib.Path], None, None]:
     """
     Provide a connection to the destination XNAT instance.
 
@@ -217,21 +202,11 @@ def destination_connection(
         The active XNAT session for the destination instance.
 
     """
-    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
-
-    if keep_instance:
-        # Use a fixed host directory to back the container
-        xnat_root_dir = pathlib.Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
-        xnat_root_dir.mkdir(parents=True, exist_ok=True)
-
-    else:
-        # Fresh tmp folder for new instance
-        xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("destination"))
     config = xnat4tests.Config(
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
         xnat_port="8889",
-        xnat_root_dir=xnat_root_dir,
+        xnat_root_dir=destination_xnat_root_dir,
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
@@ -241,7 +216,7 @@ def destination_connection(
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
 
-    yield wait_for_connection(config), xnat_root_dir
+    yield wait_for_connection(config)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
@@ -249,15 +224,62 @@ def destination_connection(
     if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         xnat4tests.stop_xnat(config)
     else:
-        delete_data(xnat4tests.connect(config), xnat_root_dir)
+        delete_data(xnat4tests.connect(config), destination_xnat_root_dir)
+
+
+@pytest.fixture
+def source_info(source_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
+    """Fixture to set up ProjectInfo instance for source project."""
+    rsync_path = source_xnat_root_dir / "archive"
+    project = ProjectInfo(
+        id="dummydicomproject",
+        secondary_id="dummydicomproject",
+        project_name="dummydicomproject",
+        archive_path="/data/xnat/archive",
+        rsync_path=rsync_path,
+    )
+    return [project]
+
+
+@pytest.fixture
+def source_info_mult(source_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
+    """Fixture to set up ProjectInfo instance for multiple source projects."""
+    source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
+    rsync_path = source_xnat_root_dir / "archive"
+    return [
+        ProjectInfo(
+            id=source_proj,
+            secondary_id=source_proj,
+            project_name=source_proj,
+            archive_path="/data/xnat/archive",
+            rsync_path=rsync_path,
+        )
+        for source_proj in source_projects
+    ]
+
+
+@pytest.fixture(scope="session")
+def source_xnat_root_dir(tmp_path_factory: pytest.TempdirFactory) -> pathlib.Path:
+    """Return a fixed or temporary directory for xnat_root_dir."""
+    keep_instance = os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
+
+    if keep_instance:
+        # Use a fixed host directory for the container
+        xnat_root_dir = pathlib.Path(__file__).parents[1] / ".xnat4tests_source" / "root"
+        xnat_root_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        # Fresh tmp folder for new container instance
+        xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("source"))
+
+    return xnat_root_dir
 
 
 @pytest.fixture(scope="session")
 def source_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
-    tmp_path_factory: pytest.TempdirFactory,
-) -> Generator[tuple[xnat.BaseXNATSession, Path], None, None]:
+    source_xnat_root_dir: pathlib.Path,
+) -> Generator[tuple[xnat.BaseXNATSession, pathlib.Path], None, None]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -266,19 +288,11 @@ def source_connection(
         The active XNAT session for the source instance.
 
     """
-    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
-    # Determine host root directory for the container
-    if keep_instance:
-        xnat_root_dir = pathlib.Path(__file__).parents[1] / ".xnat4tests_source" / "root"
-        xnat_root_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("source"))
-
     config = xnat4tests.Config(
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
         xnat_port="8888",
-        xnat_root_dir=xnat_root_dir,
+        xnat_root_dir=source_xnat_root_dir,
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
@@ -292,7 +306,7 @@ def source_connection(
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name, config)
 
-    yield wait_for_connection(config), xnat_root_dir
+    yield wait_for_connection(config)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times

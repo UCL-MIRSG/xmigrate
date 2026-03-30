@@ -14,19 +14,18 @@ from xmigrate.xml_mapper import ProjectInfo
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_single_project(
+def test_migrate_single_project(  # noqa: PLR0913
     source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
     destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
+    destination_xnat_root_dir: pathlib.Path,
+    source_xnat_root_dir: pathlib.Path,
     source_info: ProjectInfo,
     destination_info: ProjectInfo,
 ) -> None:
     """Test the migration of a single project from source to destination XNAT."""
-    source_conn, source_tmp_path = source_connection
-    destination_conn, destination_tmp_path = destination_connection
-
     # Check source files do exist
     # Path to the SCANS directory for dummydicomproject
-    source_archive_path = source_tmp_path / "archive"
+    source_archive_path = source_xnat_root_dir / "archive"
     dummydicom_path = source_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -35,37 +34,34 @@ def test_migrate_single_project(
 
     # Check destination files don't exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_tmp_path / "archive"
+    destination_archive_path = destination_xnat_root_dir / "archive"
 
     assert not any(destination_archive_path.iterdir())
 
-    # Now assign these to your ProjectInfo
-    source_info[0].rsync_path = source_archive_path
-    destination_info[0].rsync_path = destination_archive_path
     keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
     no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
 
     # Set up migration instance using Migration class
     migration = Migration(
-        source_connection=source_conn,
-        destination_connection=destination_conn,
+        source_connection=source_connection,
+        destination_connection=destination_connection,
         all_source_info=source_info,
         all_destination_info=destination_info,
         no_rsync=no_rsync,
     )
 
     # Check set-up of source XNAT to have 1 single project and destination XNAT to have no subjects in project
-    assert migration.all_source_info[0].id in [project.id for project in source_conn.projects]
-    destination_projects_list = [project.id for project in destination_conn.projects]
+    assert migration.all_source_info[0].id in [project.id for project in source_connection.projects]
+    destination_projects_list = [project.id for project in destination_connection.projects]
     if destination_projects_list:
-        destination_project_subjects_list = [project.subjects for project in destination_conn.projects]
+        destination_project_subjects_list = [project.subjects for project in destination_connection.projects]
         if destination_project_subjects_list:
             assert len(destination_project_subjects_list[0]) == 0
 
     migration.run()
     # Check destination files do exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_tmp_path / "archive"
+    destination_archive_path = destination_xnat_root_dir / "archive"
     dummydicom_path = destination_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -73,9 +69,9 @@ def test_migrate_single_project(
     assert len(dicom_files) > 0
 
     # Check project has migrated into destination
-    destination_projects_list = [project.id for project in destination_conn.projects]
+    destination_projects_list = [project.id for project in destination_connection.projects]
     assert migration.all_destination_info[0].id in destination_projects_list
-    destination_project_subjects_list = [project.subjects for project in destination_conn.projects]
+    destination_project_subjects_list = [project.subjects for project in destination_connection.projects]
     assert len(destination_project_subjects_list[0]) != 0
 
 
@@ -83,14 +79,13 @@ def test_migrate_single_project(
 def test_migrate_all_projects(
     source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
     destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
+    destination_xnat_root_dir: pathlib.Path,
+    source_xnat_root_dir: pathlib.Path,
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
-    source_conn, source_tmp_path = source_connection
-    destination_conn, destination_tmp_path = destination_connection
-
     # Check source files do exist
     # Path to the SCANS directory for dummydicomproject
-    source_archive_path = source_tmp_path / "archive"
+    source_archive_path = source_xnat_root_dir / "archive"
     dummydicom_path = source_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -111,7 +106,7 @@ def test_migrate_all_projects(
 
     # Check destination files don't exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_tmp_path / "archive"
+    destination_archive_path = destination_xnat_root_dir / "archive"
 
     assert not any(destination_archive_path.iterdir())
 
@@ -120,7 +115,7 @@ def test_migrate_all_projects(
     assert not metadata_folder.exists()
 
     # Without needing to specify a project list, set up ProjectInfo instance to feed into Migration instance
-    rows = [(p.id, p.secondary_id, p.project) for p in source_conn.projects]
+    rows = [(p.id, p.secondary_id, p.project) for p in source_connection.projects]
     source_projects, source_secondary_ids, source_project_names = (
         map(list, zip(*rows, strict=False)) if rows else ([], [], [])
     )
@@ -163,34 +158,34 @@ def test_migrate_all_projects(
     keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
     no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
     migration = Migration(
-        source_connection=source_conn,
-        destination_connection=destination_conn,
+        source_connection=source_connection,
+        destination_connection=destination_connection,
         all_source_info=all_source_info,
         all_destination_info=all_destination_info,
         no_rsync=no_rsync,
     )
 
     # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
-    assert migration.all_source_info[0].id in [project.id for project in source_conn.projects]
-    assert migration.all_source_info[1].id in [project.id for project in source_conn.projects]
+    assert migration.all_source_info[0].id in [project.id for project in source_connection.projects]
+    assert migration.all_source_info[1].id in [project.id for project in source_connection.projects]
 
-    destination_projects_list = [project.id for project in destination_conn.projects]
+    destination_projects_list = [project.id for project in destination_connection.projects]
     if destination_projects_list:
-        total_subjects = sum(len(project.subjects) for project in destination_conn.projects)
+        total_subjects = sum(len(project.subjects) for project in destination_connection.projects)
         assert total_subjects == 0
 
     # Check 2 projects have migrated into destination
     migration.run()
-    destination_projects_list = [project.id for project in destination_conn.projects]
+    destination_projects_list = [project.id for project in destination_connection.projects]
     assert migration.all_destination_info[0].id in destination_projects_list
     assert migration.all_destination_info[1].id in destination_projects_list
-    total_subjects = sum(len(project.subjects) for project in destination_conn.projects)
+    total_subjects = sum(len(project.subjects) for project in destination_connection.projects)
     all_project_subjects = 3
     assert total_subjects == all_project_subjects
 
     # Check destination files do exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_tmp_path / "archive"
+    destination_archive_path = destination_xnat_root_dir / "archive"
     dummydicom_path = destination_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -211,20 +206,18 @@ def test_migrate_all_projects(
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_sharing_projects(  # noqa: PLR0915
+def test_migrate_sharing_projects(  # noqa: PLR0913, PLR0915
     source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
     destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
+    destination_xnat_root_dir: pathlib.Path,
+    source_xnat_root_dir: pathlib.Path,
     source_info_mult: ProjectInfo,
     destination_info_mult: ProjectInfo,
 ) -> None:
     """Test the migration of a multiple project from source to destination XNAT."""
-    # Set up migration instance using Migration class for 2 projects including shared data
-    source_conn, source_tmp_path = source_connection
-    destination_conn, destination_tmp_path = destination_connection
-
     # Check source files do exist
     # Path to the SCANS directory for dummydicomproject
-    source_archive_path = source_tmp_path / "archive"
+    source_archive_path = source_xnat_root_dir / "archive"
     dummydicom_path = source_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -245,21 +238,15 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
 
     # Check destination files don't exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_tmp_path / "archive"
+    destination_archive_path = destination_xnat_root_dir / "archive"
 
     assert not any(destination_archive_path.iterdir())
-
-    source_info_mult[0].rsync_path = source_archive_path
-    source_info_mult[1].rsync_path = source_archive_path
-
-    destination_info_mult[0].rsync_path = destination_archive_path
-    destination_info_mult[1].rsync_path = destination_archive_path
 
     keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
     no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
     migration = Migration(
-        source_connection=source_conn,
-        destination_connection=destination_conn,
+        source_connection=source_connection,
+        destination_connection=destination_connection,
         all_source_info=source_info_mult,
         all_destination_info=destination_info_mult,
         no_rsync=no_rsync,
@@ -267,41 +254,43 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
 
     # Share subject data from project 1 to project 2 in source XNAT
     owner_project_id = source_info_mult[0].id
-    owner_project_subject_id = source_conn.projects[source_info_mult[0].id].subjects[0].id
+    owner_project_subject_id = source_connection.projects[source_info_mult[0].id].subjects[0].id
     sharing_project_id = source_info_mult[1].id
-    owner_project_subject_label = source_conn.projects[source_info_mult[0].id].subjects[0].label
+    owner_project_subject_label = source_connection.projects[source_info_mult[0].id].subjects[0].label
 
     # Check if subject has already been shared and if not then share the data on source XNAT
     try:
         get_xml(
-            source_conn,
+            source_connection,
             f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
         )
     except XNATResponseError as e:
-        source_conn.put(
+        source_connection.put(
             f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}"
         )
-        source_conn.projects[sharing_project_id].subjects.clearcache()
+        source_connection.projects[sharing_project_id].subjects.clearcache()
         assert "status 404, accepted status: [200]" in str(e)  # noqa: PT017
 
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
-    root_owner = get_xml(source_conn, f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}")
+    root_owner = get_xml(source_connection, f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}")
 
-    root_sharing = get_xml(source_conn, f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}")
+    root_sharing = get_xml(
+        source_connection, f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}"
+    )
     assert root_owner.attrib["project"] == owner_project_id
     assert root_sharing.attrib["project"] != sharing_project_id
 
     migration.run()
-    destination_projects_list = [project.id for project in destination_conn.projects]
+    destination_projects_list = [project.id for project in destination_connection.projects]
     assert migration.all_destination_info[0].id in destination_projects_list
     assert migration.all_destination_info[1].id in destination_projects_list
-    total_subjects = sum(len(project.subjects) for project in destination_conn.projects)
+    total_subjects = sum(len(project.subjects) for project in destination_connection.projects)
     all_project_subjects = 3
     assert total_subjects == all_project_subjects
 
     # Check destination files do exist
     # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_tmp_path / "archive"
+    destination_archive_path = destination_xnat_root_dir / "archive"
     dummydicom_path = destination_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
 
     # Recursively collect all .dcm files
@@ -323,21 +312,21 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
     # Check that root_sharing for project 2 xml has project 1 as owner on destination XNAT
     owner_project_id_dest = destination_info_mult[0].id
     sharing_project_id_dest = destination_info_mult[1].id
-    owner_project_subject_label_dest = destination_conn.projects[destination_info_mult[0].id].subjects[0].label
+    owner_project_subject_label_dest = destination_connection.projects[destination_info_mult[0].id].subjects[0].label
 
     response = get_xml(
-        destination_conn,
+        destination_connection,
         f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",
     )
     assert response is not None
 
     root_owner = get_xml(
-        destination_conn,
+        destination_connection,
         f"/data/projects/{owner_project_id_dest}/subjects/{owner_project_subject_label_dest}",
     )
 
     root_sharing = get_xml(
-        destination_conn,
+        destination_connection,
         f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",
     )
 

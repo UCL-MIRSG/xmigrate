@@ -1,15 +1,15 @@
 """Utils for testing the XNAT migration tool."""
 
+import pathlib
 import shutil
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 import xnat
 
-BASE_OUTPUT_DIR = Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output"
+BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output"
 
 
-def delete_data(session: xnat.XNATSession, destination_tmp_path: Path) -> None:
+def delete_data(session: xnat.XNATSession, destination_xnat_root_dir: pathlib.Path) -> None:
     """
     Fixture calls this function.
 
@@ -33,7 +33,7 @@ def delete_data(session: xnat.XNATSession, destination_tmp_path: Path) -> None:
                 )
         project.subjects.clearcache()
 
-    archive_path = destination_tmp_path / "archive"
+    archive_path = destination_xnat_root_dir / "archive"
 
     if archive_path.exists():
         for project in archive_path.iterdir():
