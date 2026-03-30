@@ -37,7 +37,7 @@ def remove_destination_test_data(destination_connection: Generator[xnat.BaseXNAT
 @pytest.fixture(scope="session")
 def jar_path() -> pathlib.Path:
     """Path of OHIF viewer jar."""
-    jar_dir = Path(__file__).parents[1] / "input"
+    jar_dir = pathlib.Path(__file__).parents[1] / "input"
     jar_dir.mkdir(parents=True, exist_ok=True)
     ohif_jar = jar_dir / "ohif-viewer-3.7.2-fat.jar"
     if not ohif_jar.is_file():
@@ -217,11 +217,11 @@ def destination_connection(
         The active XNAT session for the destination instance.
 
     """
-    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
+    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "true"
 
     if keep_instance:
         # Use a fixed host directory to back the container
-        xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
+        xnat_root_dir = pathlib.Path(__file__).parents[1] / ".xnat4tests_destination" / "root"
         xnat_root_dir.mkdir(parents=True, exist_ok=True)
 
     else:
@@ -269,10 +269,10 @@ def source_connection(
     keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
     # Determine host root directory for the container
     if keep_instance:
-        xnat_root_dir = Path(__file__).parents[1] / ".xnat4tests_source" / "root"
+        xnat_root_dir = pathlib.Path(__file__).parents[1] / ".xnat4tests_source" / "root"
         xnat_root_dir.mkdir(parents=True, exist_ok=True)
     else:
-        xnat_root_dir = Path(tmp_path_factory.mktemp("source"))
+        xnat_root_dir = pathlib.Path(tmp_path_factory.mktemp("source"))
 
     config = xnat4tests.Config(
         docker_container="xnat4tests_source",
