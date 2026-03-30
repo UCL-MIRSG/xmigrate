@@ -1,6 +1,5 @@
 """Tests for testing single project migration, multiple projects migration and sharing project migration."""
 
-import os
 import pathlib
 
 import pytest
@@ -14,73 +13,13 @@ from xmigrate.xml_mapper import ProjectInfo
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_single_project(  # noqa: PLR0913
-    source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
-    destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
+def test_migrate_all_projects(  # noqa: PLR0913
+    source_connection: xnat.BaseXNATSession,
+    destination_connection: xnat.BaseXNATSession,
     destination_xnat_root_dir: pathlib.Path,
     source_xnat_root_dir: pathlib.Path,
-    source_info: ProjectInfo,
-    destination_info: ProjectInfo,
-) -> None:
-    """Test the migration of a single project from source to destination XNAT."""
-    # Check source files do exist
-    # Path to the SCANS directory for dummydicomproject
-    source_archive_path = source_xnat_root_dir / "archive"
-    dummydicom_path = source_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
-
-    # Recursively collect all .dcm files
-    dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
-
-    # Check destination files don't exist
-    # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_xnat_root_dir / "archive"
-
-    assert not any(destination_archive_path.iterdir())
-
-    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
-    no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
-
-    # Set up migration instance using Migration class
-    migration = Migration(
-        source_connection=source_connection,
-        destination_connection=destination_connection,
-        all_source_info=source_info,
-        all_destination_info=destination_info,
-        no_rsync=no_rsync,
-    )
-
-    # Check set-up of source XNAT to have 1 single project and destination XNAT to have no subjects in project
-    assert migration.all_source_info[0].id in [project.id for project in source_connection.projects]
-    destination_projects_list = [project.id for project in destination_connection.projects]
-    if destination_projects_list:
-        destination_project_subjects_list = [project.subjects for project in destination_connection.projects]
-        if destination_project_subjects_list:
-            assert len(destination_project_subjects_list[0]) == 0
-
-    migration.run()
-    # Check destination files do exist
-    # Path to the SCANS directory for dummydicomproject
-    destination_archive_path = destination_xnat_root_dir / "archive"
-    dummydicom_path = destination_archive_path / "dummydicomproject" / "arc001" / "dummydicomsession" / "SCANS"
-
-    # Recursively collect all .dcm files
-    dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
-
-    # Check project has migrated into destination
-    destination_projects_list = [project.id for project in destination_connection.projects]
-    assert migration.all_destination_info[0].id in destination_projects_list
-    destination_project_subjects_list = [project.subjects for project in destination_connection.projects]
-    assert len(destination_project_subjects_list[0]) != 0
-
-
-@pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_all_projects(
-    source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
-    destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
-    destination_xnat_root_dir: pathlib.Path,
-    source_xnat_root_dir: pathlib.Path,
+    source_info_mult: ProjectInfo,
+    destination_info_mult: ProjectInfo,
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
     # Check source files do exist
@@ -114,55 +53,12 @@ def test_migrate_all_projects(
 
     assert not metadata_folder.exists()
 
-    # Without needing to specify a project list, set up ProjectInfo instance to feed into Migration instance
-    rows = [(p.id, p.secondary_id, p.project) for p in source_connection.projects]
-    source_projects, source_secondary_ids, source_project_names = (
-        map(list, zip(*rows, strict=False)) if rows else ([], [], [])
-    )
-
-    destination_projects = source_projects
-    destination_secondary_ids = source_secondary_ids
-    destination_project_names = source_project_names
-
-    all_source_info = [
-        ProjectInfo(
-            id=source_proj,
-            secondary_id=source_sec_id,
-            project_name=source_proj_name,
-            archive_path="/data/xnat/archive",
-            rsync_path=source_archive_path,
-        )
-        for source_proj, source_sec_id, source_proj_name in zip(
-            source_projects,
-            source_secondary_ids,
-            source_project_names,
-            strict=True,
-        )
-    ]
-
-    all_destination_info = [
-        ProjectInfo(
-            id=destination_proj,
-            secondary_id=destination_sec_id,
-            project_name=destination_proj_name,
-            archive_path="/data/xnat/archive",
-            rsync_path=destination_archive_path,
-        )
-        for destination_proj, destination_sec_id, destination_proj_name in zip(
-            destination_projects,
-            destination_secondary_ids,
-            destination_project_names,
-            strict=True,
-        )
-    ]
-    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
-    no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
     migration = Migration(
         source_connection=source_connection,
         destination_connection=destination_connection,
-        all_source_info=all_source_info,
-        all_destination_info=all_destination_info,
-        no_rsync=no_rsync,
+        all_source_info=source_info_mult,
+        all_destination_info=destination_info_mult,
+        no_rsync=False,
     )
 
     # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
@@ -206,9 +102,9 @@ def test_migrate_all_projects(
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
-def test_migrate_sharing_projects(  # noqa: PLR0913, PLR0915
-    source_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
-    destination_connection: tuple[xnat.BaseXNATSession, pathlib.Path],
+def test_migrate_sharing_projects(  # noqa: PLR0913
+    source_connection: xnat.BaseXNATSession,
+    destination_connection: xnat.BaseXNATSession,
     destination_xnat_root_dir: pathlib.Path,
     source_xnat_root_dir: pathlib.Path,
     source_info_mult: ProjectInfo,
@@ -242,14 +138,12 @@ def test_migrate_sharing_projects(  # noqa: PLR0913, PLR0915
 
     assert not any(destination_archive_path.iterdir())
 
-    keep_instance = (os.getenv("XNAT4TEST_KEEP_INSTANCE") or "").lower() == "true"
-    no_rsync = keep_instance and destination_archive_path.exists() and any(destination_archive_path.iterdir())
     migration = Migration(
         source_connection=source_connection,
         destination_connection=destination_connection,
         all_source_info=source_info_mult,
         all_destination_info=destination_info_mult,
-        no_rsync=no_rsync,
+        no_rsync=False,
     )
 
     # Share subject data from project 1 to project 2 in source XNAT

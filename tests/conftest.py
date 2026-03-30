@@ -144,20 +144,6 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
 
 
 @pytest.fixture
-def destination_info(destination_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
-    """Fixture to set up ProjectInfo instance for source project."""
-    rsync_path = destination_xnat_root_dir / "archive"
-    project = ProjectInfo(
-        id="dummydicomproject",
-        secondary_id="dummydicomproject",
-        project_name="dummydicomproject",
-        archive_path="/data/xnat/archive",
-        rsync_path=rsync_path,
-    )
-    return [project]
-
-
-@pytest.fixture
 def destination_info_mult(destination_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple destination projects."""
     destination_projects = ["dummydicomproject", "OPENNEURO_T1W"]
@@ -193,7 +179,7 @@ def destination_xnat_root_dir(tmp_path_factory: pytest.TempdirFactory) -> pathli
 @pytest.fixture(scope="session")
 def destination_connection(
     jar_path: pathlib.Path, plugin_dir: pathlib.Path, destination_xnat_root_dir: pathlib.Path
-) -> Generator[tuple[xnat.BaseXNATSession, pathlib.Path], None, None]:
+) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
 
@@ -225,20 +211,6 @@ def destination_connection(
         xnat4tests.stop_xnat(config)
     else:
         delete_data(xnat4tests.connect(config), destination_xnat_root_dir)
-
-
-@pytest.fixture
-def source_info(source_xnat_root_dir: pathlib.Path) -> list[ProjectInfo]:
-    """Fixture to set up ProjectInfo instance for source project."""
-    rsync_path = source_xnat_root_dir / "archive"
-    project = ProjectInfo(
-        id="dummydicomproject",
-        secondary_id="dummydicomproject",
-        project_name="dummydicomproject",
-        archive_path="/data/xnat/archive",
-        rsync_path=rsync_path,
-    )
-    return [project]
 
 
 @pytest.fixture
@@ -279,7 +251,7 @@ def source_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     source_xnat_root_dir: pathlib.Path,
-) -> Generator[tuple[xnat.BaseXNATSession, pathlib.Path], None, None]:
+) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the source XNAT instance.
 
