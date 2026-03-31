@@ -7,31 +7,9 @@ import pytest
 import xmigrate
 
 
-def _make_mapper(  # noqa: PLR0913
-    destination_archive: str = "/archive/dst",
-    destination_id: str = "dst_proj",
-    destination_secondary_id: str = "dst_secondary",
-    source_archive: str = "/archive/src",
-    source_id: str = "src_proj",
-    source_secondary_id: str = "src_secondary",
-) -> xmigrate.XMLMapper:
+def _make_mapper() -> xmigrate.XMLMapper:
     """
     Create an XMLMapper instance with the given source and destination project information.
-
-    Parameters
-    ----------
-    destination_archive
-        The archive path for the destination project.
-    destination_id
-        The ID of the destination project.
-    destination_secondary_id
-        The secondary ID of the destination project.
-    source_archive
-        The archive path for the source project.
-    source_id
-        The ID of the source project.
-    source_secondary_id
-        The secondary ID of the source project.
 
     Returns
     -------
@@ -39,18 +17,18 @@ def _make_mapper(  # noqa: PLR0913
 
     """
     source = xmigrate.ProjectInfo(
-        archive_path=source_archive,
-        id=source_id,
+        archive_path="/archive/src",
+        id="src_proj",
         project_name="Source Project",
         rsync_path="/rsync/src",
-        secondary_id=source_secondary_id,
+        secondary_id="src_secondary",
     )
     destination = xmigrate.ProjectInfo(
-        archive_path=destination_archive,
-        id=destination_id,
+        archive_path="/archive/dst",
+        id="dst_proj",
         project_name="Destination Project",
         rsync_path="/rsync/dst",
-        secondary_id=destination_secondary_id,
+        secondary_id="dst_secondary",
     )
     return xmigrate.XMLMapper(source=source, destination=destination)
 
