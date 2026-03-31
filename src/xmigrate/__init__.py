@@ -18,5 +18,4 @@ __all__ = [
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.migration import Migration
-from xmigrate.users import check_users, create_users
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatNS, XnatType, register_namespaces

@@ -16,7 +16,6 @@ from xnat.exceptions import XNATResponseError
 
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
-from xmigrate.users import create_users
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
 # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
@@ -65,6 +64,26 @@ class Migration:
         self.subject_sharing = {}
         self.experiment_sharing = {}
         self.assessor_sharing = {}
+
+        self._destination_usernames = {
+            p["username"] for p in self.destination_connection.get("/xapi/users/profiles", format="json").json()
+        }
+
+        source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
+        # load existing sitewide roles from JSON if exists
+        sitewide_roles_path = BASE_OUTPUT_DIR / source_name / "sitewide_roles.json"
+        if sitewide_roles_path.is_file():
+            with sitewide_roles_path.open() as f:
+                self.sitewide_roles = json.load(f)
+        else:
+            self.sitewide_roles = {}
+
+        user_permissions_path = BASE_OUTPUT_DIR / source_name / "user_permissions_per_project.json"
+        if user_permissions_path.is_file():
+            with user_permissions_path.open() as f:
+                self.user_permissions_per_project = json.load(f)
+        else:
+            self.user_permissions_per_project = {}
 
     def _get_source_xml(self, uri: str) -> ET.Element:
         """
@@ -808,67 +827,84 @@ class Migration:
                 map_type=XnatType.assessor,
             )
 
+    def _ensure_user_roles(self, username: str, folder_path: pathlib.Path) -> None:
+        # skip if we already have roles checkpointed
+        if username in self.sitewide_roles:
+            return
+
+        api_get_string = f"/xapi/users/{username}/roles"
+        roles = self.source_connection.get(api_get_string).json()
+
+        for role in roles:
+            self.destination_connection.put(f"/xapi/users/{username}/roles/{role}")
+
+        # checkpoint
+        self.sitewide_roles[username] = roles
+        sitewide_roles_path = folder_path / "sitewide_roles.json"
+        with sitewide_roles_path.open("w") as f:
+            json.dump(self.sitewide_roles, f, indent=4)
+
+    def _ensure_user_exists(self, username: str, source_profiles: list) -> None:
+        if username in self._destination_usernames:
+            self._logger.info("User already exists in destination: %s", username)
+            return
+
+        source_profile = next(
+            (p for p in source_profiles if p["username"] == username),
+            None,
+        )
+        if source_profile is None:
+            msg = f"User {username} not found in source profiles"
+            raise ValueError(msg)
+
+        self._logger.info("Creating user: %s", username)
+        destination_profile = {
+            "username": source_profile["username"].removesuffix("#EXT#"),
+            "enabled": source_profile["enabled"],
+            "email": source_profile["email"],
+            "verified": source_profile["verified"],
+            "firstName": source_profile["firstName"],
+            "lastName": source_profile["lastName"],
+        }
+        self.destination_connection.post("/xapi/users", json=destination_profile)
+        self._destination_usernames.add(username)
+
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
-        """
-        Assign user permissions for the project on the destination XNAT instance.
-
-        Parameters
-        ----------
-        source_project
-            The ID of the source project.
-
-        Raises
-        ------
-        ValueError
-            If a username from the source project does not exist in the destination.
-
-        """
+        """Assign user permissions for the project on the destination XNAT instance."""
         api_get_string = f"/data/projects/{source_project}/users"
         source_project_ownership = self.source_connection.get(api_get_string).json()["ResultSet"]["Result"]
+        source_profiles = self.source_connection.get("/xapi/users/profiles", format="json").json()
         destination_project = self.mapper.get_destination_id(source_project, XnatType.project)
-        destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         folder_path = BASE_OUTPUT_DIR / source_name
         folder_path.mkdir(parents=True, exist_ok=True)
-        dest_project_id = self.destination_info.id
+        user_permissions_path = folder_path / "user_permissions_per_project.json"
 
-        path = folder_path / "user_permissions_per_project.json"
-        if path.is_file():
-            msg = f"user_permissions_per_project.json file exists for {source_name}. Checking progress..."
-            self._logger.info(msg)
-            with pathlib.Path(path).open() as file:
-                dest_project_ownership = json.load(file)
+        # Always ensure users exist and have site-wide roles
+        for user in source_project_ownership:
+            username = user["login"]
+            self._ensure_user_exists(username, source_profiles)
+            self._ensure_user_roles(username, folder_path)
 
-            if dest_project_id not in list(dest_project_ownership.keys()):
-                msg = f"User permissions not yet migrated for project {dest_project_id} in {source_name}."
-                self._logger.info(msg)
-            elif source_project_ownership == dest_project_ownership[dest_project_id]:
-                msg = f"User permissions already migrated for project {dest_project_id} in {source_name}."
-                self._logger.info(msg)
-                return
+        # Skip project permission assignment if already done
+        if self.destination_info.id in self.user_permissions_per_project:
+            self._logger.info("Project permissions already migrated for %s", self.destination_info.id)
+            return
 
+        # Assign project-specific permissions
         for user in source_project_ownership:
             username = user["login"]
             ownership_type = user["displayname"]
-            if all(profile["username"] != username for profile in destination_profiles):
-                msg = f"Username {username} not in destination."
-                raise ValueError(msg)
             api_put_string = f"/data/projects/{destination_project}/users/{ownership_type}/{username}"
             self.destination_connection.put(api_put_string)
 
-        if path.is_file():
-            msg = f"Updating user_permissions_per_project.json for {dest_project_id} in {source_name}."
-            self._logger.info(msg)
-        else:
-            msg = f"Creating user_permissions_per_project.json for {dest_project_id} in {source_name}."
-            self._logger.info(msg)
-            dest_project_ownership = {}
+        # Update JSON once per project
+        self.user_permissions_per_project[self.destination_info.id] = source_project_ownership
+        with user_permissions_path.open("w") as f:
+            json.dump(self.user_permissions_per_project, f, indent=4)
 
-        dest_project_ownership[self.destination_info.id] = source_project_ownership
-
-        with pathlib.Path(path).open("w") as file:
-            json.dump(dest_project_ownership, file, indent=4)
+        self._logger.info("User permissions updated for project %s in %s", self.destination_info.id, source_name)
 
     def _create_resources(self) -> None:
         """
@@ -1117,7 +1153,6 @@ class Migration:
         start = time.time()
 
         check_datatypes_matching(self.source_connection, self.destination_connection)
-        create_users(self.source_connection, self.destination_connection)
         create_custom_forms_json(self.source_connection, self.destination_connection)
 
         # Iterate over all projects
