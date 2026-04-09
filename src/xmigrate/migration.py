@@ -835,7 +835,7 @@ class Migration:
         with sitewide_roles_path.open("w") as f:
             json.dump(self.sitewide_roles, f, indent=4)
 
-    def _check_user(self, username: str, source_profiles: list, destination_profiles: list) -> None:
+    def _check_user(self, username: str, source_profiles: list, destination_profiles: list) -> list:
         source_profile = next(
             (p for p in source_profiles if p["username"] == username),
             None,
@@ -859,7 +859,7 @@ class Migration:
                 raise ValueError(msg)
 
             self._logger.info("User already exists in destination: %s", username)
-            return
+            return None
 
         self._logger.info("Creating user: %s", username)
         destination_profile = {
@@ -878,6 +878,7 @@ class Migration:
                 "id": source_profile["id"],
             }
         )
+        return destination_profiles
 
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
         """Assign user permissions for the project on the destination XNAT instance."""
@@ -895,7 +896,7 @@ class Migration:
         # Always ensure users exist and have site-wide roles
         for user in source_project_ownership:
             username = user["login"]
-            self._check_user(username, source_profiles, destination_profiles)
+            destination_profiles = self._check_user(username, source_profiles, destination_profiles)
             self._check_user_roles(username, folder_path)
 
         # Assign project-specific permissions
