@@ -110,16 +110,8 @@ def test_check_users_mismatched_ids(
     userid_dst = "999"
     source_profiles = _seed_user(source_connection, unique_username, userid=userid_src)
     destination_profiles = _seed_user(destination_connection, unique_username, userid=userid_dst)
-    destination_profile = next(
-        (p for p in [destination_profiles] if p["username"] == unique_username),
-        None,
-    )
 
-    msg = (
-        f"IDs not equal for {unique_username}: "
-        f"source_profile id={userid_src} "
-        f"destination_profile id={destination_profile['id']}"
-    )
+    msg = f"IDs not equal for {unique_username}: source_profile id={userid_src} destination_profile id={userid_dst}"
     with pytest.raises(ValueError, match=msg):
         migration._check_user(unique_username, [source_profiles], [destination_profiles])
 
