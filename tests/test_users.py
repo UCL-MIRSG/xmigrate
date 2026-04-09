@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -20,7 +20,7 @@ def _seed_user(
     userid: str = "1",
     email: str = "test@example.com",
     roles: tuple[str, ...] = ("user",),
-) -> None:
+) -> dict[str, Any]:
     """
     Create a user directly on an XNAT instance via REST.
 
