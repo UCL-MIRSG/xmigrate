@@ -27,7 +27,6 @@ test = [
     "defusedxml",
     "pytest",
     "pytest-cov",
-    "pytest-mock",
     "xnat4tests",
 ]
 
