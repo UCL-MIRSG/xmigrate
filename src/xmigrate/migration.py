@@ -835,7 +835,7 @@ class Migration:
         with sitewide_roles_path.open("w") as f:
             json.dump(self.sitewide_roles, f, indent=4)
 
-    def _check_user(self, username: str, source_profiles: list, destination_profiles: list) -> list:
+    def _check_user(self, username: str, source_profiles: list, destination_profiles: list) -> list | None:
         source_profile = next(
             (p for p in source_profiles if p["username"] == username),
             None,
