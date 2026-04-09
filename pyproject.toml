@@ -26,8 +26,8 @@ lint = [
 test = [
     "defusedxml",
     "pytest",
-    "pytest-mock",
     "pytest-cov",
+    "pytest-mock",
     "xnat4tests",
 ]
 

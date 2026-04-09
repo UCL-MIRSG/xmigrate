@@ -74,7 +74,6 @@ class Migration:
         else:
             self.sitewide_roles = {}
 
-
     def _get_source_xml(self, uri: str) -> ET.Element:
         """
         Retrieve the XML representation of an XNAT item.
@@ -836,9 +835,7 @@ class Migration:
         with sitewide_roles_path.open("w") as f:
             json.dump(self.sitewide_roles, f, indent=4)
 
-    def _check_user(self, username: str, source_profiles: list,
-                    destination_profiles: list) -> None:
-
+    def _check_user(self, username: str, source_profiles: list, destination_profiles: list) -> None:
         source_profile = next(
             (p for p in source_profiles if p["username"] == username),
             None,
@@ -854,9 +851,11 @@ class Migration:
 
         if destination_profile:
             if source_profile["id"] != destination_profile["id"]:
-                msg = (f"IDs not equal for {username}: "
-                        f"source_profile id={source_profile['id']} "
-                        f"destination_profile id={destination_profile['id']}")
+                msg = (
+                    f"IDs not equal for {username}: "
+                    f"source_profile id={source_profile['id']} "
+                    f"destination_profile id={destination_profile['id']}"
+                )
                 raise ValueError(msg)
 
             self._logger.info("User already exists in destination: %s", username)
@@ -873,10 +872,12 @@ class Migration:
             "lastName": source_profile["lastName"],
         }
         self.destination_connection.post("/xapi/users", json=destination_profile)
-        destination_profiles.append({
-            "username": destination_profile["username"],
-            "id": source_profile["id"],
-        })
+        destination_profiles.append(
+            {
+                "username": destination_profile["username"],
+                "id": source_profile["id"],
+            }
+        )
 
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
         """Assign user permissions for the project on the destination XNAT instance."""

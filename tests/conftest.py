@@ -287,12 +287,13 @@ def unique_username(request: pytest.FixtureRequest) -> str:
     unique_suffix = uuid4().hex[:8]  # 8-char random suffix
     return f"{base_name}_{unique_suffix}"
 
+
 @pytest.fixture
 def migration(
     source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
     source_info: ProjectInfo,
-    destination_info: ProjectInfo
+    destination_info: ProjectInfo,
 ) -> xmigrate.Migration:
     """Set up migration instance."""
     return xmigrate.Migration(
@@ -302,5 +303,3 @@ def migration(
         all_destination_info=destination_info,
         no_rsync=True,
     )
-
-    
