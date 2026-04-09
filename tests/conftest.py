@@ -9,11 +9,13 @@ import subprocess
 import time
 import urllib.request
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 import pytest
 import requests  # type: ignore  # noqa: PGH003
 import xnat4tests
 
+import xmigrate
 from tests.utils import delete_data
 from xmigrate.xml_mapper import ProjectInfo
 
@@ -280,5 +282,25 @@ def source_connection(
 
 @pytest.fixture
 def unique_username(request: pytest.FixtureRequest) -> str:
-    """Generate a unique username based on the test name."""
-    return request.node.name.replace("[", "_").replace("]", "_")
+    """Generate a globally unique username per test run."""
+    base_name = request.node.name.replace("[", "_").replace("]", "_")
+    unique_suffix = uuid4().hex[:8]  # 8-char random suffix
+    return f"{base_name}_{unique_suffix}"
+
+@pytest.fixture
+def migration(
+    source_connection: xnat.BaseXNATSession,
+    destination_connection: xnat.BaseXNATSession,
+    source_info: ProjectInfo,
+    destination_info: ProjectInfo
+) -> xmigrate.Migration:
+    """Set up migration instance."""
+    return xmigrate.Migration(
+        source_connection=source_connection,
+        destination_connection=destination_connection,
+        all_source_info=source_info,
+        all_destination_info=destination_info,
+        no_rsync=True,
+    )
+
+    
