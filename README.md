@@ -64,11 +64,17 @@ xmigrate migrate_project_list
 
 For testing, you may also want to set your environment variables using mise.
 
+N.B. Having a project specific .netrc can be helpful instead of the default
+~/.netrc which may contain localhost. This can override the specified ports in
+xnat4tests so source and destination XNATs are on same port rather than the
+necessary different ports.
+
 You can set up a mise.toml as below:
 
 ```sh
 [env]
 XNAT4TEST_KEEP_INSTANCE=true #This speeds up developer time by keeping the docker containers live
+NETRC="path/to/your/.netrc" #Project specific .netrc can be helpful instead of default ~/.netrc
 ```
 
 and activate it as below:
