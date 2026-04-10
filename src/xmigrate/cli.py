@@ -1,6 +1,7 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
+import urllib
 
 import cyclopts
 import requests  # type: ignore[import-untyped]
@@ -76,9 +77,17 @@ def migrate_project_list(  # noqa: PLR0913
         Flag indicating whether to skipping running rsync.
 
     """
+    if "://" not in source:
+        source = "http://" + source
+    host, _, port = urllib.parse.urlparse(source).netloc.partition(":")
+    base = host.split(".")[0]
+    source_name = f"{base}_{port}" if port else base
     destination_projects = destination_projects if destination_projects is not None else source_projects
+    destination_projects = [f"{source_name}_{p}" for p in destination_projects]
     destination_secondary_ids = destination_secondary_ids if destination_secondary_ids is not None else source_projects
+    destination_secondary_ids = [f"{source_name}_{s}" for s in destination_secondary_ids]
     destination_project_names = destination_project_names if destination_project_names is not None else source_projects
+    destination_project_names = [f"{source_name}_{n}" for n in destination_project_names]
 
     with (
         xnat.connect(source) as source_connection,
@@ -181,10 +190,12 @@ def migrate_all_projects(  # noqa: PLR0913
         source_projects, source_secondary_ids, source_project_names = (
             map(list, zip(*rows, strict=False)) if rows else ([], [], [])
         )
-
+        destination_name = urllib.parse.urlparse(destination).hostname.split(".")[0]
         destination_projects = source_projects
         destination_secondary_ids = source_secondary_ids
+        destination_secondary_ids = [f"{destination_name}_{s}" for s in destination_secondary_ids]
         destination_project_names = source_project_names
+        destination_project_names = [f"{destination_name}_{n}" for n in destination_project_names]
 
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
