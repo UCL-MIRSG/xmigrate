@@ -88,6 +88,7 @@ def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
         for source_proj in source_projects
     ]
 
+
 PLUGIN_REGISTRY = {
     "ohif": {
         "filename": "ohif-viewer-3.7.2-fat.jar",
@@ -99,6 +100,7 @@ PLUGIN_REGISTRY = {
     },
 }
 
+
 def download_plugin(meta: dict, input_dir: pathlib.Path) -> pathlib.Path:
     """Download plugin if does not exist locally."""
     input_dir.mkdir(parents=True, exist_ok=True)
@@ -106,19 +108,17 @@ def download_plugin(meta: dict, input_dir: pathlib.Path) -> pathlib.Path:
     jar_path = input_dir / meta["filename"]
 
     if not jar_path.exists():
-        urllib.request.urlretrieve(f"https://{meta["url"]}", jar_path)
+        urllib.request.urlretrieve(f"https://{meta['url']}", jar_path)
 
     return jar_path
+
 
 @pytest.fixture(scope="session")
 def plugin_jars() -> dict[str, pathlib.Path]:
     """Fixture for providing jar_paths and downloading if not available."""
     input_dir = pathlib.Path("input")
 
-    return {
-        name: download_plugin(meta, input_dir)
-        for name, meta in PLUGIN_REGISTRY.items()
-    }
+    return {name: download_plugin(meta, input_dir) for name, meta in PLUGIN_REGISTRY.items()}
 
 
 @pytest.fixture(scope="session")
@@ -239,7 +239,8 @@ def destination_connection(
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
-    install_plugins(jar_paths=list(plugin_jars.values()),
+    install_plugins(
+        jar_paths=list(plugin_jars.values()),
         plugin_dir=plugin_dir,
         connection_name=connection_name,
         config=config,
@@ -286,7 +287,8 @@ def source_connection(
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    install_plugins(jar_paths=list(plugin_jars.values()),
+    install_plugins(
+        jar_paths=list(plugin_jars.values()),
         plugin_dir=plugin_dir,
         connection_name=connection_name,
         config=config,
