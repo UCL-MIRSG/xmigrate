@@ -89,36 +89,25 @@ def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
     ]
 
 
-PLUGIN_REGISTRY = {
-    "ohif": {
-        "filename": "ohif-viewer-3.7.2-fat.jar",
-        "url": "www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-3.7.2.jar",
-    },
-    "genproc": {
-        "filename": "dax-plugin-genProcData-1.4.2.jar",
-        "url": "github.com/VUIIS/dax/raw/main/misc/xnat-plugins/dax-plugin-genProcData-1.4.2.jar",
-    },
-}
+@pytest.fixture(scope="session")
+def jar_path() -> pathlib.Path:
+    """Path of OHIF viewer jar."""
+    jar_dir = pathlib.Path(__file__).parents[1] / "input"
+    jar_dir.mkdir(parents=True, exist_ok=True)
+    ohif_jar = jar_dir / "ohif-viewer-3.7.2-fat.jar"
+    if not ohif_jar.is_file():
+        urllib.request.urlretrieve(
+            "https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-3.7.2.jar",
+            "input/ohif-viewer-3.7.2-fat.jar",
+        )
 
-
-def download_plugin(meta: dict, input_dir: pathlib.Path) -> pathlib.Path:
-    """Download plugin if does not exist locally."""
-    input_dir.mkdir(parents=True, exist_ok=True)
-
-    jar_path = input_dir / meta["filename"]
+    jar_path = next(iter(jar_dir.glob("ohif-*fat.jar")))
 
     if not jar_path.exists():
-        urllib.request.urlretrieve(f"https://{meta['url']}", jar_path)
+        msg = f"Plugin OHIF Viewer JAR file not found at {jar_path}"
+        raise FileNotFoundError(msg)
 
     return jar_path
-
-
-@pytest.fixture(scope="session")
-def plugin_jars() -> dict[str, pathlib.Path]:
-    """Fixture for providing jar_paths and downloading if not available."""
-    input_dir = pathlib.Path("input")
-
-    return {name: download_plugin(meta, input_dir) for name, meta in PLUGIN_REGISTRY.items()}
 
 
 @pytest.fixture(scope="session")
@@ -127,13 +116,14 @@ def plugin_dir() -> pathlib.Path:
     return pathlib.Path("/data/xnat/home/plugins")
 
 
-def install_plugins(
-    jar_paths: list[pathlib.Path],
+def install_plugin(
+    jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     connection_name: str,
     config: xnat4tests.Config,
 ) -> None:
-    """Install multiple plugins and restart XNAT once."""
+    """Install plugin for specified connection."""
+    # Check existing plugins
     result = subprocess.run(  # noqa: S603
         ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],  # noqa: S607
         check=True,
@@ -142,32 +132,27 @@ def install_plugins(
     )
     plugins_list = result.stdout.splitlines()
 
-    installed_any = False
+    # If already installed → do nothing
+    if jar_path.name in plugins_list:
+        return
 
-    for jar_path in jar_paths:
-        # If already installed → do nothing
-        if jar_path.name in plugins_list:
-            continue
-
-        # Otherwise copy plugin
-        try:
-            subprocess.run(  # noqa: S603
-                [  # noqa: S607
-                    "docker",
-                    "cp",
-                    str(jar_path),
-                    f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
-            raise RuntimeError(msg) from e
-        installed_any = True
+    # Otherwise copy plugin
+    try:
+        subprocess.run(  # noqa: S603
+            [  # noqa: S607
+                "docker",
+                "cp",
+                str(jar_path),
+                f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
+            ],
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
+        raise RuntimeError(msg) from e
 
     # Only restart if we actually installed something
-    if installed_any:
-        xnat4tests.restart_xnat(config)
+    xnat4tests.restart_xnat(config)
 
 
 def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
@@ -217,7 +202,7 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
 
 @pytest.fixture(scope="session")
 def destination_connection(
-    plugin_jars: dict[str, pathlib.Path], plugin_dir: pathlib.Path, xnat_root_dirs: dict[str, pathlib.Path]
+    jar_path: pathlib.Path, plugin_dir: pathlib.Path, xnat_root_dirs: dict[str, pathlib.Path]
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
@@ -239,12 +224,7 @@ def destination_connection(
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
-    install_plugins(
-        jar_paths=list(plugin_jars.values()),
-        plugin_dir=plugin_dir,
-        connection_name=connection_name,
-        config=config,
-    )
+    install_plugin(jar_path, plugin_dir, connection_name, config)
 
     yield wait_for_connection(config)
 
@@ -259,7 +239,7 @@ def destination_connection(
 
 @pytest.fixture(scope="session")
 def source_connection(
-    plugin_jars: dict[str, pathlib.Path],
+    jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
@@ -287,12 +267,7 @@ def source_connection(
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    install_plugins(
-        jar_paths=list(plugin_jars.values()),
-        plugin_dir=plugin_dir,
-        connection_name=connection_name,
-        config=config,
-    )
+    install_plugin(jar_path, plugin_dir, connection_name, config)
 
     yield wait_for_connection(config)
 
