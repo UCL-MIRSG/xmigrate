@@ -895,6 +895,7 @@ class Migration:
                 "--exclude=*.log",
                 "--exclude=.*",
                 "--exclude=*.json",
+                "--stats",
                 "--progress",
                 "--checksum",
                 rsync_source,
