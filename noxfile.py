@@ -33,6 +33,14 @@ def build(session: nox.Session) -> None:
 )
 def coverage(session: nox.Session) -> None:
     """Run tests and compute coverage for the tests."""
+    # Seed OpenNeuro cache BEFORE running tests
+    session.run(
+        "python",
+        "-c",
+        "from medimages4tests.mri.neuro.t1w import get_image as f; f()",
+    )
+
+    # Run tests with coverage
     session.run("pytest", "--cov", "--cov-report=lcov", *session.posargs)
 
 
