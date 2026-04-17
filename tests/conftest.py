@@ -264,19 +264,18 @@ def source_connection(
     )
     xnat4tests.start_xnat(config)
 
-    if dataset == "openneuro-t1w":
-        openneuro_cache_path = base_cache_dir / "mri" / "neuro" / "t1w"
-        openneuro_cache_path.mkdir(parents=True, exist_ok=True)
+    openneuro_cache_path = base_cache_dir / "mri" / "neuro" / "t1w"
+    openneuro_cache_path.mkdir(parents=True, exist_ok=True)
 
-        if not any(openneuro_cache_path.iterdir()):
-            openneuro_url_base = "s3.amazonaws.com/openneuro.org/ds002014/sub-01/anat/"
-            local_cache_name = "ds002014-01"
-            url_filename = "sub-01_T1w"
-            for file in [".nii.gz", ".json"]:
-                urllib.request.urlretrieve(
-                    f"https://{openneuro_url_base}{url_filename}{file}",
-                    f"{openneuro_cache_path}/{local_cache_name}{file}",
-                )
+    if not any(openneuro_cache_path.iterdir()):
+        openneuro_url_base = "s3.amazonaws.com/openneuro.org/ds002014/sub-01/anat/"
+        local_cache_name = "ds002014-01"
+        url_filename = "sub-01_T1w"
+        for file in [".nii.gz", ".json"]:
+            urllib.request.urlretrieve(
+                f"https://{openneuro_url_base}{url_filename}{file}",
+                f"{openneuro_cache_path}/{local_cache_name}{file}",
+            )
 
     for dataset in ["dummydicom", "openneuro-t1w"]:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
