@@ -119,7 +119,6 @@ lint.isort = {known-first-party = [
 lint.per-file-ignores = {"tests*" = [
     "INP001", # File is part of an implicit namespace package.
     "S101", # Use of `assert` detected
-    "SLF001", # Private member accessed
 ]}
 lint.select = [
     "ALL",
