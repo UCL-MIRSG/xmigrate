@@ -88,20 +88,24 @@ def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
         for source_proj in source_projects
     ]
 
+PLUGIN_NAMES = {
+    "ohif": "ohif-viewer-3.7.1-fat.jar",
+    "genproc": "dax-plugin-genProcData-1.4.2.jar",
+}
 
 PLUGIN_REGISTRY = {
     "ohif": {
-        "filename": "ohif-viewer-3.7.2-fat.jar",
-        "url": "www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-3.7.2.jar",
+        "filename": PLUGIN_NAMES["ohif"],
+        "url": f"www.xnat.org/files/ohif-viewer-xnat-plugin/{PLUGIN_NAMES["ohif"]}",
     },
     "genproc": {
-        "filename": "dax-plugin-genProcData-1.4.2.jar",
-        "url": "github.com/VUIIS/dax/raw/main/misc/xnat-plugins/dax-plugin-genProcData-1.4.2.jar",
+        "filename": PLUGIN_NAMES["genproc"],
+        "url": f"github.com/VUIIS/dax/raw/main/misc/xnat-plugins/{PLUGIN_NAMES["genproc"]}",
     },
 }
 
 
-def download_plugin(meta: dict, input_dir: pathlib.Path) -> pathlib.Path:
+def _download_plugin(meta: dict, input_dir: pathlib.Path) -> pathlib.Path:
     """Download plugin if does not exist locally."""
     input_dir.mkdir(parents=True, exist_ok=True)
 
@@ -118,7 +122,7 @@ def plugin_jars() -> dict[str, pathlib.Path]:
     """Fixture for providing jar_paths and downloading if not available."""
     input_dir = pathlib.Path("input")
 
-    return {name: download_plugin(meta, input_dir) for name, meta in PLUGIN_REGISTRY.items()}
+    return {name: _download_plugin(meta, input_dir) for name, meta in PLUGIN_REGISTRY.items()}
 
 
 @pytest.fixture(scope="session")
@@ -134,6 +138,7 @@ def install_plugins(
     config: xnat4tests.Config,
 ) -> None:
     """Install multiple plugins and restart XNAT once."""
+    # Check existing plugins
     result = subprocess.run(  # noqa: S603
         ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],  # noqa: S607
         check=True,
