@@ -217,7 +217,9 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
 
 @pytest.fixture(scope="session")
 def destination_connection(
-    plugin_jars: dict[str, pathlib.Path], plugin_dir: pathlib.Path, xnat_root_dirs: dict[str, pathlib.Path]
+    plugin_jars: dict[str, pathlib.Path],
+    plugin_dir: pathlib.Path,
+    xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
