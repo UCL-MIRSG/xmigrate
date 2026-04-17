@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import pytest
 
-if TYPE_CHECKING:
-    import xnat
+import xmigrate
 
-    import xmigrate
+if TYPE_CHECKING:
+    from typing import Any
+
+    import xnat
 
 
 def _seed_user(
@@ -100,7 +102,6 @@ def _get_roles(connection: xnat.BaseXNATSession, username: str) -> list[str]:
 
 
 def test_check_users_mismatched_ids(
-    migration: xmigrate.Migration,
     destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
     unique_username: str,
@@ -113,20 +114,19 @@ def test_check_users_mismatched_ids(
 
     msg = f"IDs not equal for {unique_username}: source_profile id={userid_src} destination_profile id={userid_dst}"
     with pytest.raises(ValueError, match=msg):
-        migration._check_user(unique_username, [source_profiles], [destination_profiles])
+        xmigrate.check_user(unique_username, [source_profiles], [destination_profiles], destination_connection)
 
 
 def test_check_user_not_found_in_source(
-    migration: xmigrate.Migration,
+    destination_connection: xnat.BaseXNATSession,
     unique_username: str,
 ) -> None:
     """Empty profiles on source raise ValueError."""
     with pytest.raises(ValueError, match=f"User {unique_username} not found in source profiles"):
-        migration._check_user(unique_username, [], [])
+        xmigrate.check_user(unique_username, [], [], destination_connection)
 
 
 def test_check_users_source_longer(
-    migration: xmigrate.Migration,
     caplog: pytest.LogCaptureFixture,
     destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
@@ -140,18 +140,17 @@ def test_check_users_source_longer(
     source_profiles = [source_profile_unique, source_profile_second]
 
     with caplog.at_level(logging.INFO):
-        migration._check_user(unique_username, source_profiles, [destination_profiles])
+        xmigrate.check_user(unique_username, source_profiles, [destination_profiles], destination_connection)
     assert any(record.message == f"User already exists in destination: {unique_username}" for record in caplog.records)
     assert second_username not in _get_usernames(destination_connection)
 
     with caplog.at_level(logging.INFO):
-        migration._check_user(second_username, source_profiles, [destination_profiles])
+        xmigrate.check_user(second_username, source_profiles, [destination_profiles], destination_connection)
     assert any(record.message == f"Creating user: {second_username}" for record in caplog.records)
     assert second_username in _get_usernames(destination_connection)
 
 
 def test_creates_missing_users(
-    migration: xmigrate.Migration,
     destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
     caplog: pytest.LogCaptureFixture,
@@ -163,7 +162,7 @@ def test_creates_missing_users(
     assert unique_username not in _get_usernames(destination_connection)
 
     with caplog.at_level(logging.INFO):
-        migration._check_user(unique_username, [source_profiles], [])
+        xmigrate.check_user(unique_username, [source_profiles], [], destination_connection)
     assert any(record.message == f"Creating user: {unique_username}" for record in caplog.records)
     assert unique_username in _get_usernames(destination_connection)
 
@@ -179,7 +178,9 @@ def test_creates_missing_users_roles(
     _seed_user(source_connection, unique_username, roles=roles)
     _seed_user(destination_connection, unique_username, roles=roles)
     folder_path = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output" / "localhost"
-    migration._check_user_roles(unique_username, folder_path)
+    xmigrate.check_user_roles(
+        unique_username, folder_path, migration.sitewide_roles, destination_connection, source_connection
+    )
     assert "data_manager" in _get_roles(destination_connection, unique_username)
     assert set(migration.sitewide_roles[unique_username]) == set(roles)
 
@@ -199,19 +200,22 @@ def test_roles_skipped_if_checkpoint_exists(
     _seed_user(source_connection, unique_username, roles=roles)
     _seed_user(destination_connection, unique_username, roles=roles)
     folder_path = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output" / "localhost"
-    migration._check_user_roles(unique_username, folder_path)
+    xmigrate.check_user_roles(
+        unique_username, folder_path, migration.sitewide_roles, destination_connection, source_connection
+    )
     checkpoint_file = folder_path / "sitewide_roles.json"
     assert checkpoint_file.exists()
 
     with caplog.at_level(logging.INFO):
-        migration._check_user_roles(unique_username, folder_path)
+        xmigrate.check_user_roles(
+            unique_username, folder_path, migration.sitewide_roles, destination_connection, source_connection
+        )
     assert any(
         record.message == f"User roles already exist in destination: {unique_username}" for record in caplog.records
     )
 
 
 def test_existing_users_not_duplicated(
-    migration: xmigrate.Migration,
     destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
     caplog: pytest.LogCaptureFixture,
@@ -222,14 +226,13 @@ def test_existing_users_not_duplicated(
     destination_profiles = _seed_user(destination_connection, unique_username)
 
     with caplog.at_level(logging.INFO):
-        migration._check_user(unique_username, [source_profiles], [destination_profiles])
+        xmigrate.check_user(unique_username, [source_profiles], [destination_profiles], destination_connection)
     assert any(record.message == f"User already exists in destination: {unique_username}" for record in caplog.records)
     user_count = sum(u == unique_username for u in _get_usernames(destination_connection))
     assert user_count == 1
 
 
 def test_creates_multiple_users(
-    migration: xmigrate.Migration,
     destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
     caplog: pytest.LogCaptureFixture,
@@ -242,11 +245,11 @@ def test_creates_multiple_users(
     source_profiles = [source_profile_unique, source_profile_second]
 
     with caplog.at_level(logging.INFO):
-        migration._check_user(unique_username, source_profiles, [])
+        xmigrate.check_user(unique_username, source_profiles, [], destination_connection)
     assert any(record.message == f"Creating user: {unique_username}" for record in caplog.records)
     assert unique_username in _get_usernames(destination_connection)
 
     with caplog.at_level(logging.INFO):
-        migration._check_user(second_username, source_profiles, [source_profile_unique])
+        xmigrate.check_user(second_username, source_profiles, [source_profile_unique], destination_connection)
     assert any(record.message == f"Creating user: {second_username}" for record in caplog.records)
     assert second_username in _get_usernames(destination_connection)

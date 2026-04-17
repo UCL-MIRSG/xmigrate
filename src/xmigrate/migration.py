@@ -16,6 +16,7 @@ from xnat.exceptions import XNATResponseError
 
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
+from xmigrate.users import check_user, check_user_roles
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
 # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
@@ -816,70 +817,6 @@ class Migration:
                 map_type=XnatType.assessor,
             )
 
-    def _check_user_roles(self, username: str, folder_path: pathlib.Path) -> None:
-        # skip if we already have roles checkpointed
-        if username in self.sitewide_roles:
-            self._logger.info("User roles already exist in destination: %s", username)
-            return
-
-        api_get_string = f"/xapi/users/{username}/roles"
-        roles = self.source_connection.get(api_get_string).json()
-
-        for role in roles:
-            self.destination_connection.put(f"/xapi/users/{username}/roles/{role}")
-
-        # checkpoint
-        self.sitewide_roles[username] = roles
-        sitewide_roles_path = folder_path / "sitewide_roles.json"
-        folder_path.mkdir(parents=True, exist_ok=True)
-        with sitewide_roles_path.open("w") as f:
-            json.dump(self.sitewide_roles, f, indent=4)
-
-    def _check_user(self, username: str, source_profiles: list, destination_profiles: list) -> list | None:
-        source_profile = next(
-            (p for p in source_profiles if p["username"] == username),
-            None,
-        )
-        if source_profile is None:
-            msg = f"User {username} not found in source profiles"
-            raise ValueError(msg)
-
-        destination_profile = next(
-            (p for p in destination_profiles if p["username"] == username),
-            None,
-        )
-
-        if destination_profile:
-            if source_profile["id"] != destination_profile["id"]:
-                msg = (
-                    f"IDs not equal for {username}: "
-                    f"source_profile id={source_profile['id']} "
-                    f"destination_profile id={destination_profile['id']}"
-                )
-                raise ValueError(msg)
-
-            self._logger.info("User already exists in destination: %s", username)
-            return None
-
-        self._logger.info("Creating user: %s", username)
-        destination_profile = {
-            "username": source_profile["username"].removesuffix("#EXT#"),
-            "enabled": source_profile["enabled"],
-            "email": source_profile["email"],
-            "id": source_profile["id"],
-            "verified": source_profile["verified"],
-            "firstName": source_profile["firstName"],
-            "lastName": source_profile["lastName"],
-        }
-        self.destination_connection.post("/xapi/users", json=destination_profile)
-        destination_profiles.append(
-            {
-                "username": destination_profile["username"],
-                "id": source_profile["id"],
-            }
-        )
-        return destination_profiles
-
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
         """Assign user permissions for the project on the destination XNAT instance."""
         api_get_string = f"/data/projects/{source_project}/users"
@@ -896,8 +833,12 @@ class Migration:
         # Always ensure users exist and have site-wide roles
         for user in source_project_ownership:
             username = user["login"]
-            destination_profiles = self._check_user(username, source_profiles, destination_profiles)
-            self._check_user_roles(username, folder_path)
+            destination_profiles = check_user(
+                username, source_profiles, destination_profiles, self.destination_connection
+            )
+            self.sitewide_roles = check_user_roles(
+                username, folder_path, self.sitewide_roles, self.source_connection, self.destination_connection
+            )
 
         # Assign project-specific permissions
         for user in source_project_ownership:

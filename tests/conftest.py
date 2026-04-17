@@ -8,8 +8,8 @@ import pathlib
 import subprocess
 import time
 import urllib.request
+import uuid
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import pytest
 import requests  # type: ignore  # noqa: PGH003
@@ -284,7 +284,7 @@ def source_connection(
 def unique_username(request: pytest.FixtureRequest) -> str:
     """Generate a globally unique username per test run."""
     base_name = request.node.name.replace("[", "_").replace("]", "_")
-    unique_suffix = uuid4().hex[:8]  # 8-char random suffix
+    unique_suffix = uuid.uuid4().hex[:8]  # 8-char random suffix
     return f"{base_name}_{unique_suffix}"
 
 
@@ -297,9 +297,9 @@ def migration(
 ) -> xmigrate.Migration:
     """Set up migration instance."""
     return xmigrate.Migration(
-        source_connection=source_connection,
-        destination_connection=destination_connection,
-        all_source_info=source_info,
         all_destination_info=destination_info,
+        all_source_info=source_info,
+        destination_connection=destination_connection,
         no_rsync=True,
+        source_connection=source_connection,
     )
