@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 
 pytest_plugins = [
     "fixtures.users",
-    "fixtures.xml",
 ]
 
 
