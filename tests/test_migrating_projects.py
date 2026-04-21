@@ -14,11 +14,11 @@ from xmigrate.xml_mapper import ProjectInfo
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_all_projects(
-    source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
-    xnat_root_dirs: dict[str, pathlib.Path],
-    source_info: ProjectInfo,
     destination_info: ProjectInfo,
+    source_connection: xnat.BaseXNATSession,
+    source_info: ProjectInfo,
+    xnat_root_dirs: dict[str, pathlib.Path],
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
     # Check source files do exist
@@ -102,11 +102,11 @@ def test_migrate_all_projects(
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_sharing_projects(
-    source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
-    xnat_root_dirs: dict[str, pathlib.Path],
-    source_info: ProjectInfo,
     destination_info: ProjectInfo,
+    source_connection: xnat.BaseXNATSession,
+    source_info: ProjectInfo,
+    xnat_root_dirs: dict[str, pathlib.Path],
 ) -> None:
     """Test the migration of a multiple project from source to destination XNAT."""
     # Check source files do exist
