@@ -115,6 +115,7 @@ lint.isort = {known-first-party = [
     "local-folder",
 ], sections = {"xnat" = [
     "xnat",
+    "xnat4tests",
 ]}}
 lint.per-file-ignores = {"tests*" = [
     "INP001", # File is part of an implicit namespace package.

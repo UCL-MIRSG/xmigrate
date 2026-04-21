@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import requests  # type: ignore  # noqa: PGH003
+
 import xnat4tests
 
 from tests.utils import delete_data
