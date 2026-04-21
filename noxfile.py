@@ -68,10 +68,7 @@ def tests(session: nox.Session) -> None:
     session.run("pytest", *session.posargs)
 
 
-@nox_uv.session(
-    python=ALL_PYTHON,
-    uv_groups=["test"],
-)
+@nox_uv.session(uv_groups=["test"])
 def tests_integration(session: nox.Session) -> None:
     """Run the integration tests."""
     session.run(
