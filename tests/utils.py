@@ -24,9 +24,7 @@ def delete_data(session: xnat.XNATSession, destination_xnat_root_dir: pathlib.Pa
     """
     for project in session.projects:
         for subject in project.subjects.values():
-            if project.id == "OPENNEURO_T1W" and subject.label == "dummydicomsubject":
-                pass
-            else:
+            if project.id != "OPENNEURO_T1W" or subject.label != "dummydicomsubject":
                 session.delete(
                     path=f"/data/projects/{project.id}/subjects/{subject.label}",
                     query={"removeFiles": "True"},
