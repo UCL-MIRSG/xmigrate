@@ -114,6 +114,7 @@ lint.isort = {known-first-party = [
     "first-party",
     "local-folder",
 ], sections = {"xnat" = [
+    "medimages4tests",
     "xnat",
     "xnat4tests",
 ]}}

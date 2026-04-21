@@ -11,10 +11,10 @@ import time
 import urllib.request
 from typing import TYPE_CHECKING
 
-import medimages4tests.cache_dir
 import pytest
 import requests  # type: ignore  # noqa: PGH003
 
+import medimages4tests.cache_dir
 import xnat
 import xnat4tests
 
