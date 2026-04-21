@@ -2,7 +2,6 @@
 
 import pathlib
 import shutil
-import xml.etree.ElementTree as ET
 
 import xnat
 
@@ -41,25 +40,3 @@ def delete_data(session: xnat.XNATSession, destination_xnat_root_dir: pathlib.Pa
     metadata_folder = BASE_OUTPUT_DIR / "localhost"
     if metadata_folder.exists():
         shutil.rmtree(str(metadata_folder))
-
-
-def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
-    """
-    Retrieve the XML representation of an XNAT item.
-
-    Parameters
-    ----------
-    uri
-        The URI of the XNAT item.
-
-    Returns
-    -------
-        The root XML element of the item.
-
-    """
-    response = session.get(
-        uri,
-        query=dict(format="xml"),  # noqa: C408
-    )
-    response.raise_for_status()
-    return ET.fromstring(response.text)  # noqa: S314
