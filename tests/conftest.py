@@ -10,10 +10,10 @@ import time
 import urllib.request
 from typing import TYPE_CHECKING
 
+import medimages4tests.cache_dir
 import pytest
 import requests  # type: ignore  # noqa: PGH003
 import xnat4tests
-from medimages4tests.cache_dir import base_cache_dir
 
 from tests.utils import delete_data
 from xmigrate.xml_mapper import ProjectInfo
@@ -264,7 +264,7 @@ def source_connection(
     )
     xnat4tests.start_xnat(config)
 
-    openneuro_cache_path = base_cache_dir / "mri" / "neuro" / "t1w"
+    openneuro_cache_path = medimages4tests.cache_dir.base_cache_dir / "mri" / "neuro" / "t1w"
     openneuro_cache_path.mkdir(parents=True, exist_ok=True)
 
     if not any(openneuro_cache_path.iterdir()):
