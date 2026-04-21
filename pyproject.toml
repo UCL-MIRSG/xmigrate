@@ -23,8 +23,7 @@ docs = [
 lint = [
     "prek",
 ]
-test = [
-    "defusedxml",
+tests = [
     "pytest",
     "pytest-cov",
     "xnat4tests",
