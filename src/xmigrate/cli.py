@@ -249,4 +249,5 @@ def default_action() -> None:
     logger.info("No input commands given.")
 
 
-app()
+if __name__ == "__main__":
+    app()
