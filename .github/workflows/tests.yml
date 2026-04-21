@@ -19,10 +19,6 @@ concurrency:
   group: >-
     ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
-env:
-  INTEG_COV_NAME: cov-integ
-  UNIT_COV_NAME: cov-unit
-
 jobs:
   tests-integration:
     if: github.event.pull_request.draft == false
