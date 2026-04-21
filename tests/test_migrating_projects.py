@@ -28,7 +28,7 @@ def test_migrate_all_projects(
 
     # Recursively collect all .dcm files
     dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
+    assert dicom_files
 
     # Path to the OPENNEURO_T1W directory to loop through 2 subjects
     openneuro_path = source_archive_path / "OPENNEURO_T1W" / "arc001"
@@ -85,7 +85,7 @@ def test_migrate_all_projects(
 
     # Recursively collect all .dcm files
     dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
+    assert dicom_files
 
     # Path to the OPENNEURO_T1W directory to loop through 2 subjects
     openneuro_path = destination_archive_path / "OPENNEURO_T1W" / "arc001"
@@ -116,7 +116,7 @@ def test_migrate_sharing_projects(
 
     # Recursively collect all .dcm files
     dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
+    assert dicom_files
 
     # Path to the OPENNEURO_T1W directory to loop through 2 subjects
     openneuro_path = source_archive_path / "OPENNEURO_T1W" / "arc001"
@@ -187,7 +187,7 @@ def test_migrate_sharing_projects(
 
     # Recursively collect all .dcm files
     dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
+    assert dicom_files
 
     # Path to the OPENNEURO_T1W directory to loop through 2 subjects
     openneuro_path = destination_archive_path / "OPENNEURO_T1W" / "arc001"
