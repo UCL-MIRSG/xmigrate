@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import pathlib
+import shutil
 import subprocess
 import time
 import urllib.request
@@ -14,15 +15,17 @@ import medimages4tests.cache_dir
 import pytest
 import requests  # type: ignore  # noqa: PGH003
 
+import xnat
 import xnat4tests
 
-from tests.utils import delete_data
 from xmigrate.xml_mapper import ProjectInfo
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
     import xnat
+
+BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output"
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +35,47 @@ pytest_plugins = [
 ]
 
 
+def _delete_data(session: xnat.XNATSession, destination_xnat_root_dir: pathlib.Path) -> None:
+    """
+    Fixture calls this function.
+
+    Deletes all subject data (projects can't be deleted if re-running tests with same container).
+    Also, deletes metadata folder.
+
+    Parameters
+    ----------
+    session
+        The xnatpy sessions.
+
+    """
+    for project in session.projects:
+        for subject in project.subjects.values():
+            if project.id != "OPENNEURO_T1W" or subject.label != "dummydicomsubject":
+                session.delete(
+                    path=f"/data/projects/{project.id}/subjects/{subject.label}",
+                    query={"removeFiles": "True"},
+                )
+        project.subjects.clearcache()
+
+    archive_path = destination_xnat_root_dir / "archive"
+
+    if archive_path.exists():
+        for project in archive_path.iterdir():
+            if project.is_dir():
+                shutil.rmtree(project)
+
+    metadata_folder = BASE_OUTPUT_DIR / "localhost"
+    if metadata_folder.exists():
+        shutil.rmtree(str(metadata_folder))
+
+
 @pytest.fixture
 def remove_destination_test_data(
     destination_connection: xnat.BaseXNATSession, xnat_root_dirs: dict[str, pathlib.Path]
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
     yield
-    delete_data(destination_connection, xnat_root_dirs["destination"])
+    _delete_data(destination_connection, xnat_root_dirs["destination"])
 
 
 @pytest.fixture(scope="session")
@@ -241,7 +278,7 @@ def destination_connection(
     if os.getenv("XNAT4TEST_KEEP_INSTANCE", "False").lower() == "false":
         xnat4tests.stop_xnat(config)
     else:
-        delete_data(xnat4tests.connect(config), xnat_root_dirs["destination"])
+        _delete_data(xnat4tests.connect(config), xnat_root_dirs["destination"])
 
 
 @pytest.fixture(scope="session")
