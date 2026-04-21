@@ -11,8 +11,6 @@ on:
       - ready_for_review
       - reopened
       - synchronize
-    paths-ignore:
-      - README.md
 
 concurrency:
   cancel-in-progress: true
