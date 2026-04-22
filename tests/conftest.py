@@ -191,6 +191,10 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
         except (requests.RequestException, ValueError) as e:
             msg = f"[{attempt}] Datatypes request failed, retrying: {e}"
             logger.info(msg)
+        else:
+            msg = f"XNAT is ready at {config.xnat_uri}"
+            logger.info(msg)
+            return conn
 
         time.sleep(1)
 
