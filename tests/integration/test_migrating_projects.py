@@ -157,7 +157,8 @@ def test_migrate_sharing_projects(
             f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
         )
     source_connection.put(
-        f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}"
+        f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/"
+        f"projects/{sharing_project_id}?label={owner_project_subject_label}"
     )
     source_connection.projects[sharing_project_id].subjects.clearcache()
     assert "status 404, accepted status: [200]" in str(e.value)
