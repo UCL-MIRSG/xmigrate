@@ -129,50 +129,50 @@ def test_check_users_source_longer() -> None:
 
 
 def test_creates_missing_users(
-    destination_connection: xnat.BaseXNATSession,
-    source_connection: xnat.BaseXNATSession,
+    connection_destination: xnat.BaseXNATSession,
+    connection_source: xnat.BaseXNATSession,
     unique_username: str,
 ) -> None:
     """Users present in the source but missing in the destination are created."""
-    _seed_user(source_connection, unique_username)
-    xmigrate.create_users(source_connection, destination_connection)
-    assert unique_username in _get_usernames(destination_connection)
+    _seed_user(connection_source, unique_username)
+    xmigrate.create_users(connection_source, connection_destination)
+    assert unique_username in _get_usernames(connection_destination)
 
 
 def test_creates_missing_users_roles(
-    destination_connection: xnat.BaseXNATSession,
-    source_connection: xnat.BaseXNATSession,
+    connection_destination: xnat.BaseXNATSession,
+    connection_source: xnat.BaseXNATSession,
     unique_username: str,
 ) -> None:
     """Roles assigned to users in the source are correctly created in the destination."""
-    _seed_user(source_connection, unique_username, roles=("user", "data_manager"))
-    xmigrate.create_users(source_connection, destination_connection)
-    assert "data_manager" in _get_roles(destination_connection, unique_username)
+    _seed_user(connection_source, unique_username, roles=("user", "data_manager"))
+    xmigrate.create_users(connection_source, connection_destination)
+    assert "data_manager" in _get_roles(connection_destination, unique_username)
 
 
 def test_existing_users_not_duplicated(
-    destination_connection: xnat.BaseXNATSession,
-    source_connection: xnat.BaseXNATSession,
+    connection_destination: xnat.BaseXNATSession,
+    connection_source: xnat.BaseXNATSession,
     unique_username: str,
 ) -> None:
     """Existing users are not duplicated in the destination."""
-    _seed_user(source_connection, unique_username)
-    _seed_user(destination_connection, unique_username)
-    xmigrate.create_users(source_connection, destination_connection)
-    user_count = sum(u == unique_username for u in _get_usernames(destination_connection))
+    _seed_user(connection_source, unique_username)
+    _seed_user(connection_destination, unique_username)
+    xmigrate.create_users(connection_source, connection_destination)
+    user_count = sum(u == unique_username for u in _get_usernames(connection_destination))
     assert user_count == 1
 
 
 def test_creates_multiple_users(
-    destination_connection: xnat.BaseXNATSession,
-    source_connection: xnat.BaseXNATSession,
+    connection_destination: xnat.BaseXNATSession,
+    connection_source: xnat.BaseXNATSession,
     unique_username: str,
 ) -> None:
     """Multiple users are created in the destination."""
     second_username = f"{unique_username}_2"
-    _seed_user(source_connection, unique_username)
-    _seed_user(source_connection, second_username)
-    xmigrate.create_users(source_connection, destination_connection)
-    usernames = _get_usernames(destination_connection)
+    _seed_user(connection_source, unique_username)
+    _seed_user(connection_source, second_username)
+    xmigrate.create_users(connection_source, connection_destination)
+    usernames = _get_usernames(connection_destination)
     assert unique_username in usernames
     assert second_username in usernames
