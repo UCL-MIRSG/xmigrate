@@ -1,6 +1,7 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
+import sys
 
 import cyclopts
 import requests  # type: ignore[import-untyped]
@@ -33,8 +34,6 @@ def migrate_project_list(  # noqa: PLR0913
     source_projects: list[str],
     source_rsync: str,
     destination: str,
-    destination_user: str,
-    destination_password: str,
     destination_rsync: str,
     destination_projects: list[str] | None = None,
     destination_secondary_ids: list[str] | None = None,
@@ -54,18 +53,16 @@ def migrate_project_list(  # noqa: PLR0913
 
     Parameters
     ----------
+    source
+        The source XNAT instance URL.
     source_projects
         A list of source project IDs.
     source_rsync
         The path to the source rsync directory.
-    destination
-        The destination XNAT instance URL.
-    destination_user
-        The username for the destination XNAT instance.
-    destination_password
-        The password for the destination XNAT instance.
     destination_rsync
         The path to the destination rsync directory.
+    destination
+        The destination XNAT instance URL.
     destination_projects
         A list of destination project IDs.
     destination_secondary_ids
@@ -82,7 +79,7 @@ def migrate_project_list(  # noqa: PLR0913
 
     with (
         xnat.connect(source) as source_connection,
-        xnat.connect(destination, destination_user, destination_password) as destination_connection,
+        xnat.connect(destination) as destination_connection,
     ):
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
@@ -137,12 +134,10 @@ def migrate_project_list(  # noqa: PLR0913
 
 
 @app.command
-def migrate_all_projects(  # noqa: PLR0913
+def migrate_all_projects(
     source: str,
     source_rsync: str,
     destination: str,
-    destination_user: str,
-    destination_password: str,
     destination_rsync: str,
     *,
     no_rsync: bool = False,
@@ -163,10 +158,6 @@ def migrate_all_projects(  # noqa: PLR0913
         The local path for the source XNAT instance's rsync.
     destination
         The destination XNAT instance URL.
-    destination_user
-        The username for the destination XNAT instance.
-    destination_password
-        The password for the destination XNAT instance.
     destination_rsync
         The local path for the destination XNAT instance's rsync.
     no_rsync
@@ -175,7 +166,7 @@ def migrate_all_projects(  # noqa: PLR0913
     """
     with (
         xnat.connect(source) as source_connection,
-        xnat.connect(destination, destination_user, destination_password) as destination_connection,
+        xnat.connect(destination) as destination_connection,
     ):
         rows = [(p.id, p.secondary_id, p.project) for p in source_connection.projects]
         source_projects, source_secondary_ids, source_project_names = (
@@ -250,4 +241,4 @@ def default_action() -> None:
 
 
 if __name__ == "__main__":
-    app()
+    sys.exit(app())
