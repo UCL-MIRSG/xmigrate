@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     import xnat
 
-BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output"
+BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "src" / "xmigrate" / "output"
 
 logger = logging.getLogger(__name__)
 
