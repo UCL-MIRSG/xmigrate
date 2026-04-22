@@ -11,8 +11,6 @@ on:
       - ready_for_review
       - reopened
       - synchronize
-    paths-ignore:
-      - README.md
 
 concurrency:
   cancel-in-progress: true
@@ -20,9 +18,38 @@ concurrency:
     ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
 jobs:
-  tests:
+  tests-integration:
     if: github.event.pull_request.draft == false
-    name: Run Tests (Python ${{ matrix.python-version }})
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@6ee6290f1cbc4156c0bdd66691b2c144ef8df19a # v7
+        with:
+          python-version: 3.14
+
+      - name: Cache nox
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
+        with:
+          key:
+            tests-integ-${{ hashFiles('pyproject.toml') }}-${{
+            hashFiles('noxfile.py') }}
+          path: .nox
+
+      - name: Install only dev dependencies
+        run: uv sync --only-dev
+
+      - name: Test with nox
+        run: uv run nox -s tests_integration
+        env:
+          FORCE_COLOR: 1
+
+  tests-unit:
+    if: github.event.pull_request.draft == false
+    name: Run Unit Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -43,8 +70,8 @@ jobs:
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4
         with:
           key:
-            tests-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('noxfile.py')
-            }}-${{ matrix.python-version }}
+            tests-unit-${{ hashFiles('pyproject.toml') }}-${{
+            hashFiles('noxfile.py') }}-${{ matrix.python-version }}
           path: .nox
 
       - name: Install only dev dependencies
@@ -63,7 +90,7 @@ jobs:
 
   aggregate-tests:
     needs:
-      - tests
+      - tests-unit
     if: always()
     runs-on: ubuntu-latest
     steps:
