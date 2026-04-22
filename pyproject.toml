@@ -103,6 +103,7 @@ lint.ignore = [
     "ISC001", # simplify implicit str concatenation (ruff-format recommended)
 ]
 lint.isort = {known-first-party = [
+    "tests",
     "xmigrate",
 ], section-order = [
     "future",
