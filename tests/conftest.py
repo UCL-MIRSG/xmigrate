@@ -1,8 +1,8 @@
 """Main pytest configuration file."""
 
 pytest_plugins = [
-    "fixtures.connections",
-    "fixtures.helpers",
-    "fixtures.project_info",
-    "fixtures.xnat_config",
+    "tests.fixtures.connections",
+    "tests.fixtures.helpers",
+    "tests.fixtures.project_info",
+    "tests.fixtures.xnat_config",
 ]
