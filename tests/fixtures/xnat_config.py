@@ -10,7 +10,7 @@ import pytest
 @pytest.fixture(scope="session")
 def jar_path() -> pathlib.Path:
     """Path of OHIF viewer jar."""
-    jar_dir = pathlib.Path(__file__).parents[1] / "input"
+    jar_dir = pathlib.Path(__file__).resolve().parents[2] / "input"
     jar_dir.mkdir(parents=True, exist_ok=True)
     ohif_jar = jar_dir / "ohif-viewer-3.7.2-fat.jar"
     if not ohif_jar.is_file():
@@ -43,7 +43,7 @@ def xnat_root_dirs(tmp_path_factory: pytest.TempdirFactory) -> dict[str, pathlib
 
         if keep_instance:
             # Use a fixed host directory to back the container
-            xnat_root_dir = pathlib.Path(__file__).parents[1] / f".xnat4tests_{xnat_name}" / "root"
+            xnat_root_dir = pathlib.Path(__file__).resolve().parents[2] / f".xnat4tests_{xnat_name}" / "root"
             xnat_root_dir.mkdir(parents=True, exist_ok=True)
 
         else:

@@ -52,7 +52,7 @@ def delete_data(
             if project.is_dir():
                 shutil.rmtree(project)
 
-    metadata_folder = pathlib.Path(__file__).resolve().parents[1] / "src" / "xmigrate" / "output" / "localhost"
+    metadata_folder = pathlib.Path(__file__).resolve().parents[2] / "src" / "xmigrate" / "output" / "localhost"
     if metadata_folder.exists():
         shutil.rmtree(str(metadata_folder))
 

@@ -19,7 +19,7 @@ if typing.TYPE_CHECKING:
 def remove_destination_test_data(
     connection_destination: xnat.BaseXNATSession,
     xnat_root_dirs: dict[str, pathlib.Path],
-) -> Generator[xnat.BaseXNATSession, None, None]:
+) -> Generator[None, None, None]:
     """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
     yield
     delete_data(connection_destination, xnat_root_dirs["destination"])

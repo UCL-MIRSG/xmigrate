@@ -16,8 +16,8 @@ from xmigrate.xml_mapper import ProjectInfo
 def test_migrate_all_projects(
     connection_destination: xnat.BaseXNATSession,
     connection_source: xnat.BaseXNATSession,
-    info_destination: ProjectInfo,
-    info_source: ProjectInfo,
+    info_destination: list[ProjectInfo],
+    info_source: list[ProjectInfo],
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
@@ -48,7 +48,7 @@ def test_migrate_all_projects(
 
     assert not any(destination_archive_path.iterdir())
 
-    metadata_folder = pathlib.Path(__file__).resolve().parent / "output/localhost"
+    metadata_folder = pathlib.Path(__file__).resolve().parents[1] / "output/localhost"
 
     assert not metadata_folder.exists()
 
@@ -104,8 +104,8 @@ def test_migrate_all_projects(
 def test_migrate_sharing_projects(
     connection_destination: xnat.BaseXNATSession,
     connection_source: xnat.BaseXNATSession,
-    info_destination: ProjectInfo,
-    info_source: ProjectInfo,
+    info_destination: list[ProjectInfo],
+    info_source: list[ProjectInfo],
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> None:
     """Test the migration of a multiple project from source to destination XNAT."""
