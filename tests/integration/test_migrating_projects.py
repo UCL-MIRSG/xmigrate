@@ -1,37 +1,15 @@
 """Tests for testing single project migration, multiple projects migration and sharing project migration."""
 
 import pathlib
-import xml.etree.ElementTree as ET
 
 import pytest
 
 import xnat
 from xnat.exceptions import XNATResponseError
 
+from tests.fixtures.utils import get_xml
 from xmigrate.migration import Migration
 from xmigrate.xml_mapper import ProjectInfo
-
-
-def _get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
-    """
-    Retrieve the XML representation of an XNAT item.
-
-    Parameters
-    ----------
-    uri
-        The URI of the XNAT item.
-
-    Returns
-    -------
-        The root XML element of the item.
-
-    """
-    response = session.get(
-        uri,
-        query=dict(format="xml"),  # noqa: C408
-    )
-    response.raise_for_status()
-    return ET.fromstring(response.text)  # noqa: S314
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
@@ -174,7 +152,7 @@ def test_migrate_sharing_projects(
 
     # Check if subject has already been shared and if not then share the data on source XNAT
     try:
-        _get_xml(
+        get_xml(
             connection_source,
             f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
         )
@@ -186,12 +164,12 @@ def test_migrate_sharing_projects(
         assert "status 404, accepted status: [200]" in str(e)  # noqa: PT017
 
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
-    root_owner = _get_xml(
+    root_owner = get_xml(
         connection_source,
         f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}",
     )
 
-    root_sharing = _get_xml(
+    root_sharing = get_xml(
         connection_source,
         f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
     )
@@ -232,18 +210,18 @@ def test_migrate_sharing_projects(
     sharing_project_id_dest = info_destination[1].id
     owner_project_subject_label_dest = connection_destination.projects[info_destination[0].id].subjects[0].label
 
-    response = _get_xml(
+    response = get_xml(
         connection_destination,
         f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",
     )
     assert response is not None
 
-    root_owner = _get_xml(
+    root_owner = get_xml(
         connection_destination,
         f"/data/projects/{owner_project_id_dest}/subjects/{owner_project_subject_label_dest}",
     )
 
-    root_sharing = _get_xml(
+    root_sharing = get_xml(
         connection_destination,
         f"/data/projects/{sharing_project_id_dest}/subjects/{owner_project_subject_label_dest}",
     )

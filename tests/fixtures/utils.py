@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import time
 import typing
+import xml.etree.ElementTree as ET
 
 import requests  # type: ignore[import-untyped]
 
@@ -54,6 +55,28 @@ def delete_data(
     metadata_folder = pathlib.Path(__file__).resolve().parents[1] / "src" / "xmigrate" / "output" / "localhost"
     if metadata_folder.exists():
         shutil.rmtree(str(metadata_folder))
+
+
+def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
+    """
+    Retrieve the XML representation of an XNAT item.
+
+    Parameters
+    ----------
+    uri
+        The URI of the XNAT item.
+
+    Returns
+    -------
+        The root XML element of the item.
+
+    """
+    response = session.get(
+        uri,
+        query=dict(format="xml"),  # noqa: C408
+    )
+    response.raise_for_status()
+    return ET.fromstring(response.text)  # noqa: S314
 
 
 def install_plugin(
