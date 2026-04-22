@@ -406,7 +406,7 @@ class Migration:
             self._logger.info(msg)
             self.mapper.update_id_map(
                 source=subject.id,
-                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label],
+                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label].id,
                 map_type=XnatType.subject,
             )
             sharing_subject_exists = False
@@ -457,7 +457,7 @@ class Migration:
         try:
             self.mapper.update_id_map(
                 source=subject.id,
-                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label],
+                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label].id,
                 map_type=XnatType.subject,
             )
         except (KeyError, AttributeError):
@@ -996,23 +996,25 @@ class Migration:
         resource_path = f"/archive/projects/{self.destination_info.id}"
         self._refresh_catalogue(resource_path)
 
-    def _apply_sharing(self) -> None:  # noqa: C901, PLR0912
+    def _apply_sharing(self) -> None:  # noqa: C901, PLR0912, PLR0915
         """Apply sharing configurations to resources on the destination instance."""
         self._logger.info("Applying sharing configurations...")
 
         # Share subjects
         for label, sharing_info in self.subject_sharing.items():
+            if sharing_info["projects"] is None:
+                continue
+
+            # Get the correct mapper based on the owner of the subject
             owner = sharing_info["owner"]
-
-            # Search across all mappers for the destination ID
-            destination_subject_id = None
             for mapper in self.mappers:
-                try:
-                    destination_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
+                if mapper.destination.id == owner:
                     break
-                except KeyError:
-                    continue
+            else:
+                self._logger.warning("Could not find mapper for owner %s of subject %s", owner, label)
+                continue
 
+            destination_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
             if destination_subject_id is None:
                 self._logger.warning("Could not find destination ID for subject %s", label)
                 continue
@@ -1037,20 +1039,19 @@ class Migration:
 
         # Share experiments
         for label, sharing_info in self.experiment_sharing.items():
+            if sharing_info["projects"] is None:
+                continue
+
+            # Get the correct mapper based on the owner of the experiment
             owner = sharing_info["owner"]
-
-            # Search across all mappers for the destination ID
-            destination_experiment_id = None
             for mapper in self.mappers:
-                try:
-                    destination_experiment_id = mapper.get_destination_id(
-                        sharing_info["source_id"],
-                        XnatType.experiment,
-                    )
+                if mapper.destination.id == owner:
                     break
-                except KeyError:
-                    continue
+            else:
+                self._logger.warning("Could not find mapper for owner %s of experiment %s", owner, label)
+                continue
 
+            destination_experiment_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.experiment)
             if destination_experiment_id is None:
                 self._logger.warning("Could not find destination ID for experiment %s", label)
                 continue
@@ -1077,17 +1078,19 @@ class Migration:
 
         # Share assessors
         for label, sharing_info in self.assessor_sharing.items():
+            if sharing_info["projects"] is None:
+                continue
+
+            # Get the correct mapper based on the owner of the assessor
             owner = sharing_info["owner"]
-
-            # Search across all mappers for the destination ID
-            destination_assessor_id = None
             for mapper in self.mappers:
-                try:
-                    destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
+                if mapper.destination.id == owner:
                     break
-                except KeyError:
-                    continue
+            else:
+                self._logger.warning("Could not find mapper for owner %s of assessor %s", owner, label)
+                continue
 
+            destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
             if destination_assessor_id is None:
                 self._logger.warning("Could not find destination ID for assessor %s", label)
                 continue
