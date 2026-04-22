@@ -61,7 +61,7 @@ def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
     """
     response = session.get(
         uri,
-        query=dict(format="xml"),  # noqa: C408
+        query={"format": "xml"},
     )
     response.raise_for_status()
     return ET.fromstring(response.text)  # noqa: S314

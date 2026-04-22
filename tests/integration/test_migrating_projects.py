@@ -151,17 +151,16 @@ def test_migrate_sharing_projects(
     owner_project_subject_label = source_connection.projects[source_info[0].id].subjects[0].label
 
     # Check if subject has already been shared and if not then share the data on source XNAT
-    try:
+    with pytest.raises(XNATResponseError) as e:
         get_xml(
             source_connection,
             f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
         )
-    except XNATResponseError as e:
-        source_connection.put(
-            f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}"
-        )
-        source_connection.projects[sharing_project_id].subjects.clearcache()
-        assert "status 404, accepted status: [200]" in str(e)  # noqa: PT017
+    source_connection.put(
+        f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}"
+    )
+    source_connection.projects[sharing_project_id].subjects.clearcache()
+    assert "status 404, accepted status: [200]" in str(e.value)
 
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
     root_owner = get_xml(source_connection, f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}")
