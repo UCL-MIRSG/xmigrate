@@ -1,7 +1,6 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
-import sys
 
 import cyclopts
 import requests  # type: ignore[import-untyped]
@@ -18,6 +17,7 @@ app = cyclopts.App(
         root_keys=["tool", "xmigrate"],
         search_parents=True,
     ),
+    result_action="return_none",
 )
 
 logger = logging.getLogger("xmigrate.cli")
@@ -241,4 +241,4 @@ def default_action() -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(app())
+    app()
