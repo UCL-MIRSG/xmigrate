@@ -29,10 +29,6 @@ BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "src" / "xmigrat
 
 logger = logging.getLogger(__name__)
 
-pytest_plugins = [
-    "fixtures.users",
-]
-
 
 def _delete_data(
     session: xnat.XNATSession,
@@ -108,6 +104,51 @@ def _install_plugin(
 
     # Only restart if we actually installed something
     xnat4tests.restart_xnat(config)
+
+
+def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
+    """
+    Wait for XNAT to become available and datatypes to be ready.
+
+    Tries up to max_retries times:
+      - Connects if not already connected
+      - Checks datatypes
+    """
+    max_retries = 30
+    conn = None
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            # Connect if needed
+            if conn is None:
+                conn = xnat4tests.connect(config)
+                msg = f"[{attempt}] Connected to XNAT"
+                logger.info(msg)
+
+            # Check if datatypes are ready
+            datatypes = conn.get("/xapi/schemas/datatypes").json()
+            if len(datatypes) > 0:
+                msg = f"[{attempt}] Datatypes ready"
+                logger.info(msg)
+                return conn  # success
+            msg = f"[{attempt}] Datatypes not ready yet"
+            logger.info(msg)
+
+        except (requests.ReadTimeout, requests.ConnectionError) as e:
+            msg = f"[{attempt}] Connection failed, will retry: {e}"
+            logger.info(msg)
+            conn = None  # force reconnect next loop
+        except (requests.RequestException, ValueError) as e:
+            msg = f"[{attempt}] Datatypes request failed, retrying: {e}"
+            logger.info(msg)
+
+        time.sleep(1)
+
+    # Clean up if never ready
+    if conn is not None:
+        conn.disconnect()
+    msg = f"XNAT never became ready after {max_retries} attempts"
+    raise RuntimeError(msg)
 
 
 @pytest.fixture(scope="session")
@@ -274,6 +315,12 @@ def remove_destination_test_data(
     _delete_data(connection_destination, xnat_root_dirs["destination"])
 
 
+@pytest.fixture
+def unique_username(request: pytest.FixtureRequest) -> str:
+    """Generate a unique username based on the test name."""
+    return request.node.name.replace("[", "_").replace("]", "_")
+
+
 @pytest.fixture(scope="session")
 def xnat_root_dirs(tmp_path_factory: pytest.TempdirFactory) -> dict[str, pathlib.Path]:
     """Return fixed or temporary directories for source and destination xnat_root_dir."""
@@ -293,48 +340,3 @@ def xnat_root_dirs(tmp_path_factory: pytest.TempdirFactory) -> dict[str, pathlib
         return xnat_root_dir
 
     return {"destination": _xnat_root_dir("destination"), "source": _xnat_root_dir("source")}
-
-
-def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
-    """
-    Wait for XNAT to become available and datatypes to be ready.
-
-    Tries up to max_retries times:
-      - Connects if not already connected
-      - Checks datatypes
-    """
-    max_retries = 30
-    conn = None
-
-    for attempt in range(1, max_retries + 1):
-        try:
-            # Connect if needed
-            if conn is None:
-                conn = xnat4tests.connect(config)
-                msg = f"[{attempt}] Connected to XNAT"
-                logger.info(msg)
-
-            # Check if datatypes are ready
-            datatypes = conn.get("/xapi/schemas/datatypes").json()
-            if len(datatypes) > 0:
-                msg = f"[{attempt}] Datatypes ready"
-                logger.info(msg)
-                return conn  # success
-            msg = f"[{attempt}] Datatypes not ready yet"
-            logger.info(msg)
-
-        except (requests.ReadTimeout, requests.ConnectionError) as e:
-            msg = f"[{attempt}] Connection failed, will retry: {e}"
-            logger.info(msg)
-            conn = None  # force reconnect next loop
-        except (requests.RequestException, ValueError) as e:
-            msg = f"[{attempt}] Datatypes request failed, retrying: {e}"
-            logger.info(msg)
-
-        time.sleep(1)
-
-    # Clean up if never ready
-    if conn is not None:
-        conn.disconnect()
-    msg = f"XNAT never became ready after {max_retries} attempts"
-    raise RuntimeError(msg)
