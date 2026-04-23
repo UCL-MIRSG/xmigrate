@@ -153,9 +153,12 @@ def install_plugin(
                 f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
             ],
             check=True,
+            capture_output=True,
+            text=True,
         )
     except subprocess.CalledProcessError as e:
-        msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
+        output = e.stderr or e.stdout or ""
+        msg = f"Command {e.cmd} failed with {e.returncode}: {output}"
         raise RuntimeError(msg) from e
 
     # Only restart if we actually installed something

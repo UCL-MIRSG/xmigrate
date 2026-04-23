@@ -19,10 +19,10 @@ def jar_path() -> pathlib.Path:
             "input/ohif-viewer-3.7.2-fat.jar",
         )
 
-    jar_path = next(iter(jar_dir.glob("ohif-*fat.jar")))
+    jar_path = next(iter(jar_dir.glob("ohif-*fat.jar")), None)
 
-    if not jar_path.exists():
-        msg = f"Plugin OHIF Viewer JAR file not found at {jar_path}"
+    if jar_path is None or not jar_path.exists():
+        msg = f"Plugin OHIF Viewer JAR file not found in {jar_dir}"
         raise FileNotFoundError(msg)
 
     return jar_path
