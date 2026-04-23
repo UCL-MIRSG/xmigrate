@@ -156,13 +156,12 @@ def install_plugin(
     xnat4tests.restart_xnat(config)
 
 
-def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
+def wait_for_connection(config: xnat4tests.Config, max_retries: int = 30) -> xnat.BaseXNATSession:
     """
     Wait for XNAT to become available.
 
-    Tries up to 30 times to connect to XNAT, with a 1 second wait between attempts.
+    Tries up to `max_retries` times to connect to XNAT, with a 1 second wait between attempts.
     """
-    max_retries = 30
     for attempt in range(1, max_retries + 1):
         try:
             conn = xnat4tests.connect(config)
@@ -179,13 +178,12 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
     raise RuntimeError(msg)
 
 
-def wait_for_datatypes(conn: xnat.BaseXNATSession) -> xnat.BaseXNATSession:
+def wait_for_datatypes(conn: xnat.BaseXNATSession, max_retries: int = 30) -> xnat.BaseXNATSession:
     """
     Wait for datatypes to be ready in XNAT.
 
-    Checks up to 30 times whether the datatypes are available, with a 1 second wait between attempts.
+    Checks up to `max_retries` times whether the datatypes are available, with a 1 second wait between attempts.
     """
-    max_retries = 30
     for attempt in range(1, max_retries + 1):
         try:
             datatypes = conn.get("/xapi/schemas/datatypes").json()
