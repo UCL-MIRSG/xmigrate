@@ -89,6 +89,7 @@ def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
         for source_proj in source_projects
     ]
 
+
 PLUGIN_NAMES = {
     "ohif": "ohif-viewer-3.7.1-fat.jar",
     "genproc": "dax-plugin-genProcData-1.4.2.jar",
@@ -97,11 +98,11 @@ PLUGIN_NAMES = {
 PLUGIN_REGISTRY = {
     "ohif": {
         "filename": PLUGIN_NAMES["ohif"],
-        "url": f"www.xnat.org/files/ohif-viewer-xnat-plugin/{PLUGIN_NAMES["ohif"]}",
+        "url": f"www.xnat.org/files/ohif-viewer-xnat-plugin/{PLUGIN_NAMES['ohif']}",
     },
     "genproc": {
         "filename": PLUGIN_NAMES["genproc"],
-        "url": f"github.com/VUIIS/dax/raw/main/misc/xnat-plugins/{PLUGIN_NAMES["genproc"]}",
+        "url": f"github.com/VUIIS/dax/raw/main/misc/xnat-plugins/{PLUGIN_NAMES['genproc']}",
     },
 }
 
