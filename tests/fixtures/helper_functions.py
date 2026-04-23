@@ -1,4 +1,4 @@
-"""Fixtures for testing helper functions."""
+"""Testing helper functions used in fixtures and tests."""
 
 from __future__ import annotations
 
@@ -10,8 +10,7 @@ import typing
 import unittest.mock
 import xml.etree.ElementTree as ET
 
-import pytest
-import requests  # type: ignore[import-untyped]
+import requests
 
 import xnat4tests
 
@@ -20,7 +19,6 @@ import xmigrate.migration
 
 if typing.TYPE_CHECKING:
     import pathlib
-    from collections.abc import Generator
 
     import xnat
 
@@ -301,17 +299,4 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
     raise RuntimeError(msg)
 
 
-@pytest.fixture
-def remove_destination_test_data(
-    destination_connection: xnat.BaseXNATSession,
-    xnat_root_dirs: dict[str, pathlib.Path],
-) -> Generator[None, None, None]:
-    """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
-    yield
-    delete_data(destination_connection, xnat_root_dirs["destination"])
 
-
-@pytest.fixture
-def unique_username(request: pytest.FixtureRequest) -> str:
-    """Generate a unique username based on the test name."""
-    return request.node.name.replace("[", "_").replace("]", "_")
