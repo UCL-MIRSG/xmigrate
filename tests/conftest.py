@@ -10,8 +10,9 @@ import time
 import urllib.request
 from typing import TYPE_CHECKING
 
+import medimages4tests.cache_dir
 import pytest
-import requests  # type: ignore  # noqa: PGH003
+import requests
 import xnat4tests
 
 from tests.utils import delete_data
@@ -133,13 +134,16 @@ def install_plugins(
     connection_name: str,
     config: xnat4tests.Config,
 ) -> None:
-    """Install multiple plugins and restart XNAT once."""
-    result = subprocess.run(  # noqa: S603
-        ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],  # noqa: S607
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    """Install plugin for specified connection."""
+    # Check existing plugins
+    cmd = [
+        "docker",
+        "exec",
+        connection_name,
+        "ls",
+        plugin_dir.as_posix(),
+    ]
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)  # noqa: S603
     plugins_list = result.stdout.splitlines()
 
     installed_any = False
@@ -149,21 +153,18 @@ def install_plugins(
         if jar_path.name in plugins_list:
             continue
 
-        # Otherwise copy plugin
-        try:
-            subprocess.run(  # noqa: S603
-                [  # noqa: S607
-                    "docker",
-                    "cp",
-                    str(jar_path),
-                    f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
-            raise RuntimeError(msg) from e
-        installed_any = True
+    # Otherwise copy plugin
+    try:
+        cmd = [
+            "docker",
+            "cp",
+            str(jar_path),
+            f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
+        ]
+        subprocess.run(cmd, check=True)  # noqa: S603
+    except subprocess.CalledProcessError as e:
+        msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
+        raise RuntimeError(msg) from e
 
     # Only restart if we actually installed something
     if installed_any:
@@ -282,6 +283,19 @@ def source_connection(
         },
     )
     xnat4tests.start_xnat(config)
+
+    openneuro_cache_path = medimages4tests.cache_dir.base_cache_dir / "mri" / "neuro" / "t1w"
+    openneuro_cache_path.mkdir(parents=True, exist_ok=True)
+
+    if not any(openneuro_cache_path.iterdir()):
+        openneuro_url_base = "s3.amazonaws.com/openneuro.org/ds002014/sub-01/anat/"
+        local_cache_name = "ds002014-01"
+        url_filename = "sub-01_T1w"
+        for file in [".nii.gz", ".json"]:
+            urllib.request.urlretrieve(
+                f"https://{openneuro_url_base}{url_filename}{file}",
+                f"{openneuro_cache_path}/{local_cache_name}{file}",
+            )
 
     for dataset in ["dummydicom", "openneuro-t1w"]:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")

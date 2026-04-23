@@ -45,7 +45,7 @@ class Migration:
     no_rsync: bool = False
     """Conditional for whether to run rsync only."""
 
-    def __post_init__(self):  # noqa: ANN204
+    def __post_init__(self) -> None:
         """Post-initialisation to set up mappers and initial project information."""
         self.mappers = [
             XMLMapper(
@@ -62,9 +62,9 @@ class Migration:
         self.exp_failed_count = 0
         self.scan_failed_count = 0
         self.assess_failed_count = 0
-        self.subject_sharing = {}
-        self.experiment_sharing = {}
-        self.assessor_sharing = {}
+        self.subject_sharing: dict = {}
+        self.experiment_sharing: dict = {}
+        self.assessor_sharing: dict = {}
 
     def _get_source_xml(self, uri: str) -> ET.Element:
         """
@@ -82,7 +82,7 @@ class Migration:
         """
         response = self.source_connection.get(
             uri,
-            query=dict(format="xml"),  # noqa: C408
+            query={"format": "xml"},
         )
         response.raise_for_status()
         return ET.fromstring(response.text)  # noqa: S314
@@ -888,10 +888,11 @@ class Migration:
             rsync_source = f"{self.source_info.rsync_path}/{self.source_info.id}/"
             pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
-            command_to_run = [
+            cmd = [
                 "rsync",
                 "-azP",
                 "--ignore-existing",
+                "--include=*/ASSESSORS/*.json",
                 "--exclude=*.log",
                 "--exclude=.*",
                 "--exclude=*.json",
@@ -903,7 +904,7 @@ class Migration:
             ]
 
             try:
-                subprocess.check_output(command_to_run)  # noqa: S603
+                subprocess.check_output(cmd)  # noqa: S603
             except subprocess.CalledProcessError as exc:
                 msg = f"An error occurred running the rsync command; the error was: {exc}"
                 raise RuntimeError(msg) from exc
@@ -976,14 +977,23 @@ class Migration:
         for subject in self.destination_connection.projects[self.destination_info.id].subjects:
             for experiment in subject.experiments:
                 for scan in experiment.scans:
-                    resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/scans/{scan.id}"  # noqa: E501
+                    resource_path = (
+                        f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
+                        f"experiments/{experiment.label}/scans/{scan.id}"
+                    )
                     self._refresh_catalogue(resource_path)
 
                 for assessor in experiment.assessors:
-                    resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors/{assessor.label}"  # noqa: E501
+                    resource_path = (
+                        f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
+                        f"experiments/{experiment.label}/assessors/{assessor.label}"
+                    )
                     self._refresh_catalogue(resource_path)
 
-                resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}"  # noqa: E501
+                resource_path = (
+                    f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
+                    f"experiments/{experiment.label}"
+                )
                 self._refresh_catalogue(resource_path)
                 # Regenerate OHIF session data
                 self.destination_connection.post(

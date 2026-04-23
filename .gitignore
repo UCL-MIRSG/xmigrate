@@ -167,3 +167,4 @@ _version.py
 *.xml
 xmigrate.toml
 *.lcov
+input
