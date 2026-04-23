@@ -1002,7 +1002,7 @@ class Migration:
 
         # Share subjects
         for label, sharing_info in self.subject_sharing.items():
-            if sharing_info["projects"] is None:
+            if not sharing_info["projects"]:
                 continue
 
             # Get the correct mapper based on the owner of the subject
@@ -1039,7 +1039,7 @@ class Migration:
 
         # Share experiments
         for label, sharing_info in self.experiment_sharing.items():
-            if sharing_info["projects"] is None:
+            if not sharing_info["projects"]:
                 continue
 
             # Get the correct mapper based on the owner of the experiment
@@ -1078,7 +1078,7 @@ class Migration:
 
         # Share assessors
         for label, sharing_info in self.assessor_sharing.items():
-            if sharing_info["projects"] is None:
+            if not sharing_info["projects"]:
                 continue
 
             # Get the correct mapper based on the owner of the assessor
