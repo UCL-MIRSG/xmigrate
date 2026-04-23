@@ -7,7 +7,7 @@ import pytest
 import xnat
 from xnat.exceptions import XNATResponseError
 
-from tests.fixtures.utils import get_xml
+from tests.fixtures.helpers import get_xml
 from xmigrate.migration import Migration
 from xmigrate.xml_mapper import ProjectInfo
 
