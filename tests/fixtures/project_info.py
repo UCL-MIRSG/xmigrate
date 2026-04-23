@@ -6,14 +6,14 @@ import typing
 
 import pytest
 
-from xmigrate.xml_mapper import ProjectInfo
+import xmigrate
 
 if typing.TYPE_CHECKING:
     import pathlib
 
 
 @pytest.fixture
-def destination_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
+def destination_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[xmigrate.ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple destination projects."""
     destination_projects = [
         "dummydicomproject",
@@ -21,7 +21,7 @@ def destination_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInf
     ]
     rsync_path = xnat_root_dirs["destination"] / "archive"
     return [
-        ProjectInfo(
+        xmigrate.ProjectInfo(
             archive_path="/data/xnat/archive",
             id=destination_proj,
             project_name=destination_proj,
@@ -33,7 +33,7 @@ def destination_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInf
 
 
 @pytest.fixture
-def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
+def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[xmigrate.ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple source projects."""
     source_projects = [
         "dummydicomproject",
@@ -41,7 +41,7 @@ def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
     ]
     rsync_path = xnat_root_dirs["source"] / "archive"
     return [
-        ProjectInfo(
+        xmigrate.ProjectInfo(
             archive_path="/data/xnat/archive",
             id=source_proj,
             project_name=source_proj,

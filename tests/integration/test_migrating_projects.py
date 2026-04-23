@@ -7,17 +7,17 @@ import pytest
 import xnat
 from xnat.exceptions import XNATResponseError
 
+import xmigrate
+import xmigrate.migration
 from tests.fixtures.helpers import get_xml
-from xmigrate.migration import Migration
-from xmigrate.xml_mapper import ProjectInfo
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_all_projects(
     destination_connection: xnat.BaseXNATSession,
-    destination_info: list[ProjectInfo],
+    destination_info: list[xmigrate.ProjectInfo],
     source_connection: xnat.BaseXNATSession,
-    source_info: list[ProjectInfo],
+    source_info: list[xmigrate.ProjectInfo],
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
@@ -48,11 +48,11 @@ def test_migrate_all_projects(
 
     assert not any(destination_archive_path.iterdir())
 
-    metadata_folder = pathlib.Path(__file__).resolve().parents[1] / "output/localhost"
+    metadata_folder = xmigrate.migration.BASE_OUTPUT_DIR / "localhost"
 
     assert not metadata_folder.exists()
 
-    migration = Migration(
+    migration = xmigrate.Migration(
         all_destination_info=destination_info,
         all_source_info=source_info,
         destination_connection=destination_connection,
@@ -103,9 +103,9 @@ def test_migrate_all_projects(
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_sharing_projects(
     destination_connection: xnat.BaseXNATSession,
-    destination_info: list[ProjectInfo],
+    destination_info: list[xmigrate.ProjectInfo],
     source_connection: xnat.BaseXNATSession,
-    source_info: list[ProjectInfo],
+    source_info: list[xmigrate.ProjectInfo],
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> None:
     """Test the migration of a multiple project from source to destination XNAT."""
@@ -136,7 +136,7 @@ def test_migrate_sharing_projects(
 
     assert not any(destination_archive_path.iterdir())
 
-    migration = Migration(
+    migration = xmigrate.Migration(
         all_destination_info=destination_info,
         all_source_info=source_info,
         destination_connection=destination_connection,

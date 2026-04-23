@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import pathlib
 import shutil
 import subprocess
 import time
@@ -17,8 +16,10 @@ import requests
 import xnat4tests
 
 import xmigrate
+import xmigrate.migration
 
 if typing.TYPE_CHECKING:
+    import pathlib
     from collections.abc import Generator
 
     import xnat
@@ -58,7 +59,7 @@ def delete_data(
             if project.is_dir():
                 shutil.rmtree(project)
 
-    metadata_folder = pathlib.Path(__file__).resolve().parents[2] / "src" / "xmigrate" / "output" / "localhost"
+    metadata_folder = xmigrate.migration.BASE_OUTPUT_DIR / "localhost"
     if metadata_folder.exists():
         shutil.rmtree(str(metadata_folder))
 
