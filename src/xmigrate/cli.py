@@ -58,10 +58,10 @@ def migrate_project_list(  # noqa: PLR0913
         A list of source project IDs.
     source_rsync
         The path to the source rsync directory.
-    destination_rsync
-        The path to the destination rsync directory.
     destination
         The destination XNAT instance URL.
+    destination_rsync
+        The path to the destination rsync directory.
     destination_projects
         A list of destination project IDs.
     destination_secondary_ids
