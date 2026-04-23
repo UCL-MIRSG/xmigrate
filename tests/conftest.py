@@ -160,47 +160,52 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
     """
     Wait for XNAT to become available and datatypes to be ready.
 
-    Tries up to max_retries times:
-      - Connects if not already connected
-      - Checks datatypes
+    Tries up to 30 times to connect to XNAT, with a 1 second wait between attempts.
     """
     max_retries = 30
-    conn = None
-
     for attempt in range(1, max_retries + 1):
         try:
-            # Connect if needed
-            if conn is None:
-                conn = xnat4tests.connect(config)
-                msg = f"[{attempt}] Connected to XNAT"
-                logger.info(msg)
-
-            # Check if datatypes are ready
-            datatypes = conn.get("/xapi/schemas/datatypes").json()
-            if len(datatypes) > 0:
-                msg = f"[{attempt}] Datatypes ready"
-                logger.info(msg)
-                return conn  # success
-            msg = f"[{attempt}] Datatypes not ready yet"
-            logger.info(msg)
-
+            conn = xnat4tests.connect(config)
         except (requests.ReadTimeout, requests.ConnectionError) as e:
             msg = f"[{attempt}] Connection failed, will retry: {e}"
             logger.info(msg)
-            conn = None  # force reconnect next loop
-        except (requests.RequestException, ValueError) as e:
-            msg = f"[{attempt}] Datatypes request failed, retrying: {e}"
-            logger.info(msg)
+            time.sleep(1)
         else:
-            msg = f"XNAT is ready at {config.xnat_uri}"
+            msg = f"Connected to XNAT at {config.xnat_uri}"
             logger.info(msg)
             return conn
 
-        time.sleep(1)
+    msg = f"XNAT never became ready after {max_retries} attempts"
+    raise RuntimeError(msg)
 
-    # Clean up if never ready
-    if conn is not None:
-        conn.disconnect()
+
+def wait_for_datatypes(conn: xnat.BaseXNATSession) -> xnat.BaseXNATSession:
+    """
+    Wait for datatypes to be ready in XNAT.
+
+    Checks up to 30 times whether the datatypes are available, with a 1 second wait between attempts.
+    """
+    max_retries = 30
+    for attempt in range(1, max_retries + 1):
+        try:
+            datatypes = conn.get("/xapi/schemas/datatypes").json()
+        except (requests.RequestException, ValueError) as e:
+            msg = f"[{attempt}] Datatypes request failed, retrying: {e}"
+            logger.info(msg)
+            time.sleep(1)
+            continue
+
+        if len(datatypes) == 0:
+            msg = f"[{attempt}] Datatypes not ready yet"
+            logger.info(msg)
+            time.sleep(1)
+            continue
+
+        msg = f"[{attempt}] Datatypes ready"
+        logger.info(msg)
+        return conn  # success
+
+    conn.disconnect()
     msg = f"XNAT never became ready after {max_retries} attempts"
     raise RuntimeError(msg)
 
@@ -231,7 +236,9 @@ def destination_connection(
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
 
-    yield wait_for_connection(config)
+    conn = wait_for_connection(config)
+    wait_for_datatypes(conn)
+    yield conn
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
@@ -287,7 +294,9 @@ def source_connection(
     connection_name = "xnat4tests_source"
     install_plugin(jar_path, plugin_dir, connection_name, config)
 
-    yield wait_for_connection(config)
+    conn = wait_for_connection(config)
+    wait_for_datatypes(conn)
+    yield conn
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
