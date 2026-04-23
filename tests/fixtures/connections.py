@@ -11,7 +11,7 @@ import pytest
 import medimages4tests.cache_dir
 import xnat4tests
 
-from tests.fixtures.utils import delete_data, install_plugin, wait_for_connection
+from tests.fixtures.helpers import delete_data, install_plugin, wait_for_connection
 
 if typing.TYPE_CHECKING:
     import pathlib
