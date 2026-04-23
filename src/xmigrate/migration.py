@@ -892,6 +892,7 @@ class Migration:
                 "rsync",
                 "-azP",
                 "--ignore-existing",
+                "--include=*/ASSESSORS/*.json",
                 "--exclude=*.log",
                 "--exclude=.*",
                 "--exclude=*.json",
