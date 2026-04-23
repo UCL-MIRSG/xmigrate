@@ -179,7 +179,11 @@ def test_creates_missing_users_roles(
     _seed_user(destination_connection, unique_username, roles=roles)
     folder_path = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output" / "localhost"
     xmigrate.check_user_roles(
-        unique_username, folder_path, migration.sitewide_roles, destination_connection, source_connection
+        unique_username,
+        folder_path,
+        migration.sitewide_roles,
+        destination_connection,
+        source_connection,
     )
     assert "data_manager" in _get_roles(destination_connection, unique_username)
     assert set(migration.sitewide_roles[unique_username]) == set(roles)
@@ -201,14 +205,22 @@ def test_roles_skipped_if_checkpoint_exists(
     _seed_user(destination_connection, unique_username, roles=roles)
     folder_path = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output" / "localhost"
     xmigrate.check_user_roles(
-        unique_username, folder_path, migration.sitewide_roles, destination_connection, source_connection
+        unique_username,
+        folder_path,
+        migration.sitewide_roles,
+        destination_connection,
+        source_connection,
     )
     checkpoint_file = folder_path / "sitewide_roles.json"
     assert checkpoint_file.exists()
 
     with caplog.at_level(logging.INFO):
         xmigrate.check_user_roles(
-            unique_username, folder_path, migration.sitewide_roles, destination_connection, source_connection
+            unique_username,
+            folder_path,
+            migration.sitewide_roles,
+            destination_connection,
+            source_connection,
         )
     assert any(
         record.message == f"User roles already exist in destination: {unique_username}" for record in caplog.records

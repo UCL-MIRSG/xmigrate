@@ -158,7 +158,7 @@ def test_migrate_sharing_projects(
         )
     except XNATResponseError as e:
         source_connection.put(
-            f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}"
+            f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/projects/{sharing_project_id}?label={owner_project_subject_label}",
         )
         source_connection.projects[sharing_project_id].subjects.clearcache()
         assert "status 404, accepted status: [200]" in str(e)  # noqa: PT017
@@ -167,7 +167,8 @@ def test_migrate_sharing_projects(
     root_owner = get_xml(source_connection, f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}")
 
     root_sharing = get_xml(
-        source_connection, f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}"
+        source_connection,
+        f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
     )
     assert root_owner.attrib["project"] == owner_project_id
     assert root_sharing.attrib["project"] != sharing_project_id

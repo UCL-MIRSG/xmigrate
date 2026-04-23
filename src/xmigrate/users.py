@@ -13,7 +13,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 def check_user(
-    username: str, source_profiles: list, destination_profiles: list, destination_connection: xnat.BaseXNATSession
+    username: str,
+    source_profiles: list,
+    destination_profiles: list,
+    destination_connection: xnat.BaseXNATSession,
 ) -> list | None:
     """
     Check user on the destination XNAT instance.
@@ -75,7 +78,7 @@ def check_user(
         {
             "username": destination_profile["username"],
             "id": source_profile["id"],
-        }
+        },
     )
     return destination_profiles
 

@@ -834,10 +834,17 @@ class Migration:
         for user in source_project_ownership:
             username = user["login"]
             destination_profiles = check_user(
-                username, source_profiles, destination_profiles, self.destination_connection
+                username,
+                source_profiles,
+                destination_profiles,
+                self.destination_connection,
             )
             self.sitewide_roles = check_user_roles(
-                username, folder_path, self.sitewide_roles, self.source_connection, self.destination_connection
+                username,
+                folder_path,
+                self.sitewide_roles,
+                self.source_connection,
+                self.destination_connection,
             )
 
         # Assign project-specific permissions

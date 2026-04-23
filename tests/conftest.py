@@ -30,7 +30,8 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def remove_destination_test_data(
-    destination_connection: xnat.BaseXNATSession, xnat_root_dirs: dict[str, pathlib.Path]
+    destination_connection: xnat.BaseXNATSession,
+    xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
     yield
@@ -205,7 +206,9 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
 
 @pytest.fixture(scope="session")
 def destination_connection(
-    jar_path: pathlib.Path, plugin_dir: pathlib.Path, xnat_root_dirs: dict[str, pathlib.Path]
+    jar_path: pathlib.Path,
+    plugin_dir: pathlib.Path,
+    xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
     Provide a connection to the destination XNAT instance.
