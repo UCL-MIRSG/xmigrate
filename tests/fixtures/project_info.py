@@ -13,7 +13,7 @@ if typing.TYPE_CHECKING:
 
 
 @pytest.fixture
-def info_destination(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
+def destination_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple destination projects."""
     destination_projects = [
         "dummydicomproject",
@@ -33,7 +33,7 @@ def info_destination(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInf
 
 
 @pytest.fixture
-def info_source(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
+def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[ProjectInfo]:
     """Fixture to set up ProjectInfo instance for multiple source projects."""
     source_projects = [
         "dummydicomproject",

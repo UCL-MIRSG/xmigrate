@@ -17,12 +17,12 @@ if typing.TYPE_CHECKING:
 
 @pytest.fixture
 def remove_destination_test_data(
-    connection_destination: xnat.BaseXNATSession,
+    destination_connection: xnat.BaseXNATSession,
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[None, None, None]:
     """Fixture to delete data on destination and metadata dir e.g. output/localhost."""
     yield
-    delete_data(connection_destination, xnat_root_dirs["destination"])
+    delete_data(destination_connection, xnat_root_dirs["destination"])
 
 
 @pytest.fixture

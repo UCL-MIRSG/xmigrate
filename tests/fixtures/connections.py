@@ -21,7 +21,7 @@ if typing.TYPE_CHECKING:
 
 
 @pytest.fixture(scope="session")
-def connection_source(
+def source_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
@@ -75,7 +75,7 @@ def connection_source(
 
 
 @pytest.fixture(scope="session")
-def connection_destination(
+def destination_connection(
     jar_path: pathlib.Path,
     plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
