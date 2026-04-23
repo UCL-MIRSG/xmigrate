@@ -12,6 +12,7 @@ import urllib
 import xml.etree.ElementTree as ET
 
 import requests
+
 import xnat4tests
 
 import xmigrate

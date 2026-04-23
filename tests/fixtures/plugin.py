@@ -1,4 +1,5 @@
 """Fixtures for installing plugins."""
+
 from __future__ import annotations
 
 import pathlib
@@ -22,6 +23,8 @@ PLUGIN_REGISTRY = {
         "url": f"github.com/VUIIS/dax/raw/main/misc/xnat-plugins/{PLUGIN_NAMES['genproc']}",
     },
 }
+
+
 @pytest.fixture(scope="session")
 def plugin_jars() -> dict[str, pathlib.Path]:
     """Fixture for providing jar_paths and downloading if not available."""
