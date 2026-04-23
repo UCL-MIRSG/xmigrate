@@ -7,91 +7,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 import xmigrate
+from tests.fixtures.helpers import get_roles, get_usernames, seed_user
 
 if TYPE_CHECKING:
     import xnat
-
-
-def _seed_user(
-    connection: xnat.BaseXNATSession,
-    username: str,
-    email: str = "test@example.com",
-    roles: tuple[str, ...] = ("user",),
-) -> None:
-    """
-    Create a user directly on an XNAT instance via REST.
-
-    Parameters
-    ----------
-    connection
-        The XNAT session to use for the request.
-    username
-        The username of the user to create.
-    email
-        The email of the user to create.
-    roles
-        The roles to assign to the user.
-
-    """
-    profile = {
-        "email": email,
-        "enabled": True,
-        "firstName": "Test",
-        "lastName": "User",
-        "username": username,
-        "verified": True,
-    }
-    existing = [p["username"] for p in connection.get("/xapi/users/profiles", format="json").json()]
-    if username in existing:
-        connection.put(
-            f"/xapi/users/{username}",
-            json=profile,
-            accepted_status=[200, 201, 304],
-        )
-    else:
-        connection.post("/xapi/users", json=profile)
-    for role in roles:
-        connection.put(
-            f"/xapi/users/{username}/roles/{role}",
-            accepted_status=[200, 201, 304],
-        )
-
-
-def _get_usernames(connection: xnat.BaseXNATSession) -> list[str]:
-    """
-    Get the usernames of all users on an XNAT instance.
-
-    Parameters
-    ----------
-    connection
-        The XNAT session to use for the request.
-
-    Returns
-    -------
-        The list of usernames of all users on the XNAT instance.
-
-    """
-    profiles = connection.get("/xapi/users/profiles", format="json").json()
-    return [p["username"] for p in profiles]
-
-
-def _get_roles(connection: xnat.BaseXNATSession, username: str) -> list[str]:
-    """
-    Get the roles of a user on an XNAT instance.
-
-    Parameters
-    ----------
-    connection
-        The XNAT session to use for the request.
-    username
-        The username of the user.
-
-    Returns
-    -------
-        The list of roles assigned to the user.
-
-    """
-    return connection.get(f"/xapi/users/{username}/roles").json()
 
 
 def test_check_users_matching() -> None:
@@ -134,9 +53,9 @@ def test_creates_missing_users(
     unique_username: str,
 ) -> None:
     """Users present in the source but missing in the destination are created."""
-    _seed_user(source_connection, unique_username)
+    seed_user(source_connection, unique_username)
     xmigrate.create_users(source_connection, destination_connection)
-    assert unique_username in _get_usernames(destination_connection)
+    assert unique_username in get_usernames(destination_connection)
 
 
 def test_creates_missing_users_roles(
@@ -145,9 +64,9 @@ def test_creates_missing_users_roles(
     unique_username: str,
 ) -> None:
     """Roles assigned to users in the source are correctly created in the destination."""
-    _seed_user(source_connection, unique_username, roles=("user", "data_manager"))
+    seed_user(source_connection, unique_username, roles=("user", "data_manager"))
     xmigrate.create_users(source_connection, destination_connection)
-    assert "data_manager" in _get_roles(destination_connection, unique_username)
+    assert "data_manager" in get_roles(destination_connection, unique_username)
 
 
 def test_existing_users_not_duplicated(
@@ -156,10 +75,10 @@ def test_existing_users_not_duplicated(
     unique_username: str,
 ) -> None:
     """Existing users are not duplicated in the destination."""
-    _seed_user(source_connection, unique_username)
-    _seed_user(destination_connection, unique_username)
+    seed_user(source_connection, unique_username)
+    seed_user(destination_connection, unique_username)
     xmigrate.create_users(source_connection, destination_connection)
-    user_count = sum(u == unique_username for u in _get_usernames(destination_connection))
+    user_count = sum(u == unique_username for u in get_usernames(destination_connection))
     assert user_count == 1
 
 
@@ -170,9 +89,9 @@ def test_creates_multiple_users(
 ) -> None:
     """Multiple users are created in the destination."""
     second_username = f"{unique_username}_2"
-    _seed_user(source_connection, unique_username)
-    _seed_user(source_connection, second_username)
+    seed_user(source_connection, unique_username)
+    seed_user(source_connection, second_username)
     xmigrate.create_users(source_connection, destination_connection)
-    usernames = _get_usernames(destination_connection)
+    usernames = get_usernames(destination_connection)
     assert unique_username in usernames
     assert second_username in usernames
