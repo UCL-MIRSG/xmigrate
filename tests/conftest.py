@@ -158,7 +158,7 @@ def install_plugin(
 
 def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
     """
-    Wait for XNAT to become available and datatypes to be ready.
+    Wait for XNAT to become available.
 
     Tries up to 30 times to connect to XNAT, with a 1 second wait between attempts.
     """
@@ -175,7 +175,7 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
             logger.info(msg)
             return conn
 
-    msg = f"XNAT never became ready after {max_retries} attempts"
+    msg = f"Could not connect to XNAT after {max_retries} attempts"
     raise RuntimeError(msg)
 
 
