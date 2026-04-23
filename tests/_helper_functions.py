@@ -139,7 +139,7 @@ def install_plugins(
     connection_name: str,
     config: xnat4tests.Config,
 ) -> None:
-    """Install multiple plugins and restart XNAT once."""
+    """Install multiple plugins for specified connection."""
     # Check existing plugins
     result = subprocess.run(  # noqa: S603
         ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],  # noqa: S607
