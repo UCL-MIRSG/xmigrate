@@ -11,7 +11,7 @@ import unittest.mock
 import xml.etree.ElementTree as ET
 
 import pytest
-import requests
+import requests  # type: ignore[import-untyped]
 
 import xnat4tests
 
