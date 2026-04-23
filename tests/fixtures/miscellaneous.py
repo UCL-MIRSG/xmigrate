@@ -6,13 +6,14 @@ import typing
 
 import pytest
 
-from tests.fixtures.helper_functions import delete_data
+from tests._helper_functions import delete_data
 
 if typing.TYPE_CHECKING:
     import pathlib
     from collections.abc import Generator
 
     import xnat
+
 
 @pytest.fixture
 def remove_destination_test_data(

@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 import pytest
 
 import xmigrate
-from tests.fixtures.helpers import make_mapper
+from tests._helper_functions import make_mapper
 
 
 def test_get_destination_id_returns_mapped_id() -> None:

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import xmigrate
-from tests.fixtures.helpers import get_roles, get_usernames, seed_user
+from tests._helper_functions import get_roles, get_usernames, seed_user
 
 if TYPE_CHECKING:
     import xnat

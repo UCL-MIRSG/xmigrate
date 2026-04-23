@@ -3,7 +3,7 @@
 import pytest
 
 import xmigrate
-from tests.fixtures.helpers import make_connection
+from tests._helper_functions import make_connection
 
 
 def test_check_datatypes_matching_identical() -> None:

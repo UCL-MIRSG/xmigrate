@@ -9,7 +9,7 @@ from xnat.exceptions import XNATResponseError
 
 import xmigrate
 import xmigrate.migration
-from tests.fixtures.helpers import get_xml
+from tests._helper_functions import get_xml
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
