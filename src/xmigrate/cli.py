@@ -153,6 +153,8 @@ def migrate_all_projects(
 
     Parameters
     ----------
+    source
+        The source XNAT instance URL.
     source_rsync
         The local path for the source XNAT instance's rsync.
     destination
