@@ -22,7 +22,7 @@ if typing.TYPE_CHECKING:
 
 @pytest.fixture(scope="session")
 def source_connection(
-    plugin_jars: pathlib.Path,
+    plugin_jars: dict[str, pathlib.Path],
     plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
@@ -81,7 +81,7 @@ def source_connection(
 
 @pytest.fixture(scope="session")
 def destination_connection(
-    plugin_jars: pathlib.Path,
+    plugin_jars: dict[str, pathlib.Path],
     plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
