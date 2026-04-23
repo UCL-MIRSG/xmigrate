@@ -6,12 +6,11 @@ import os
 import typing
 import urllib.request
 
-import pytest
-
 import medimages4tests.cache_dir
+import pytest
 import xnat4tests
 
-from tests._helper_functions import delete_data, install_plugin, wait_for_connection
+from tests._helper_functions import delete_data, install_plugins, wait_for_connection
 
 if typing.TYPE_CHECKING:
     import pathlib
@@ -22,7 +21,7 @@ if typing.TYPE_CHECKING:
 
 @pytest.fixture(scope="session")
 def source_connection(
-    jar_path: pathlib.Path,
+    plugin_jars: pathlib.Path,
     plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
@@ -63,7 +62,12 @@ def source_connection(
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
     connection_name = "xnat4tests_source"
-    install_plugin(jar_path, plugin_dir, connection_name, config)
+    install_plugins(
+        jar_paths=list(plugin_jars.values()),
+        plugin_dir=plugin_dir,
+        connection_name=connection_name,
+        config=config,
+    )
 
     yield wait_for_connection(config)
 
@@ -76,7 +80,7 @@ def source_connection(
 
 @pytest.fixture(scope="session")
 def destination_connection(
-    jar_path: pathlib.Path,
+    plugin_jars: pathlib.Path,
     plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
@@ -100,9 +104,15 @@ def destination_connection(
     )
     xnat4tests.start_xnat(config)
     connection_name = "xnat4tests_destination"
-    install_plugin(jar_path, plugin_dir, connection_name, config)
+    install_plugins(
+        jar_paths=list(plugin_jars.values()),
+        plugin_dir=plugin_dir,
+        connection_name=connection_name,
+        config=config,
+    )
 
     yield wait_for_connection(config)
+    connection_name = "xnat4tests_destination"
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times

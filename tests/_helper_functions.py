@@ -8,10 +8,10 @@ import subprocess
 import time
 import typing
 import unittest.mock
+import urllib
 import xml.etree.ElementTree as ET
 
 import requests
-
 import xnat4tests
 
 import xmigrate
@@ -121,13 +121,25 @@ def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
     return ET.fromstring(response.text)  # noqa: S314
 
 
-def install_plugin(
-    jar_path: pathlib.Path,
+def download_plugin(meta: dict, input_dir: pathlib.Path) -> pathlib.Path:
+    """Download plugin if does not exist locally."""
+    input_dir.mkdir(parents=True, exist_ok=True)
+
+    jar_path = input_dir / meta["filename"]
+
+    if not jar_path.exists():
+        urllib.request.urlretrieve(f"https://{meta['url']}", jar_path)
+
+    return jar_path
+
+
+def install_plugins(
+    jar_paths: list[pathlib.Path],
     plugin_dir: pathlib.Path,
     connection_name: str,
     config: xnat4tests.Config,
 ) -> None:
-    """Install plugin for specified connection."""
+    """Install multiple plugins and restart XNAT once."""
     # Check existing plugins
     result = subprocess.run(  # noqa: S603
         ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],  # noqa: S607
@@ -137,30 +149,32 @@ def install_plugin(
     )
     plugins_list = result.stdout.splitlines()
 
-    # If already installed → do nothing
-    if jar_path.name in plugins_list:
-        return
+    installed_any = False
 
-    # Otherwise copy plugin
-    try:
-        subprocess.run(  # noqa: S603
-            [  # noqa: S607
-                "docker",
-                "cp",
-                str(jar_path),
-                f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as e:
-        output = e.stderr or e.stdout or ""
-        msg = f"Command {e.cmd} failed with {e.returncode}: {output}"
-        raise RuntimeError(msg) from e
+    for jar_path in jar_paths:
+        # If already installed → do nothing
+        if jar_path.name in plugins_list:
+            continue
+
+        # Otherwise copy plugin
+        try:
+            subprocess.run(  # noqa: S603
+                [  # noqa: S607
+                    "docker",
+                    "cp",
+                    str(jar_path),
+                    f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
+                ],
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
+            raise RuntimeError(msg) from e
+        installed_any = True
 
     # Only restart if we actually installed something
-    xnat4tests.restart_xnat(config)
+    if installed_any:
+        xnat4tests.restart_xnat(config)
 
 
 def make_connection(datatypes: list[str]) -> unittest.mock.MagicMock:

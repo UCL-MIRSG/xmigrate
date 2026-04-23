@@ -5,4 +5,5 @@ pytest_plugins = [
     "tests.fixtures.miscellaneous",
     "tests.fixtures.project_info",
     "tests.fixtures.xnat_config",
+    "tests.fixtures.plugin",
 ]
