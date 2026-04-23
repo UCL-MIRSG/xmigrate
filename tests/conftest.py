@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import medimages4tests.cache_dir
 import pytest
-import requests  # type: ignore  # noqa: PGH003
+import requests
 import xnat4tests
 
 from tests.utils import delete_data
@@ -125,12 +125,14 @@ def install_plugin(
 ) -> None:
     """Install plugin for specified connection."""
     # Check existing plugins
-    result = subprocess.run(  # noqa: S603
-        ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],  # noqa: S607
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    cmd = [
+        "docker",
+        "exec",
+        connection_name,
+        "ls",
+        plugin_dir.as_posix(),
+    ]
+    result = subprocess.run(cmd, check=True, capture_output=True, text=True)  # noqa: S603
     plugins_list = result.stdout.splitlines()
 
     # If already installed → do nothing
@@ -139,15 +141,13 @@ def install_plugin(
 
     # Otherwise copy plugin
     try:
-        subprocess.run(  # noqa: S603
-            [  # noqa: S607
-                "docker",
-                "cp",
-                str(jar_path),
-                f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
-            ],
-            check=True,
-        )
+        cmd = [
+            "docker",
+            "cp",
+            str(jar_path),
+            f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
+        ]
+        subprocess.run(cmd, check=True)  # noqa: S603
     except subprocess.CalledProcessError as e:
         msg = f"Command {e.cmd} failed with {e.returncode}: {e.output}"
         raise RuntimeError(msg) from e

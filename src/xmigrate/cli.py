@@ -3,7 +3,7 @@
 import logging
 
 import cyclopts
-import requests  # type: ignore[import-untyped]
+import requests
 
 import xnat
 
