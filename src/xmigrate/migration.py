@@ -1048,7 +1048,8 @@ class Migration:
                 if mapper.destination.id == owner:
                     break
             else:
-                self._logger.warning("Could not find mapper for owner %s of experiment %s", owner, label)
+                msg = f"Could not find mapper for owner {owner} of experiment {label}"
+                self._logger.warning(msg)
                 continue
 
             destination_experiment_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.experiment)
@@ -1087,7 +1088,8 @@ class Migration:
                 if mapper.destination.id == owner:
                     break
             else:
-                self._logger.warning("Could not find mapper for owner %s of assessor %s", owner, label)
+                msg = f"Could not find mapper for owner {owner} of assessor {label}"
+                self._logger.warning(msg)
                 continue
 
             destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
