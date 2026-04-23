@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import medimages4tests.cache_dir
 import pytest
-import requests  # type: ignore[import-untyped]
+import requests
 import xnat4tests
 
 from tests.utils import delete_data
