@@ -297,6 +297,3 @@ def wait_for_connection(config: xnat4tests.Config) -> xnat.BaseXNATSession:
         conn.disconnect()
     msg = f"XNAT never became ready after {max_retries} attempts"
     raise RuntimeError(msg)
-
-
-

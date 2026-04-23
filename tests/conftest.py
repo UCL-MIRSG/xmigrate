@@ -2,7 +2,7 @@
 
 pytest_plugins = [
     "tests.fixtures.connections",
-    "tests.fixtures.helpers",
+    "tests.fixtures.miscellaneous",
     "tests.fixtures.project_info",
     "tests.fixtures.xnat_config",
 ]
