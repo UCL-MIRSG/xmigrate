@@ -27,7 +27,7 @@ RUN apk add --no-cache \
         supervisor \
         vim \
         wget \
- && rm -rf ${CATALINA_HOME}/webapps/* \
+ && rm -rf "${CATALINA_HOME}/webapps/*" \
  && mkdir -p \
         ${TOMCAT_XNAT_FOLDER_PATH} \
         ${XNAT_HOME}/config \
