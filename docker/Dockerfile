@@ -20,30 +20,41 @@ ARG XNAT_VERSION
 COPY make-xnat-config.sh /usr/local/bin/make-xnat-config.sh
 
 # Install XNAT
-RUN apk add --no-cache postgresql postgresql-client supervisor wget vim docker
-RUN rm -rf ${CATALINA_HOME}/webapps/*
-RUN mkdir -p \
+RUN apk add --no-cache \
+        docker \
+        postgresql \
+        postgresql-client \
+        supervisor \
+        vim \
+        wget \
+ && rm -rf ${CATALINA_HOME}/webapps/* \
+ && mkdir -p \
         ${TOMCAT_XNAT_FOLDER_PATH} \
         ${XNAT_HOME}/config \
         ${XNAT_HOME}/logs \
         ${XNAT_HOME}/plugins \
         ${XNAT_HOME}/work \
+        ${XNAT_ROOT}/archive \
         ${XNAT_ROOT}/build \
         ${XNAT_ROOT}/cache \
         ${XNAT_ROOT}/ftp \
         ${XNAT_ROOT}/pipeline \
-        ${XNAT_ROOT}/archive \
-        ${XNAT_ROOT}/prearchive
-RUN /usr/local/bin/make-xnat-config.sh
-RUN rm /usr/local/bin/make-xnat-config.sh
-RUN wget --no-verbose --output-document=/tmp/xnat-web-${XNAT_VERSION}.war https://api.bitbucket.org/2.0/repositories/xnatdev/xnat-web/downloads/xnat-web-${XNAT_VERSION}.war
-RUN unzip -o -d ${TOMCAT_XNAT_FOLDER_PATH} /tmp/xnat-web-${XNAT_VERSION}.war
-RUN rm -f /tmp/xnat-web-${XNAT_VERSION}.war
-RUN wget --output-document ${XNAT_HOME}/plugins/container-service-plugin.jar https://api.bitbucket.org/2.0/repositories/xnatdev/container-service/downloads/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar
-RUN wget --output-document ${XNAT_HOME}/plugins/batch-launch-plugin.jar https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}.jar
-RUN apk del wget
-RUN mkdir /var/log/tomcat
-ENV XNAT_HOME=${XNAT_HOME} XNAT_DATASOURCE_USERNAME=${XNAT_DATASOURCE_USERNAME} PGPASSWORD=${XNAT_DATASOURCE_PASSWORD}
+        ${XNAT_ROOT}/prearchive \
+ && /usr/local/bin/make-xnat-config.sh \
+ && rm /usr/local/bin/make-xnat-config.sh \
+ && wget --no-verbose --output-document=/tmp/xnat-web-${XNAT_VERSION}.war \
+    https://api.bitbucket.org/2.0/repositories/xnatdev/xnat-web/downloads/xnat-web-${XNAT_VERSION}.war \
+ && unzip -o -d ${TOMCAT_XNAT_FOLDER_PATH} /tmp/xnat-web-${XNAT_VERSION}.war \
+ && rm -f /tmp/xnat-web-${XNAT_VERSION}.war \
+ && wget --output-document ${XNAT_HOME}/plugins/container-service-plugin.jar \
+    https://api.bitbucket.org/2.0/repositories/xnatdev/container-service/downloads/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar \
+ && wget --output-document ${XNAT_HOME}/plugins/batch-launch-plugin.jar \
+    https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}.jar \
+ && apk del wget \
+ && mkdir /var/log/tomcat
+ENV XNAT_HOME=${XNAT_HOME} \
+    XNAT_DATASOURCE_USERNAME=${XNAT_DATASOURCE_USERNAME} \
+    PGPASSWORD=${XNAT_DATASOURCE_PASSWORD}
 ENV CATALINA_OPTS="-Xms${JAVA_MS} -Xmx${JAVA_MX} -Dxnat.home=${XNAT_HOME}"
 
 # Add scripts for configuring XNAT database before launching Tomcat
@@ -59,15 +70,16 @@ COPY xnat-prefs-init.ini ${XNAT_HOME}/config/prefs-init.ini
 EXPOSE 8080
 
 # Setup Postgres
-RUN mkdir /run/postgresql
-RUN mkdir /var/lib/postgresql/data
-RUN chmod 700 /var/lib/postgresql/data
-RUN chown postgres:postgres /run/postgresql /var/lib/postgresql/data
+RUN mkdir /run/postgresql \
+ && mkdir /var/lib/postgresql/data \
+ && chmod 700 /var/lib/postgresql/data \
+ && chown postgres:postgres /run/postgresql /var/lib/postgresql/data
 
 # Create postgres DB
 USER postgres
-RUN initdb -D /var/lib/postgresql/data
-RUN echo -e "\ndatasource.driver = '/tmp'" >> /var/lib/postgresql/data/postgresql.conf
+RUN initdb -D /var/lib/postgresql/data \
+ && echo -e "\ndatasource.driver = '/tmp'" >> \
+    /var/lib/postgresql/data/postgresql.conf
 USER root
 
 # Use supervisord to launch postgres and tomcat
