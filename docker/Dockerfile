@@ -27,8 +27,8 @@ RUN apk add --no-cache \
         supervisor \
         vim \
         wget \
- && rm -rf "${CATALINA_HOME}/webapps/*" \
- && mkdir -p \
+ && rm --force --recursive "${CATALINA_HOME}/webapps/*" \
+ && mkdir --parents \
         ${TOMCAT_XNAT_FOLDER_PATH} \
         ${XNAT_HOME}/config \
         ${XNAT_HOME}/logs \
@@ -42,13 +42,18 @@ RUN apk add --no-cache \
         ${XNAT_ROOT}/prearchive \
  && /usr/local/bin/make-xnat-config.sh \
  && rm /usr/local/bin/make-xnat-config.sh \
- && wget --no-verbose --output-document=/tmp/xnat-web-${XNAT_VERSION}.war \
+ && wget --no-verbose \
+    --output-document=/tmp/xnat-web-${XNAT_VERSION}.war \
     https://api.bitbucket.org/2.0/repositories/xnatdev/xnat-web/downloads/xnat-web-${XNAT_VERSION}.war \
- && unzip -o -d ${TOMCAT_XNAT_FOLDER_PATH} /tmp/xnat-web-${XNAT_VERSION}.war \
- && rm -f /tmp/xnat-web-${XNAT_VERSION}.war \
- && wget --output-document ${XNAT_HOME}/plugins/container-service-plugin.jar \
+ && unzip -o \
+    -d ${TOMCAT_XNAT_FOLDER_PATH} \
+    /tmp/xnat-web-${XNAT_VERSION}.war \
+ && rm --force /tmp/xnat-web-${XNAT_VERSION}.war \
+ && wget --no-verbose \
+    --output-document=${XNAT_HOME}/plugins/container-service-plugin.jar \
     https://api.bitbucket.org/2.0/repositories/xnatdev/container-service/downloads/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar \
- && wget --output-document ${XNAT_HOME}/plugins/batch-launch-plugin.jar \
+ && wget --no-verbose \
+    --output-document=${XNAT_HOME}/plugins/batch-launch-plugin.jar \
     https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}.jar \
  && apk del wget \
  && mkdir /var/log/tomcat
@@ -77,7 +82,7 @@ RUN mkdir /run/postgresql \
 
 # Create postgres DB
 USER postgres
-RUN initdb -D /var/lib/postgresql/data \
+RUN initdb --pgdata=/var/lib/postgresql/data \
  && echo -e "\ndatasource.driver = '/tmp'" >> \
     /var/lib/postgresql/data/postgresql.conf
 USER root
