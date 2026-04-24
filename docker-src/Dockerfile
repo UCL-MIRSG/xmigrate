@@ -23,8 +23,8 @@ ENV XNAT_HOME=${XNAT_HOME} \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     docker.io \
-    postgresql \
-    postgresql-client \
+    postgresql-16 \
+    postgresql-client-16 \
     supervisor \
     unzip \
     && rm -rf /var/lib/apt/lists/*
@@ -52,7 +52,8 @@ RUN curl -fSL -o xnat.war \
 
 ## Database initialisation
 USER postgres
-RUN initdb --pgdata=/var/lib/postgresql/data \
+RUN /usr/lib/postgresql/16/bin/initdb \
+    --pgdata=/var/lib/postgresql/data \
     && printf "\ndatasource.driver = '/tmp'\n" >> \
     /var/lib/postgresql/data/postgresql.conf
 # hadolint ignore=DL3002
