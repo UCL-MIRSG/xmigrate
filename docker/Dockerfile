@@ -1,4 +1,4 @@
-FROM tomcat:9-jre8-alpine
+FROM tomcat:9-jre8-temurin-noble
 
 ## Build arguments
 ARG XNAT_VERSION
@@ -20,14 +20,14 @@ ENV XNAT_HOME=${XNAT_HOME} \
     CATALINA_OPTS="-Xms512m -Xmx2g -Dxnat.home=${XNAT_HOME}"
 
 ## System dependencies
-# hadolint ignore=DL3018
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    docker \
+    docker.io \
     postgresql \
     postgresql-client \
     supervisor \
-    unzip
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
 
 ## Prepare filesystem
 RUN mkdir -p \
