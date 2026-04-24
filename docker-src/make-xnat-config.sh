@@ -1,8 +1,8 @@
 #!/bin/sh
 
 # generate xnat config
-if [ ! -f $XNAT_HOME/config/xnat-conf.properties ]; then
-  cat > $XNAT_HOME/config/xnat-conf.properties << EOF
+if [ ! -f "$XNAT_HOME/config/xnat-conf.properties" ]; then
+  cat > "$XNAT_HOME/config/xnat-conf.properties" << EOF
 datasource.driver=$XNAT_DATASOURCE_DRIVER
 datasource.url=$XNAT_DATASOURCE_URL
 datasource.username=$XNAT_DATASOURCE_USERNAME
