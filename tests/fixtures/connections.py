@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import typing
 import urllib.request
 
@@ -14,10 +15,11 @@ import xnat4tests
 from tests._helper_functions import delete_data, install_plugin, wait_for_connection
 
 if typing.TYPE_CHECKING:
-    import pathlib
     from collections.abc import Generator
 
     import xnat
+
+DOCKER_LOCATION = pathlib.Path(__file__).parents[2] / "docker"
 
 
 @pytest.fixture(scope="session")
@@ -35,6 +37,7 @@ def source_connection(
 
     """
     config = xnat4tests.Config(
+        docker_build_dir=DOCKER_LOCATION,
         docker_container="xnat4tests_source",
         docker_image="xnat4tests_source",
         xnat_port="8888",
@@ -44,7 +47,7 @@ def source_connection(
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
         },
     )
-    xnat4tests.start_xnat(config)
+    xnat4tests.start_xnat(config, rebuild=False)
 
     openneuro_cache_path = medimages4tests.cache_dir.base_cache_dir / "mri" / "neuro" / "t1w"
     openneuro_cache_path.mkdir(parents=True, exist_ok=True)
@@ -89,6 +92,7 @@ def destination_connection(
 
     """
     config = xnat4tests.Config(
+        docker_build_dir=DOCKER_LOCATION,
         docker_container="xnat4tests_destination",
         docker_image="xnat4tests_destination",
         xnat_port="8889",
@@ -98,7 +102,7 @@ def destination_connection(
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
         },
     )
-    xnat4tests.start_xnat(config)
+    xnat4tests.start_xnat(config, rebuild=False)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
 
