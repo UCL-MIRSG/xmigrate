@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DOCKER_LOCATION = pathlib.Path(__file__).parents[1] / "docker"
+DOCKER_LOCATION = pathlib.Path(__file__).parents[1] / "docker-src"
 
 
 def delete_data(
