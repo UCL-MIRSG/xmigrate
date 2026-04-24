@@ -20,6 +20,7 @@ ARG XNAT_VERSION
 COPY make-xnat-config.sh /usr/local/bin/make-xnat-config.sh
 
 # Install XNAT
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
         docker \
         postgresql \
