@@ -1,20 +1,20 @@
 FROM tomcat:9-jre8-alpine
 
 # User configurable arguments
-ARG XNAT_VERSION
-ARG XNAT_CS_PLUGIN_VERSION
-ARG XNAT_BATCH_LAUNCH_PLUGIN_VERSION
-ARG XNAT_ROOT=/data/xnat
-ARG XNAT_HOME=/data/xnat/home
 ARG JAVA_MS=256m
 ARG JAVA_MX=2g
-ARG XNAT_DATASOURCE_DRIVER=org.postgresql.Driver
-ARG XNAT_DATASOURCE_URL=jdbc:postgresql://localhost:5432/xnat
-ARG XNAT_DATASOURCE_USERNAME=xnat
-ARG XNAT_DATASOURCE_PASSWORD=xnat
-ARG XNAT_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQL9Dialect
 ARG TOMCAT_XNAT_FOLDER=ROOT
 ARG TOMCAT_XNAT_FOLDER_PATH=${CATALINA_HOME}/webapps/${TOMCAT_XNAT_FOLDER}
+ARG XNAT_BATCH_LAUNCH_PLUGIN_VERSION
+ARG XNAT_CS_PLUGIN_VERSION
+ARG XNAT_DATASOURCE_DRIVER=org.postgresql.Driver
+ARG XNAT_DATASOURCE_PASSWORD=xnat
+ARG XNAT_DATASOURCE_URL=jdbc:postgresql://localhost:5432/xnat
+ARG XNAT_DATASOURCE_USERNAME=xnat
+ARG XNAT_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQL9Dialect
+ARG XNAT_HOME=/data/xnat/home
+ARG XNAT_ROOT=/data/xnat
+ARG XNAT_VERSION
 
 # Create XNAT config file at $XNAT_HOME/config/xnat-conf.properties
 COPY make-xnat-config.sh /usr/local/bin/make-xnat-config.sh
