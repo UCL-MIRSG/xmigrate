@@ -22,7 +22,6 @@ import xmigrate
 import xmigrate.migration
 
 if typing.TYPE_CHECKING:
-
     import xnat
 
 logger = logging.getLogger(__name__)
@@ -255,6 +254,7 @@ def seed_user(
             f"/xapi/users/{username}/roles/{role}",
             accepted_status=[200, 201, 304],
         )
+
 
 def setup_docker_image(config: xnat4tests.Config) -> None:
     """
