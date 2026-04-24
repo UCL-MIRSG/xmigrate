@@ -86,6 +86,7 @@ USER postgres
 RUN initdb --pgdata=/var/lib/postgresql/data \
  && echo -e "\ndatasource.driver = '/tmp'" >> \
     /var/lib/postgresql/data/postgresql.conf
+# hadolint ignore=DL3002
 USER root
 
 # Use supervisord to launch postgres and tomcat
