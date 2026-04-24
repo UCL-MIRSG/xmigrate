@@ -84,7 +84,7 @@ RUN mkdir /run/postgresql \
 # Create postgres DB
 USER postgres
 RUN initdb --pgdata=/var/lib/postgresql/data \
- && echo -e "\ndatasource.driver = '/tmp'" >> \
+ && printf "\ndatasource.driver = '/tmp'\n" >> \
     /var/lib/postgresql/data/postgresql.conf
 # hadolint ignore=DL3002
 USER root
