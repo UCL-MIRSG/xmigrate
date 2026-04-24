@@ -26,6 +26,8 @@ if typing.TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+DOCKER_LOCATION = pathlib.Path(__file__).parents[1] / "docker"
+
 
 def delete_data(
     session: xnat.XNATSession,
@@ -271,7 +273,7 @@ def setup_docker_image(config: xnat4tests.Config) -> None:
         dc.images.get(config.docker_image)
     except docker.errors.ImageNotFound:
         dc.images.build(
-            path=str(pathlib.Path(__file__).parents[1] / "docker"),
+            path=str(DOCKER_LOCATION),
             tag=config.docker_image,
             buildargs={k.upper(): v for k, v in attrs.asdict(config.build_args).items()},
         )

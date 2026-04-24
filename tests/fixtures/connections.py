@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import pathlib
 import typing
 import urllib.request
 
@@ -12,14 +11,19 @@ import pytest
 import medimages4tests.cache_dir
 import xnat4tests
 
-from tests._helper_functions import delete_data, install_plugin, setup_docker_image, wait_for_connection
+from tests._helper_functions import (
+    DOCKER_LOCATION,
+    delete_data,
+    install_plugin,
+    setup_docker_image,
+    wait_for_connection,
+)
 
 if typing.TYPE_CHECKING:
+    import pathlib
     from collections.abc import Generator
 
     import xnat
-
-DOCKER_LOCATION = pathlib.Path(__file__).parents[2] / "docker"
 
 
 @pytest.fixture(scope="session")
