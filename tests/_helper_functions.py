@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 import shutil
 import subprocess
 import time
@@ -10,6 +11,9 @@ import typing
 import unittest.mock
 import xml.etree.ElementTree as ET
 
+import attrs
+import docker
+import docker.errors
 import requests
 
 import xnat4tests
@@ -18,7 +22,6 @@ import xmigrate
 import xmigrate.migration
 
 if typing.TYPE_CHECKING:
-    import pathlib
 
     import xnat
 
@@ -251,6 +254,26 @@ def seed_user(
         connection.put(
             f"/xapi/users/{username}/roles/{role}",
             accepted_status=[200, 201, 304],
+        )
+
+def setup_docker_image(config: xnat4tests.Config) -> None:
+    """
+    Set up the custom Docker image for the XNAT instance.
+
+    Parameters
+    ----------
+    config
+        An xnat4tests.Config object containing the configuration for the Docker image.
+
+    """
+    dc = docker.from_env()
+    try:
+        dc.images.get(config.docker_image)
+    except docker.errors.ImageNotFound:
+        dc.images.build(
+            path=str(pathlib.Path(__file__).parents[1] / "docker"),
+            tag=config.docker_image,
+            buildargs={k.upper(): v for k, v in attrs.asdict(config.build_args).items()},
         )
 
 

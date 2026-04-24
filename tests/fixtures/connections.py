@@ -12,7 +12,7 @@ import pytest
 import medimages4tests.cache_dir
 import xnat4tests
 
-from tests._helper_functions import delete_data, install_plugin, wait_for_connection
+from tests._helper_functions import delete_data, install_plugin, setup_docker_image, wait_for_connection
 
 if typing.TYPE_CHECKING:
     from collections.abc import Generator
@@ -47,6 +47,9 @@ def source_connection(
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
         },
     )
+
+    setup_docker_image(config)
+
     xnat4tests.start_xnat(config, rebuild=False)
 
     openneuro_cache_path = medimages4tests.cache_dir.base_cache_dir / "mri" / "neuro" / "t1w"
@@ -102,6 +105,9 @@ def destination_connection(
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
         },
     )
+
+    setup_docker_image(config)
+
     xnat4tests.start_xnat(config, rebuild=False)
     connection_name = "xnat4tests_destination"
     install_plugin(jar_path, plugin_dir, connection_name, config)
