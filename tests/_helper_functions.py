@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import pathlib
 import shutil
-import subprocess
 import time
 import typing
 import unittest.mock
