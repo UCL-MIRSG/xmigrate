@@ -4,6 +4,7 @@ FROM tomcat:9-jre8-temurin-noble
 ARG XNAT_VERSION
 ARG XNAT_CS_PLUGIN_VERSION
 ARG XNAT_BATCH_LAUNCH_PLUGIN_VERSION
+ARG XNAT_OHIF_VIEWER_VERSION=3.7.2
 ARG XNAT_ROOT=/data/xnat
 ARG XNAT_HOME=${XNAT_ROOT}/home
 ARG TOMCAT_XNAT_FOLDER_PATH=${CATALINA_HOME}/webapps/ROOT
@@ -48,6 +49,8 @@ RUN curl -fSL -o xnat.war \
     "https://api.bitbucket.org/2.0/repositories/xnatdev/container-service/downloads/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar" \
     && curl -fSL -o ${XNAT_HOME}/plugins/batch-launch.jar \
     "https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}.jar" \
+    && curl -fSL -o ${XNAT_HOME}/plugins/ohif-viewer.jar \
+    "https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-${XNAT_OHIF_VIEWER_VERSION}.jar" \
     && rm -rf /tmp/*
 
 ## Database initialisation
