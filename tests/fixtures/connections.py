@@ -14,7 +14,6 @@ import xnat4tests
 from tests._helper_functions import (
     DOCKER_LOCATION,
     delete_data,
-    install_plugin,
     setup_docker_image,
     wait_for_connection,
 )
@@ -28,8 +27,6 @@ if typing.TYPE_CHECKING:
 
 @pytest.fixture(scope="session")
 def source_connection(
-    jar_path: pathlib.Path,
-    plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
@@ -43,12 +40,13 @@ def source_connection(
     config = xnat4tests.Config(
         docker_build_dir=DOCKER_LOCATION,
         docker_container="xnat4tests_source",
-        docker_image="xnat4tests_source",
+        docker_image="xnat4tests",
         xnat_port="8888",
         xnat_root_dir=xnat_root_dirs["source"],
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
+            "xnat_batch_launch_plugin_version": os.getenv("XNAT_BATCH_LAUNCH_PLUGIN_VERSION", "0.9.0-xpl"),
         },
     )
     setup_docker_image(config)
@@ -70,9 +68,6 @@ def source_connection(
     for dataset in ["dummydicom", "openneuro-t1w"]:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
-    connection_name = "xnat4tests_source"
-    install_plugin(jar_path, plugin_dir, connection_name, config)
-
     yield wait_for_connection(config)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
@@ -84,8 +79,6 @@ def source_connection(
 
 @pytest.fixture(scope="session")
 def destination_connection(
-    jar_path: pathlib.Path,
-    plugin_dir: pathlib.Path,
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Generator[xnat.BaseXNATSession, None, None]:
     """
@@ -99,18 +92,17 @@ def destination_connection(
     config = xnat4tests.Config(
         docker_build_dir=DOCKER_LOCATION,
         docker_container="xnat4tests_destination",
-        docker_image="xnat4tests_destination",
+        docker_image="xnat4tests",
         xnat_port="8889",
         xnat_root_dir=xnat_root_dirs["destination"],
         build_args={
             "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
             "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
+            "xnat_batch_launch_plugin_version": os.getenv("XNAT_BATCH_LAUNCH_PLUGIN_VERSION", "0.9.0-xpl"),
         },
     )
     setup_docker_image(config)
     xnat4tests.start_xnat(config, rebuild=False)
-    connection_name = "xnat4tests_destination"
-    install_plugin(jar_path, plugin_dir, connection_name, config)
 
     yield wait_for_connection(config)
 

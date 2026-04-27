@@ -8,33 +8,6 @@ import pytest
 
 
 @pytest.fixture(scope="session")
-def jar_path() -> pathlib.Path:
-    """Path of OHIF viewer jar."""
-    jar_dir = pathlib.Path(__file__).resolve().parents[2] / "input"
-    jar_dir.mkdir(parents=True, exist_ok=True)
-    ohif_jar = jar_dir / "ohif-viewer-3.7.2-fat.jar"
-    if not ohif_jar.is_file():
-        urllib.request.urlretrieve(
-            "https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-3.7.2.jar",
-            "input/ohif-viewer-3.7.2-fat.jar",
-        )
-
-    jar_path = next(iter(jar_dir.glob("ohif-*fat.jar")), None)
-
-    if jar_path is None or not jar_path.exists():
-        msg = f"Plugin OHIF Viewer JAR file not found in {jar_dir}"
-        raise FileNotFoundError(msg)
-
-    return jar_path
-
-
-@pytest.fixture(scope="session")
-def plugin_dir() -> pathlib.Path:
-    """Path to plugin directory inside the container."""
-    return pathlib.Path("/data/xnat/home/plugins")
-
-
-@pytest.fixture(scope="session")
 def xnat_root_dirs(tmp_path_factory: pytest.TempdirFactory) -> dict[str, pathlib.Path]:
     """Return fixed or temporary directories for source and destination xnat_root_dir."""
 
