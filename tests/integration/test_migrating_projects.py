@@ -7,18 +7,18 @@ import pytest
 import xnat
 from xnat.exceptions import XNATResponseError
 
-from tests.utils import get_xml
-from xmigrate.migration import Migration
-from xmigrate.xml_mapper import ProjectInfo
+import xmigrate
+import xmigrate.migration
+from tests._helper_functions import get_xml
 
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_all_projects(
-    source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
+    destination_info: list[xmigrate.ProjectInfo],
+    source_connection: xnat.BaseXNATSession,
+    source_info: list[xmigrate.ProjectInfo],
     xnat_root_dirs: dict[str, pathlib.Path],
-    source_info: ProjectInfo,
-    destination_info: ProjectInfo,
 ) -> None:
     """Test the migration of all 2 projects from source to destination XNAT."""
     # Check source files do exist
@@ -28,7 +28,7 @@ def test_migrate_all_projects(
 
     # Recursively collect all .dcm files
     dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
+    assert dicom_files
 
     # Path to the OPENNEURO_T1W directory to loop through 2 subjects
     openneuro_path = source_archive_path / "OPENNEURO_T1W" / "arc001"
@@ -48,16 +48,16 @@ def test_migrate_all_projects(
 
     assert not any(destination_archive_path.iterdir())
 
-    metadata_folder = pathlib.Path(__file__).resolve().parent / "output/localhost"
+    metadata_folder = xmigrate.migration.BASE_OUTPUT_DIR / "localhost"
 
     assert not metadata_folder.exists()
 
-    migration = Migration(
-        source_connection=source_connection,
-        destination_connection=destination_connection,
-        all_source_info=source_info,
+    migration = xmigrate.Migration(
         all_destination_info=destination_info,
+        all_source_info=source_info,
+        destination_connection=destination_connection,
         no_rsync=False,
+        source_connection=source_connection,
     )
 
     # Check set-up of source XNAT to have 2 projects and destination XNAT to have none
@@ -85,7 +85,7 @@ def test_migrate_all_projects(
 
     # Recursively collect all .dcm files
     dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
+    assert dicom_files
 
     # Path to the OPENNEURO_T1W directory to loop through 2 subjects
     openneuro_path = destination_archive_path / "OPENNEURO_T1W" / "arc001"
@@ -102,11 +102,11 @@ def test_migrate_all_projects(
 
 @pytest.mark.usefixtures("remove_destination_test_data")
 def test_migrate_sharing_projects(  # noqa: PLR0915
-    source_connection: xnat.BaseXNATSession,
     destination_connection: xnat.BaseXNATSession,
+    destination_info: list[xmigrate.ProjectInfo],
+    source_connection: xnat.BaseXNATSession,
+    source_info: list[xmigrate.ProjectInfo],
     xnat_root_dirs: dict[str, pathlib.Path],
-    source_info: ProjectInfo,
-    destination_info: ProjectInfo,
 ) -> None:
     """Test the migration of a multiple project from source to destination XNAT."""
     # Check source files do exist
@@ -116,7 +116,7 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
 
     # Recursively collect all .dcm files
     dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
+    assert dicom_files
 
     # Path to the OPENNEURO_T1W directory to loop through 2 subjects
     openneuro_path = source_archive_path / "OPENNEURO_T1W" / "arc001"
@@ -136,12 +136,12 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
 
     assert not any(destination_archive_path.iterdir())
 
-    migration = Migration(
-        source_connection=source_connection,
-        destination_connection=destination_connection,
-        all_source_info=source_info,
+    migration = xmigrate.Migration(
         all_destination_info=destination_info,
+        all_source_info=source_info,
+        destination_connection=destination_connection,
         no_rsync=False,
+        source_connection=source_connection,
     )
 
     # Share subject data from project 1 to project 2 in source XNAT
@@ -161,7 +161,7 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
         subject_error = e
         source_connection.put(
             f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_id}/"
-            f"projects/{sharing_project_id}?label={owner_project_subject_label}"
+            f"projects/{sharing_project_id}?label={owner_project_subject_label}",
         )
         source_connection.projects[sharing_project_id].subjects.clearcache()
 
@@ -169,10 +169,14 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
         assert "status 404, accepted status: [200]" in str(subject_error)
 
     # Check that root_sharing for project 2 xml has project 1 as owner on source XNAT
-    root_owner = get_xml(source_connection, f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}")
+    root_owner = get_xml(
+        source_connection,
+        f"/data/projects/{owner_project_id}/subjects/{owner_project_subject_label}",
+    )
 
     root_sharing = get_xml(
-        source_connection, f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}"
+        source_connection,
+        f"/data/projects/{sharing_project_id}/subjects/{owner_project_subject_label}",
     )
     assert root_owner.attrib["project"] == owner_project_id
     assert root_sharing.attrib["project"] != sharing_project_id
@@ -192,7 +196,7 @@ def test_migrate_sharing_projects(  # noqa: PLR0915
 
     # Recursively collect all .dcm files
     dicom_files = [f for f in dummydicom_path.rglob("*") if f.is_file() and f.suffix.lower() == ".dcm"]
-    assert len(dicom_files) > 0
+    assert dicom_files
 
     # Path to the OPENNEURO_T1W directory to loop through 2 subjects
     openneuro_path = destination_archive_path / "OPENNEURO_T1W" / "arc001"
