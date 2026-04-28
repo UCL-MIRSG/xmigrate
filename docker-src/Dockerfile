@@ -48,7 +48,7 @@ RUN curl -fSL -o xnat.war \
     && curl -fSL -o ${XNAT_HOME}/plugins/container-service.jar \
     "https://api.bitbucket.org/2.0/repositories/xnatdev/container-service/downloads/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar" \
     && curl -fSL -o ${XNAT_HOME}/plugins/batch-launch.jar \
-    "https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}.jar" \
+    "https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}-xpl.jar" \
     && curl -fSL -o ${XNAT_HOME}/plugins/ohif-viewer.jar \
     "https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-${XNAT_OHIF_VIEWER_VERSION}.jar" \
     && rm -rf /tmp/*
