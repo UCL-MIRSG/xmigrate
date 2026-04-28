@@ -34,7 +34,6 @@ def check_user(
 
     Returns
     -------
-    destination_profiles
         An updated list of user profiles from the destination XNAT instance.
 
     """
@@ -109,7 +108,6 @@ def check_user_roles(
 
     Returns
     -------
-    sitewide_roles
         An dictionary of sitewide_roles currently on destination.
 
     """

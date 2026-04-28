@@ -151,9 +151,9 @@ def test_check_users_source_longer(
 
 
 def test_creates_missing_users(
+    caplog: pytest.LogCaptureFixture,
     destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
-    caplog: pytest.LogCaptureFixture,
     unique_username: str,
 ) -> None:
     """User does not exist on destination so will be created."""
@@ -168,8 +168,8 @@ def test_creates_missing_users(
 
 
 def test_creates_missing_users_roles(
-    migration: xmigrate.Migration,
     destination_connection: xnat.BaseXNATSession,
+    migration: xmigrate.Migration,
     source_connection: xnat.BaseXNATSession,
     unique_username: str,
 ) -> None:
@@ -177,7 +177,7 @@ def test_creates_missing_users_roles(
     roles = ("user", "data_manager")
     _seed_user(source_connection, unique_username, roles=roles)
     _seed_user(destination_connection, unique_username, roles=roles)
-    folder_path = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output" / "localhost"
+    folder_path = xmigrate.migration.BASE_OUTPUT_DIR / "localhost"
     xmigrate.check_user_roles(
         unique_username,
         folder_path,
@@ -193,17 +193,17 @@ def test_creates_missing_users_roles(
 
 
 def test_roles_skipped_if_checkpoint_exists(
-    migration: xmigrate.Migration,
-    destination_connection: xnat.BaseXNATSession,
-    source_connection: xnat.BaseXNATSession,
     caplog: pytest.LogCaptureFixture,
+    destination_connection: xnat.BaseXNATSession,
+    migration: xmigrate.Migration,
+    source_connection: xnat.BaseXNATSession,
     unique_username: str,
 ) -> None:
     """Roles are skipped if already checkpointed."""
     roles = ("user", "data_manager")
     _seed_user(source_connection, unique_username, roles=roles)
     _seed_user(destination_connection, unique_username, roles=roles)
-    folder_path = pathlib.Path(__file__).resolve().parent.parent / "src" / "xmigrate" / "output" / "localhost"
+    folder_path = xmigrate.migration.BASE_OUTPUT_DIR / "localhost"
     xmigrate.check_user_roles(
         unique_username,
         folder_path,
@@ -228,9 +228,9 @@ def test_roles_skipped_if_checkpoint_exists(
 
 
 def test_existing_users_not_duplicated(
+    caplog: pytest.LogCaptureFixture,
     destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
-    caplog: pytest.LogCaptureFixture,
     unique_username: str,
 ) -> None:
     """Existing users are not duplicated in the destination."""
@@ -245,9 +245,9 @@ def test_existing_users_not_duplicated(
 
 
 def test_creates_multiple_users(
+    caplog: pytest.LogCaptureFixture,
     destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
-    caplog: pytest.LogCaptureFixture,
     unique_username: str,
 ) -> None:
     """Multiple users are created in the destination."""
