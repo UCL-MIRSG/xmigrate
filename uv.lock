@@ -1456,7 +1456,9 @@ wheels = [
 
 [[package]]
 dependencies = [
+    {name = "attrs"},
     {name = "cyclopts"},
+    {name = "docker"},
     {name = "pandas"},
     {name = "tqdm"},
     {name = "xnat"},
@@ -1490,7 +1492,9 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    {name = "attrs"},
     {name = "cyclopts"},
+    {name = "docker"},
     {name = "pandas"},
     {name = "tqdm"},
     {name = "xnat"},
