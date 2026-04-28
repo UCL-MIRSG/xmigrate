@@ -16,6 +16,7 @@ from tests._helper_functions import (
     delete_data,
     setup_docker_image,
     wait_for_connection,
+    wait_for_datatypes,
 )
 
 if typing.TYPE_CHECKING:
@@ -63,7 +64,8 @@ def source_connection(
     for dataset in ["dummydicom", "openneuro-t1w"]:
         xnat4tests.add_data(dataset, config_name=config, upload_method="direct")
 
-    yield wait_for_connection(config)
+    conn = wait_for_connection(config)
+    yield wait_for_datatypes(conn)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
@@ -94,7 +96,8 @@ def destination_connection(
     setup_docker_image(config)
     xnat4tests.start_xnat(config, rebuild=False)
 
-    yield wait_for_connection(config)
+    conn = wait_for_connection(config)
+    yield wait_for_datatypes(conn)
 
     # Allow the docker container to be re-used when the XNAT4TEST_KEEP_INSTANCE environment variable is set.
     # This is useful for fast local development, where we don't want to wait for the long Docker startup times
