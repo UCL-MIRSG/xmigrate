@@ -1,4 +1,4 @@
-FROM tomcat:9-jre8-temurin-noble
+FROM tomcat:9.0.115-jre8-temurin-noble
 
 ## Build arguments
 ARG XNAT_VERSION
