@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def remove_destination_test_data(
     destination_connection: xnat.BaseXNATSession, xnat_root_dirs: dict[str, pathlib.Path]
 ) -> Generator[xnat.BaseXNATSession, None, None]:
