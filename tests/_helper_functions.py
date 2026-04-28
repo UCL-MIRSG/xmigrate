@@ -232,7 +232,6 @@ def setup_docker_image(config: xnat4tests.Config) -> None:
         dc.images.build(
             path=str(DOCKER_LOCATION),
             tag=config.docker_image,
-            buildargs={k.upper(): v for k, v in attrs.asdict(config.build_args).items()},
         )
 
 
