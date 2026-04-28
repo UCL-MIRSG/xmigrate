@@ -43,11 +43,6 @@ def source_connection(
         docker_image="xnat4tests",
         xnat_port="8888",
         xnat_root_dir=xnat_root_dirs["source"],
-        build_args={
-            "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
-            "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
-            "xnat_batch_launch_plugin_version": os.getenv("XNAT_BATCH_LAUNCH_PLUGIN_VERSION", "0.9.0-xpl"),
-        },
     )
     setup_docker_image(config)
     xnat4tests.start_xnat(config, rebuild=False)
@@ -95,11 +90,6 @@ def destination_connection(
         docker_image="xnat4tests",
         xnat_port="8889",
         xnat_root_dir=xnat_root_dirs["destination"],
-        build_args={
-            "xnat_version": os.getenv("XNAT_VERSION", "1.9.2"),
-            "xnat_cs_plugin_version": os.getenv("XNAT_CS_VERSION", "3.7.2"),
-            "xnat_batch_launch_plugin_version": os.getenv("XNAT_BATCH_LAUNCH_PLUGIN_VERSION", "0.9.0-xpl"),
-        },
     )
     setup_docker_image(config)
     xnat4tests.start_xnat(config, rebuild=False)
