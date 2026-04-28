@@ -53,6 +53,7 @@ def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[xmigrate.Projec
         for source_proj in source_projects
     ]
 
+
 @pytest.fixture
 def migration(
     source_connection: xnat.BaseXNATSession,
