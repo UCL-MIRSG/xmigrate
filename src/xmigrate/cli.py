@@ -3,7 +3,7 @@
 import logging
 
 import cyclopts
-import requests  # type: ignore[import-untyped]
+import requests
 
 import xnat
 
@@ -59,6 +59,8 @@ def migrate_project_list(  # noqa: PLR0913
         A list of source project IDs.
     source_rsync
         The path to the source rsync directory.
+    destination
+        The destination XNAT instance URL.
     destination_rsync
         The path to the destination rsync directory.
     destination
@@ -154,6 +156,8 @@ def migrate_all_projects(
 
     Parameters
     ----------
+    source
+        The source XNAT instance URL.
     source_rsync
         The local path for the source XNAT instance's rsync.
     destination

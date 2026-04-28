@@ -3,19 +3,15 @@ source = "https://xnat.example"
 source_projects= '["proj1", "proj2"]'
 source_rsync = "/original/local/path/"
 destination = "https://another-xnat.example"
-destination_user = "user"
-destination_password = "password"
 destination_projects = '["proj11", "proj12"]'
 destination_secondary_ids = '["Dest ID11", "Dest ID12"]'
 destination_project_names = '["Destination Project 11", "Destination Project 12"]'
 destination_rsync = "/new/local/path/"
-rsync_only = true # optional as default is false
+no_rsync = true # optional as default is false
 
 [tool.xmigrate.migrate_all_projects]
 source = "https://xnat.example"
 source_rsync = "/original/local/path/"
 destination = "https://another-xnat.example"
-destination_user = "user"
-destination_password = "password"
 destination_rsync = "/new/local/path/"
-rsync_only = true # optional as default is false
+no_rsync = true # optional as default is false
