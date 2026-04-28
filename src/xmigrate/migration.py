@@ -818,7 +818,20 @@ class Migration:
             )
 
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
-        """Assign user permissions for the project on the destination XNAT instance."""
+        """
+        Assign user permissions for the project on the destination XNAT instance.
+
+        Parameters
+        ----------
+        source_project
+            The ID of the source project.
+
+        Raises
+        ------
+        ValueError
+            If a username not found in source profiles or if IDs not equal in source and destination profile.
+
+        """
         api_get_string = f"/data/projects/{source_project}/users"
         source_project_ownership = self.source_connection.get(api_get_string).json()["ResultSet"]["Result"]
         source_profiles = self.source_connection.get("/xapi/users/profiles", format="json").json()
