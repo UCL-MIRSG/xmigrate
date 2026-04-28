@@ -43,7 +43,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "attrs",
     "cyclopts",
+    "docker",
     "pandas",
     "tqdm",
     "xnat",
@@ -104,6 +106,7 @@ lint.ignore = [
     "ISC001", # simplify implicit str concatenation (ruff-format recommended)
 ]
 lint.isort = {known-first-party = [
+    "tests",
     "xmigrate",
 ], section-order = [
     "future",
@@ -113,9 +116,15 @@ lint.isort = {known-first-party = [
     "first-party",
     "local-folder",
 ], sections = {"xnat" = [
+    "medimages4tests",
     "xnat",
+    "xnat4tests",
 ]}}
-lint.per-file-ignores = {"tests/integration/*" = [
+lint.per-file-ignores = {"tests/*" = [
+    "INP001", # implicit-namespace-package
+], "tests/fixtures/*" = [
+    "INP001", # implicit-namespace-package
+], "tests/integration/*" = [
     "INP001", # implicit-namespace-package
     "S101", # Checks for uses of the assert keyword
 ], "tests/unit/*" = [
