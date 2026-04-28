@@ -98,7 +98,7 @@ class XMLMapper:
     )
     """A mapping of old IDs to new IDs for various XNAT types."""
 
-    def __post_init__(self):  # noqa: ANN204
+    def __post_init__(self) -> None:
         """Post-initialisation to set up namespaces and mapping configurations."""
         register_namespaces()
         self.namespaces = {member.name: member.value for member in XnatNS}
@@ -130,7 +130,7 @@ class XMLMapper:
             XnatType.project: XnatType.project,
             XnatType.subject: XnatType.subject,
             XnatType.experiment: XnatType.experiment,
-            XnatType.assessor: XnatType.experiment,
+            XnatType.assessor: XnatType.assessor,
             XnatType.reconstruction: XnatType.reconstruction,
             XnatType.scan: XnatType.scan,
         }
