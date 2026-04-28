@@ -130,7 +130,7 @@ class XMLMapper:
             XnatType.project: XnatType.project,
             XnatType.subject: XnatType.subject,
             XnatType.experiment: XnatType.experiment,
-            XnatType.assessor: XnatType.experiment,
+            XnatType.assessor: XnatType.assessor,
             XnatType.reconstruction: XnatType.reconstruction,
             XnatType.scan: XnatType.scan,
         }
