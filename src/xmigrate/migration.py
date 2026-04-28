@@ -835,8 +835,8 @@ class Migration:
         api_get_string = f"/data/projects/{source_project}/users"
         source_project_ownership = self.source_connection.get(api_get_string).json()["ResultSet"]["Result"]
         source_profiles = self.source_connection.get("/xapi/users/profiles", format="json").json()
-        destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
         destination_project = self.mapper.get_destination_id(source_project, XnatType.project)
+        destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         folder_path = BASE_OUTPUT_DIR / source_name
