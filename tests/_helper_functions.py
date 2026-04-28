@@ -10,7 +10,6 @@ import typing
 import unittest.mock
 import xml.etree.ElementTree as ET
 
-import attrs
 import docker
 import docker.errors
 import requests
