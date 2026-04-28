@@ -16,31 +16,39 @@ class TestMigration:
     """Test the migration of projects from source to destination XNAT."""
 
     @pytest.fixture(scope="class")
-    def configure(self, tmp_path_factory: pytest.TempPathFactory) -> typing.Generator:
-        """Set up the config and credentials for the CLI."""
+    def setup(
+        self,
+        tmp_path_factory: pytest.TempPathFactory,
+        source_connection: xnat.BaseXNATSession,
+        xnat_root_dirs: dict[str, pathlib.Path],
+    ) -> typing.Generator:
+        """
+        Prepare for the migration tests.
+
+        Set up the config and credentials for the CLI.
+        Share a subject between an Owner and Shared project in the source XNAT.
+        Run the migration.
+        """
+        # Configuration and credentials
         mpatch = MonkeyPatch()
         configs_path = pathlib.Path(__file__).parent / "configs"
         tmp_path = tmp_path_factory.mktemp("migration_run")
 
-        # Cylopts requires the xmigrate.toml to be in the same directory the CLI is run from
         xmigrate_config = configs_path / "test_migrate_project_list.toml"
         shutil.copy(xmigrate_config, tmp_path / "xmigrate.toml")
         mpatch.chdir(tmp_path)
 
-        # set non-default netrc path for xnatpy
         netrc_path = (configs_path / "test-netrc").as_posix()
         mpatch.setenv("NETRC", netrc_path)
 
-        yield tmp_path
+        # Share a subject between an Owner and Shared project in the source XNAT
+        owner = source_connection.projects["dummydicomproject"]
+        subject = owner.subjects[0]
+        shared = source_connection.projects["OPENNEURO_T1W"]
+        sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
+        source_connection.put(sharing_uri, data={"label": subject.label})
 
-        mpatch.undo()
-
-    @pytest.fixture(scope="class")
-    def run_migration(
-        self,
-        xnat_root_dirs: dict[str, pathlib.Path],
-    ) -> None:
-        """Run the migration."""
+        # Run the migration
         app(
             [
                 "migrate-project-list",
@@ -51,12 +59,14 @@ class TestMigration:
             ],
         )
 
-    @pytest.mark.usefixtures(
-        "configure",
-        "run_migration",
-    )
+        yield tmp_path
+        mpatch.undo()
+
+    @pytest.mark.usefixtures("setup")
     def test_project_ids_match(
-        self, source_connection: xnat.BaseXNATSession, destination_connection: xnat.BaseXNATSession
+        self,
+        source_connection: xnat.BaseXNATSession,
+        destination_connection: xnat.BaseXNATSession,
     ) -> None:
         """Test that the project IDs in the source and destination XNAT match."""
         source_projects_ids = {project.id for project in source_connection.projects}
