@@ -43,7 +43,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "attrs",
     "cyclopts",
+    "docker",
     "pandas",
     "tqdm",
     "xnat",

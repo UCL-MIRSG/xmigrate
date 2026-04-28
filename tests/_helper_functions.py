@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 import shutil
-import subprocess
 import time
 import typing
 import unittest.mock
 import xml.etree.ElementTree as ET
 
+import docker
+import docker.errors
 import requests
 
 import xnat4tests
@@ -18,11 +20,11 @@ import xmigrate
 import xmigrate.migration
 
 if typing.TYPE_CHECKING:
-    import pathlib
-
     import xnat
 
 logger = logging.getLogger(__name__)
+
+DOCKER_LOCATION = pathlib.Path(__file__).parents[1] / "docker-src"
 
 
 def delete_data(
@@ -121,48 +123,6 @@ def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
     return ET.fromstring(response.text)  # noqa: S314
 
 
-def install_plugin(
-    jar_path: pathlib.Path,
-    plugin_dir: pathlib.Path,
-    connection_name: str,
-    config: xnat4tests.Config,
-) -> None:
-    """Install plugin for specified connection."""
-    # Check existing plugins
-    result = subprocess.run(  # noqa: S603
-        ["docker", "exec", connection_name, "ls", plugin_dir.as_posix()],  # noqa: S607
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    plugins_list = result.stdout.splitlines()
-
-    # If already installed → do nothing
-    if jar_path.name in plugins_list:
-        return
-
-    # Otherwise copy plugin
-    try:
-        subprocess.run(  # noqa: S603
-            [  # noqa: S607
-                "docker",
-                "cp",
-                str(jar_path),
-                f"{connection_name}:{(plugin_dir / jar_path.name).as_posix()}",
-            ],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except subprocess.CalledProcessError as e:
-        output = e.stderr or e.stdout or ""
-        msg = f"Command {e.cmd} failed with {e.returncode}: {output}"
-        raise RuntimeError(msg) from e
-
-    # Only restart if we actually installed something
-    xnat4tests.restart_xnat(config)
-
-
 def make_connection(datatypes: list[str]) -> unittest.mock.MagicMock:
     """
     Create a mock XNAT connection returning the given datatype element names.
@@ -251,6 +211,26 @@ def seed_user(
         connection.put(
             f"/xapi/users/{username}/roles/{role}",
             accepted_status=[200, 201, 304],
+        )
+
+
+def setup_docker_image(config: xnat4tests.Config) -> None:
+    """
+    Set up the custom Docker image for the XNAT instance.
+
+    Parameters
+    ----------
+    config
+        An xnat4tests.Config object containing the configuration for the Docker image.
+
+    """
+    dc = docker.from_env()
+    try:
+        dc.images.get(config.docker_image)
+    except docker.errors.ImageNotFound:
+        dc.images.build(
+            path=str(DOCKER_LOCATION),
+            tag=config.docker_image,
         )
 
 
