@@ -63,8 +63,6 @@ def migrate_project_list(  # noqa: PLR0913
         The destination XNAT instance URL.
     destination_rsync
         The path to the destination rsync directory.
-    destination
-        The destination XNAT instance URL.
     destination_projects
         A list of destination project IDs.
     destination_secondary_ids

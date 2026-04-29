@@ -1,6 +1,6 @@
-machine "localhost:8888"
+machine localhost:8888
     login admin
     password admin
-machine "localhost:8889"
+machine localhost:8889
     login admin
     password admin
