@@ -11,7 +11,7 @@ import xnat
 
 from xmigrate.cli import app
 
-
+@pytest.mark.usefixtures("destination_connection")
 class TestMigration:
     """Test the migration of projects from source to destination XNAT."""
 
@@ -48,7 +48,7 @@ class TestMigration:
         sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
         source_connection.put(sharing_uri, data={"label": subject.label})
 
-        # Run the migration
+        # Run the migration        
         app(
             [
                 "migrate-project-list",
@@ -63,12 +63,122 @@ class TestMigration:
         mpatch.undo()
 
     @pytest.mark.usefixtures("setup")
-    def test_project_ids_match(
+    def test_projects_match(
         self,
         source_connection: xnat.BaseXNATSession,
         destination_connection: xnat.BaseXNATSession,
     ) -> None:
         """Test that the project IDs in the source and destination XNAT match."""
-        source_projects_ids = {project.id for project in source_connection.projects}
-        destination_projects_ids = {project.id for project in destination_connection.projects}
-        assert source_projects_ids == destination_projects_ids
+        source_ids = [project.id for project in source_connection.projects]
+        destination_ids = [project.id for project in destination_connection.projects]
+        assert source_ids == destination_ids
+        
+        source_secondary_ids = [project.secondary_id for project in source_connection.projects]
+        destination_secondary_ids = [project.secondary_id for project in destination_connection.projects]
+        assert source_secondary_ids == destination_secondary_ids
+
+    @pytest.mark.usefixtures("setup")
+    def test_subjects_match(
+        self,
+        source_connection: xnat.BaseXNATSession,
+        destination_connection: xnat.BaseXNATSession,
+    ) -> None:
+        """Test that the subject IDs in the source and destination XNAT match."""
+        source_ids = [subject.id for subject in source_connection.subjects]
+        destination_ids = [subject.id for subject in destination_connection.subjects]
+        assert source_ids == destination_ids
+
+        source_parents = [subject.parent.id for subject in source_connection.subjects]
+        destination_parents = [subject.parent.id for subject in destination_connection.subjects]
+        assert source_parents == destination_parents
+
+    @pytest.mark.usefixtures("setup")
+    def test_experiments_match(
+        self,
+        source_connection: xnat.BaseXNATSession,
+        destination_connection: xnat.BaseXNATSession,
+    ) -> None:
+        """Test that the experiment IDs in the source and destination XNAT match."""
+        source_ids = [experiment.id for experiment in source_connection.experiments]
+        destination_ids = [experiment.id for experiment in destination_connection.experiments]
+        assert source_ids == destination_ids
+
+        source_parents = [experiment.parent.id for experiment in source_connection.experiments]
+        destination_parents = [experiment.parent.id for experiment in destination_connection.experiments]
+        assert source_parents == destination_parents
+
+    @pytest.mark.parametrize(
+        "experiment_id",
+        ["dummydicomsession", "subject01_MR01", "subject02_MR01"],
+    )
+    @pytest.mark.usefixtures("setup")
+    def test_scans_match(
+        self,
+        source_connection: xnat.BaseXNATSession,
+        destination_connection: xnat.BaseXNATSession,
+        experiment_id: str,
+    ) -> None:
+        """Test that the scan IDs in the source and destination XNAT match."""
+        source_experiment = source_connection.experiments[experiment_id]
+        source_scans = [scan.id for scan in source_experiment.scans]
+
+        destination_experiment = destination_connection.experiments[experiment_id]
+        destination_scans = [scan.id for scan in destination_experiment.scans]
+
+        assert source_scans == destination_scans
+
+    @pytest.mark.parametrize(
+        ("project_id", "experiment_id", "number_of_files"),
+        [
+            ("dummydicomproject", "dummydicomsession", 4335),
+            ("OPENNEURO_T1W", "subject01_MR01", 3),
+            ("OPENNEURO_T1W", "subject02_MR01", 3),
+        ],
+    )
+    @pytest.mark.usefixtures("setup")
+    def test_files_match(
+        self,
+        xnat_root_dirs: dict[str, pathlib.Path],
+        project_id: str,
+        experiment_id: str,
+        number_of_files: int,
+    ) -> None:
+        """Test that the files in the source and destination XNAT match for a given experiment."""
+        source_directory = xnat_root_dirs["source"] / "archive" / project_id / "arc001" / experiment_id / "SCANS"
+        destination_directory = xnat_root_dirs["destination"] / "archive" / project_id / "arc001" / experiment_id / "SCANS"
+
+        source_files = {
+            f.relative_to(source_directory) for f in source_directory.rglob("*")
+            if f.is_file() and f.suffix.lower() in {".dcm", ".nii.gz"}
+        }
+        destination_files = {
+            f.relative_to(destination_directory) for f in destination_directory.rglob("*")
+            if f.is_file() and f.suffix.lower() in {".dcm", ".nii.gz"}
+        }
+
+        assert len(source_files) == number_of_files
+        assert len(destination_files) == number_of_files
+        assert source_files == destination_files
+
+    @pytest.mark.parametrize(
+        ("subject_id", "number_of_projects", "owner"),
+        [
+            ("dummydicomsubject", 2, "dummydicomproject"),
+            ("subject01", 1, "OPENNEURO_T1W"),
+            ("subject02", 1, "OPENNEURO_T1W"),
+        ],
+    )
+    @pytest.mark.usefixtures("setup")
+    def test_sharing(
+        self,
+        destination_connection: xnat.BaseXNATSession,
+        subject_id: str,
+        number_of_projects: int,
+        owner: str,
+    ) -> None:
+        """Test that the sharing of a subject between projects in the source XNAT is preserved in the destination XNAT."""
+        sharing_uri = f"/data/subjects/{subject_id}/projects/"
+        projects = destination_connection.get(sharing_uri).json()["ResultSet"]["Result"]
+
+        assert len(projects) == number_of_projects
+        assert destination_connection.subjects[subject_id].parent.id == owner
