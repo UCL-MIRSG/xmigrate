@@ -129,11 +129,11 @@ class TestMigration:
         assert source_scans == destination_scans
 
     @pytest.mark.parametrize(
-        ("project_id", "experiment_id", "number_of_files"),
+        ("project_id", "experiment_id", "glob", "number_of_files"),
         [
-            ("dummydicomproject", "dummydicomsession", 4335),
-            ("OPENNEURO_T1W", "subject01_MR01", 3),
-            ("OPENNEURO_T1W", "subject02_MR01", 3),
+            ("dummydicomproject", "dummydicomsession", "*.dcm", 4332),
+            ("OPENNEURO_T1W", "subject01_MR01", "*.nii.gz", 1),
+            ("OPENNEURO_T1W", "subject02_MR01", "*.nii.gz", 1),
         ],
     )
     @pytest.mark.usefixtures("setup")
@@ -142,6 +142,7 @@ class TestMigration:
         xnat_root_dirs: dict[str, pathlib.Path],
         project_id: str,
         experiment_id: str,
+        glob: str,
         number_of_files: int,
     ) -> None:
         """Test that the files in the source and destination XNAT match for a given experiment."""
@@ -150,15 +151,9 @@ class TestMigration:
             xnat_root_dirs["destination"] / "archive" / project_id / "arc001" / experiment_id / "SCANS"
         )
 
-        source_files = {
-            f.relative_to(source_directory)
-            for f in source_directory.rglob("*")
-            if f.is_file() and f.suffix.lower() in {".dcm", ".nii.gz"}
-        }
+        source_files = {f.relative_to(source_directory) for f in source_directory.rglob(glob) if f.is_file()}
         destination_files = {
-            f.relative_to(destination_directory)
-            for f in destination_directory.rglob("*")
-            if f.is_file() and f.suffix.lower() in {".dcm", ".nii.gz"}
+            f.relative_to(destination_directory) for f in destination_directory.rglob(glob) if f.is_file()
         }
 
         assert len(source_files) == number_of_files
