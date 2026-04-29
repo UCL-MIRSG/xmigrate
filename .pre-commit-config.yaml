@@ -4,7 +4,11 @@ repos:
     rev: v0.239.0
     hooks:
       - id: mirsg-hooks
-        exclude: ^.github/schemas/github-issue-forms.json$
+        exclude: |-
+          (?x)^(
+              .github/schemas/github-issue-forms.json|
+              tests/integration/configs/.*
+          )$
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
     hooks:

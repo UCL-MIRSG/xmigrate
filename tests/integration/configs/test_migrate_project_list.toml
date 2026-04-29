@@ -1,7 +1,7 @@
 [tool.xmigrate.migrate-project-list]
+source = "http://localhost:8888"
+source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
 destination = "http://localhost:8889"
+source_rsync = "/original/local/path/"
 destination_rsync = "/new/local/path/"
 no_rsync = false
-source = "http://localhost:8888"
-source_projects = ["OPENNEURO_T1W", "dummydicomproject"]
-source_rsync = "/original/local/path/"
