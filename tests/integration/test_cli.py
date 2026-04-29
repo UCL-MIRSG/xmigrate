@@ -11,6 +11,7 @@ import xnat
 
 from xmigrate.cli import app
 
+
 @pytest.mark.usefixtures("destination_connection")
 class TestMigration:
     """Test the migration of projects from source to destination XNAT."""
@@ -48,7 +49,7 @@ class TestMigration:
         sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
         source_connection.put(sharing_uri, data={"label": subject.label})
 
-        # Run the migration        
+        # Run the migration
         app(
             [
                 "migrate-project-list",
@@ -72,7 +73,7 @@ class TestMigration:
         source_ids = [project.id for project in source_connection.projects]
         destination_ids = [project.id for project in destination_connection.projects]
         assert source_ids == destination_ids
-        
+
         source_secondary_ids = [project.secondary_id for project in source_connection.projects]
         destination_secondary_ids = [project.secondary_id for project in destination_connection.projects]
         assert source_secondary_ids == destination_secondary_ids
@@ -145,14 +146,18 @@ class TestMigration:
     ) -> None:
         """Test that the files in the source and destination XNAT match for a given experiment."""
         source_directory = xnat_root_dirs["source"] / "archive" / project_id / "arc001" / experiment_id / "SCANS"
-        destination_directory = xnat_root_dirs["destination"] / "archive" / project_id / "arc001" / experiment_id / "SCANS"
+        destination_directory = (
+            xnat_root_dirs["destination"] / "archive" / project_id / "arc001" / experiment_id / "SCANS"
+        )
 
         source_files = {
-            f.relative_to(source_directory) for f in source_directory.rglob("*")
+            f.relative_to(source_directory)
+            for f in source_directory.rglob("*")
             if f.is_file() and f.suffix.lower() in {".dcm", ".nii.gz"}
         }
         destination_files = {
-            f.relative_to(destination_directory) for f in destination_directory.rglob("*")
+            f.relative_to(destination_directory)
+            for f in destination_directory.rglob("*")
             if f.is_file() and f.suffix.lower() in {".dcm", ".nii.gz"}
         }
 
@@ -176,7 +181,7 @@ class TestMigration:
         number_of_projects: int,
         owner: str,
     ) -> None:
-        """Test that the sharing of a subject between projects in the source XNAT is preserved in the destination XNAT."""
+        """Check subjects are shared correctly in the destination XNAT."""
         sharing_uri = f"/data/subjects/{subject_id}/projects/"
         projects = destination_connection.get(sharing_uri).json()["ResultSet"]["Result"]
 
