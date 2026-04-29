@@ -177,8 +177,10 @@ class TestMigration:
         owner: str,
     ) -> None:
         """Check subjects are shared correctly in the destination XNAT."""
-        sharing_uri = f"/data/subjects/{subject_id}/projects/"
-        projects = destination_connection.get(sharing_uri).json()["ResultSet"]["Result"]
+        subject_uri = destination_connection.subjects[subject_id].uri
+        sharing_uri = f"{subject_uri}/projects/"
+        response = destination_connection.get(sharing_uri, format="json")
+        projects = response.json()["ResultSet"]["Result"]
 
         assert len(projects) == number_of_projects
         assert destination_connection.subjects[subject_id].parent.id == owner
