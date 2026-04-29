@@ -5,7 +5,6 @@ import shutil
 import typing
 
 import pytest
-from _pytest.monkeypatch import MonkeyPatch
 
 import xnat
 
@@ -31,7 +30,7 @@ class TestMigration:
         Run the migration.
         """
         # Configuration and credentials
-        mpatch = MonkeyPatch()
+        mpatch = pytest.MonkeyPatch()
         configs_path = pathlib.Path(__file__).parent / "configs"
         tmp_path = tmp_path_factory.mktemp("migration_run")
 
