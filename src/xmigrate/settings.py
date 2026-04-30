@@ -22,6 +22,8 @@ class DestinationSecret(BaseModel):
 
 
 class Secrets(BaseSettings):
+    """Configuration for attaching to the destination Postgres database from DuckDB."""
+
     destination_db_conn: DestinationSecret
 
     model_config = SettingsConfigDict(
@@ -35,13 +37,12 @@ class Secrets(BaseSettings):
         cls,
         settings_cls: type[BaseSettings],
         init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+        dotenv_settings: PydanticBaseSettingsSource,  # noqa: ARG003
+        file_secret_settings: PydanticBaseSettingsSource,  # noqa: ARG003
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         """Configure settings source precedence, including TOML support."""
         return (
             init_settings,
             TomlConfigSettingsSource(settings_cls),
         )
-

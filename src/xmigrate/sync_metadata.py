@@ -53,9 +53,7 @@ def attach_destination_database(
             destination.password.get_secret_value(),
         ],
     )
-    connection.execute(
-        "ATTACH '' AS destination (TYPE postgres, SECRET destination_secret);"
-    )
+    connection.execute("ATTACH '' AS destination (TYPE postgres, SECRET destination_secret);")
 
 
 def attach_metadata_csv(
