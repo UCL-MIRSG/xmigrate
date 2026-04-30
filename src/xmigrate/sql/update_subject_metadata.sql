@@ -1,8 +1,8 @@
 -- Update subject metadata
 UPDATE destination.xnat_subjectdata_meta_data subject_metadata
 SET
-    insert_date = source.insert_date,
-    last_modified = source.last_modified,
+    insert_date = updated.insert_date,
+    last_modified = updated.last_modified,
     insert_user_xdat_user_id = destination_user.xdat_user_id
 FROM
     destination.xnat_subjectdata subject
