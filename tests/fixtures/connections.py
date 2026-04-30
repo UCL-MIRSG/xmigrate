@@ -100,11 +100,16 @@ def destination_connection(
     db_host_port = os.getenv("XNAT4TESTS_DESTINATION_DB_PORT", "15432")
     original_run = docker.models.containers.ContainerCollection.run
 
-    def _run(self: object, *args: object, **kwargs: object) -> object:
+    def _run(
+        self: docker.models.containers.ContainerCollection,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
         """Patch Docker run to publish the Postgres port for the destination container."""
         if kwargs.get("name") == config.docker_container:
-            ports = kwargs.get("ports", {})
-            ports |= {"5432/tcp": ("127.0.0.1", db_host_port)}
+            existing_ports = kwargs.get("ports")
+            ports = dict(existing_ports) if isinstance(existing_ports, dict) else {}
+            ports["5432/tcp"] = ("127.0.0.1", db_host_port)
             kwargs["ports"] = ports
         return original_run(self, *args, **kwargs)
 
