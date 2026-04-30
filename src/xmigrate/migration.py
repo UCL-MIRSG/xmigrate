@@ -159,8 +159,12 @@ class Migration:
 
         # Store the destination project and resource ID
         df["project"] = self.destination_info.id
-        id_map = self.mapper.id_map[resource.removesuffix("s")]
-        df["ID"] = df["ID"].astype(str).apply(lambda source_id: str(id_map[source_id]))
+
+        # A resource ID cannot be mapped if it is not the owner of the resource
+        resource_type = getattr(XnatType, resource.removesuffix("s"))
+        id_map = self.mapper.id_map[resource_type]
+        df["ID"] = df["ID"].astype(str).map(id_map)
+        df = df[df["ID"].notna()].copy()
 
         df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
@@ -1157,7 +1161,7 @@ class Migration:
             self._set_project_configs()
             self._refresh_catalogues()
 
-            # Exporting ID maps and metadata
+            # Export ID maps and metadata
             source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
             output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
             self._export_id_map(
