@@ -5,11 +5,13 @@ SET
     last_modified = updated.last_modified,
     insert_user_xdat_user_id = destination_user.xdat_user_id
 FROM
-    destination.xnat_subjectdata subject
+    destination.xnat_subjectdata AS subject
 INNER JOIN
-    updated_metadata updated ON subject.id = updated.ID
+    updated_metadata AS updated
+    ON subject.id = updated.id
 LEFT JOIN
-    destination.xdat_user destination_user ON destination_user.login = updated.insert_user
+    destination.xdat_user AS destination_user
+    ON updated.insert_user = destination_user.login
 WHERE
     subject.subjectdata_info = subject_metadata.meta_data_id
     AND subject.project = updated.project;
