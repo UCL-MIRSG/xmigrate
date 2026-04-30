@@ -17,6 +17,7 @@ from xnat.exceptions import XNATResponseError
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.users import create_users
+from xmigrate.sync_metadata import sync_subject_metadata
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
 # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
@@ -152,9 +153,15 @@ class Migration:
 
         """
         output_dir.mkdir(parents=True, exist_ok=True)
-        params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
+        params = {"columns": "project,ID,label,insert_user,insert_date,last_modified", "format": "json"}
         response = self.source_connection.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
         df = pd.DataFrame(response.json()["ResultSet"]["Result"])
+
+        # Store the destination project and resource ID
+        df["project"] = self.destination_info.id
+        id_map = self.mapper.id_map[resource.removesuffix("s")]
+        df["ID"] = df["ID"].astype(str).apply(lambda source_id: str(id_map[source_id]))
+
         df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
     def _export_id_map(
@@ -1146,33 +1153,30 @@ class Migration:
             self.destination_info = destination_info
 
             self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
-
-            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-            path = BASE_OUTPUT_DIR / source_name / self.destination_info.id
-            full_path = path / "subjects_metadata.csv"
-            if full_path.is_file():
-                self._logger.info("Skipping _get_resource_metadata as subjects_metadata.csv file exists")
-            else:
-                self._get_resource_metadata(resource="subjects", output_dir=path)
-
-            full_path = path / "experiments_metadata.csv"
-            if full_path.is_file():
-                self._logger.info("Skipping _get_resource_metadata as experiments_metadata.csv file exists")
-            else:
-                self._get_resource_metadata(resource="experiments", output_dir=path)
             self._create_resources()
             self._set_project_configs()
+            self._refresh_catalogues()
+
+            # Exporting ID maps and metadata
+            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
+            output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
-                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
+                output_dir=output_dir,
             )
             self._export_id_map(
                 resource="experiments",
                 id_map=self.mapper.id_map[XnatType.experiment],
-                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
+                output_dir=output_dir,
             )
-            self._refresh_catalogues()
+            self._get_resource_metadata(resource="subjects", output_dir=output_dir)
+            self._get_resource_metadata(resource="experiments", output_dir=output_dir)
+
+            # Update destination metadata with original upload date and time
+            sync_subject_metadata(
+                metadata_csv=output_dir / "subjects_metadata.csv",
+            )
 
         self._apply_sharing()
 
