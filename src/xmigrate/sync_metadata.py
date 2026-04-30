@@ -5,7 +5,7 @@ from importlib import resources
 
 import duckdb
 
-from xmigrate.settings import secrets
+from xmigrate.settings import Secrets
 
 
 def load_sql_template(filename: str) -> str:
@@ -33,20 +33,39 @@ def attach_destination_database(
     connection: duckdb.DuckDBPyConnection,
 ) -> None:
     """Attach the destination Postgres database to DuckDB."""
+    destination = Secrets().destination_db_conn
     connection.execute(
-        "ATTACH ? AS destination (TYPE postgres);",
-        [secrets.destination_dsn.get_secret_value()],
+        """
+        CREATE SECRET destination_secret (
+            TYPE postgres,
+            HOST ?,
+            PORT ?,
+            DATABASE ?,
+            USER ?,
+            PASSWORD ?
+        );
+        """,
+        [
+            destination.host,
+            destination.port,
+            destination.database,
+            destination.user,
+            destination.password.get_secret_value(),
+        ],
+    )
+    connection.execute(
+        "ATTACH '' AS destination (TYPE postgres, SECRET destination_secret);"
     )
 
 
-def attach_subjects_csv(
+def attach_metadata_csv(
     connection: duckdb.DuckDBPyConnection,
-    subjects_csv: str | pathlib.Path,
+    metadata_csv: str | pathlib.Path,
 ) -> None:
-    """Load source CSV into an in-memory DuckDB table called ``source_subjects``."""
-    csv_path = pathlib.Path(subjects_csv).expanduser().resolve(strict=True)
+    """Load source CSV into an in-memory DuckDB table called ``updated_metadata``."""
+    csv_path = pathlib.Path(metadata_csv).expanduser().resolve(strict=True)
     connection.execute(
-        "CREATE OR REPLACE TABLE source_subjects AS SELECT * FROM read_csv($path, header=true, auto_detect=true);",
+        "CREATE OR REPLACE TABLE updated_metadata AS SELECT * FROM read_csv($path, header=true, auto_detect=true);",
         {"path": csv_path.as_posix()},
     )
 
@@ -62,14 +81,14 @@ def run_sql_template(
 
 
 def sync_subject_metadata(
-    source_csv: str | pathlib.Path,
+    metadata_csv: str | pathlib.Path,
 ) -> None:
     """Attach source and destination, then execute the subject metadata sync SQL."""
     connection = create_duckdb_connection()
 
     try:
         attach_destination_database(connection)
-        attach_subjects_csv(connection, source_csv)
+        attach_metadata_csv(connection, metadata_csv)
         run_sql_template(
             connection,
             template_filename="update_subject_metadata.sql",

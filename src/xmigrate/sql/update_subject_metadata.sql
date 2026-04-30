@@ -1,13 +1,15 @@
--- Update destination subject metadata from a source_subjects staging table.
-UPDATE destination.xnat_subjectdata_meta_data m
+-- Update subject metadata
+UPDATE destination.xnat_subjectdata_meta_data subject_metadata
 SET
     insert_date = source.insert_date,
     last_modified = source.last_modified,
-    insert_user_xdat_user_id = source.insert_user_xdat_user_id  -- the integer ID, not username
+    insert_user_xdat_user_id = destination_user.xdat_user_id
 FROM
-    destination.xnat_subjectdata s
+    destination.xnat_subjectdata subject
 INNER JOIN
-    source_subjects source ON s.label = source.label
+    updated_metadata updated ON subject.id = updated.ID
+LEFT JOIN
+    destination.xdat_user destination_user ON destination_user.login = updated.insert_user
 WHERE
-    s.subjectdata_info = m.meta_data_id
-    AND s.project = source.project;  -- project ID
+    subject.subjectdata_info = subject_metadata.meta_data_id
+    AND subject.project = updated.project;

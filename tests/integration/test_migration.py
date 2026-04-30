@@ -35,7 +35,9 @@ class TestMigration:
         tmp_path = tmp_path_factory.mktemp("migration_run")
 
         xmigrate_config = configs_path / "test_migrate_project_list.toml"
+        xmigrate_secrets = configs_path / "test_migrate_project_list_secrets.toml"
         shutil.copy(xmigrate_config, tmp_path / "xmigrate.toml")
+        shutil.copy(xmigrate_secrets, tmp_path / "secrets.toml")
         mpatch.chdir(tmp_path)
 
         netrc_path = (configs_path / "test-netrc").as_posix()
