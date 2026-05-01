@@ -79,7 +79,8 @@ def create_users(
 
     # Now create missing users from the source on the destination
     for source_profile in source_profiles[len(destination_profiles) :]:
-        LOGGER.info("Creating user: %s", source_profile["username"])
+        msg = f"Creating user: {source_profile['username']}"
+        LOGGER.info(msg)
         destination_profile = {
             "username": source_profile["username"].removesuffix("#EXT#"),
             "enabled": source_profile["enabled"],

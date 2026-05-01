@@ -134,4 +134,5 @@ def create_custom_forms_json(  # noqa: PLR0915
             msg = f"Failed to create the {title} custom form on destination XNAT\n: {e.text}"
             raise RuntimeError(msg) from e
 
-        LOGGER.info("The %s custom form has been successfully created", title)
+        msg = f"The {title} custom form has been successfully created"
+        LOGGER.info(msg)

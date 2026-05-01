@@ -289,10 +289,8 @@ class Migration:
         try:
             source_custom_forms_data = self.source_connection.get_json(api_get_string)
         except ValueError:
-            self._logger.exception(
-                "Resource %s doesn't match suggested resource types",
-                resource_type_name,
-            )
+            msg = f"Resource {resource_type_name} doesn't match suggested resource types"
+            self._logger.exception(msg)
 
         if not source_custom_forms_data:
             return
@@ -324,29 +322,23 @@ class Migration:
             destination_form_uuid = form_uuid_mapping.get(source_form_uuid)
 
             if not destination_form_uuid:
-                self._logger.warning(
-                    "Could not find matching destination form for source formUUID %s in resource %s",
-                    source_form_uuid,
-                    resource_type_name,
+                msg = (
+                    f"Could not find matching destination form for source formUUID "
+                    f"{source_form_uuid} in resource {resource_type_name}"
                 )
+                self._logger.warning(msg)
                 continue
 
             destination_form_data = {destination_form_uuid: source_form_data}
 
             try:
                 self.destination_connection.put(api_put_string, json=destination_form_data)
-                self._logger.info(
-                    "Migrated custom form data for %s %s",
-                    resource_type_name,
-                    resource_type.id,
-                )
+                msg = f"Migrated custom form data for {resource_type_name} {resource_type.id}"
+                self._logger.info(msg)
             except XNATResponseError as e:
-                self._logger.warning(
-                    "Failed to migrate custom form data for %s %s: %s",
-                    resource_type_name,
-                    resource_type.id,
-                    str(e),
-                )
+                msg_str = str(e)
+                msg = f"Failed to migrate custom form data for {resource_type_name} {resource_type.id}: {msg_str}"
+                self._logger.warning(msg)
 
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
@@ -648,11 +640,8 @@ class Migration:
 
         # If this project doesn't own the experiment, skip creating the scan
         if exp_root.attrib["project"] != self.source_info.id:
-            self._logger.info(
-                "Skipping scan %s for shared experiment %s",
-                scan.id,
-                experiment.label,
-            )
+            msg = f"Skipping scan {scan.id} for shared experiment {experiment.label}"
+            self._logger.info(msg)
             return
 
         root = self.mapper.map_xml(
@@ -1021,12 +1010,14 @@ class Migration:
                 if mapper.destination.id == owner:
                     break
             else:
-                self._logger.warning("Could not find mapper for owner %s of subject %s", owner, label)
+                msg = f"Could not find mapper for owner {owner} of subject {label}"
+                self._logger.warning(msg)
                 continue
 
             destination_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
             if destination_subject_id is None:
-                self._logger.warning("Could not find destination ID for subject %s", label)
+                msg = f"Could not find destination ID for subject {label}"
+                self._logger.warning(msg)
                 continue
 
             for project_id in sharing_info["projects"]:
@@ -1034,18 +1025,12 @@ class Migration:
                     self.destination_connection.put(
                         f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}",
                     )
-                    self._logger.info(
-                        "Shared subject %s with project %s",
-                        label,
-                        project_id,
-                    )
+                    msg = f"Shared subject {label} with project {project_id}"
+                    self._logger.info(msg)
                 except XNATResponseError as e:
-                    self._logger.warning(
-                        "Failed to share subject %s with project %s: %s",
-                        label,
-                        project_id,
-                        str(e),
-                    )
+                    msg_str = str(e)
+                    msg = f"Failed to share subject {label} with project {project_id}: {msg_str}"
+                    self._logger.warning(msg)
 
         # Share experiments
         for label, sharing_info in self.experiment_sharing.items():
@@ -1064,7 +1049,8 @@ class Migration:
 
             destination_experiment_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.experiment)
             if destination_experiment_id is None:
-                self._logger.warning("Could not find destination ID for experiment %s", label)
+                msg = f"Could not find destination ID for experiment {label}"
+                self._logger.warning(msg)
                 continue
 
             for project_id in sharing_info["projects"]:
@@ -1073,19 +1059,12 @@ class Migration:
                     self.destination_connection.put(
                         f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}",
                     )
-                    self._logger.info(
-                        "Shared experiment %s (ID: %s) with project %s",
-                        label,
-                        destination_experiment_id,
-                        project_id,
-                    )
+                    msg = f"Shared experiment {label} (ID: {destination_experiment_id}) with project {project_id}"
+                    self._logger.info(msg)
                 except XNATResponseError as e:
-                    self._logger.warning(
-                        "Failed to share experiment %s with project %s: %s",
-                        label,
-                        project_id,
-                        str(e),
-                    )
+                    msg_str = str(e)
+                    msg = f"Failed to share experiment {label} with project {project_id}: {msg_str}"
+                    self._logger.warning(msg)
 
         # Share assessors
         for label, sharing_info in self.assessor_sharing.items():
@@ -1104,7 +1083,8 @@ class Migration:
 
             destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
             if destination_assessor_id is None:
-                self._logger.warning("Could not find destination ID for assessor %s", label)
+                msg = f"Could not find destination ID for assessor {label}"
+                self._logger.warning(msg)
                 continue
 
             for project_id in sharing_info["projects"]:
@@ -1112,18 +1092,12 @@ class Migration:
                     self.destination_connection.put(
                         f"/data/projects/{owner}/assessors/{destination_assessor_id}/projects/{project_id}?label={label}",
                     )
-                    self._logger.info(
-                        "Shared assessor %s with project %s",
-                        label,
-                        project_id,
-                    )
+                    msg = f"Shared assessor {label} with project {project_id}"
+                    self._logger.info(msg)
                 except XNATResponseError as e:
-                    self._logger.warning(
-                        "Failed to share assessor %s with project %s: %s",
-                        label,
-                        project_id,
-                        str(e),
-                    )
+                    msg_str = str(e)
+                    msg = f"Failed to share assessor {label} with project {project_id}: {msg_str}"
+                    self._logger.warning(msg)
 
         self._logger.info("Sharing configurations applied.")
 
@@ -1146,8 +1120,8 @@ class Migration:
             self.mapper = mapper
             self.source_info = source_info
             self.destination_info = destination_info
-
-            self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
+            msg = f"Migrating project: {source_info.id} -> {destination_info.id}"
+            self._logger.info(msg)
 
             source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
             path = BASE_OUTPUT_DIR / source_name / self.destination_info.id
