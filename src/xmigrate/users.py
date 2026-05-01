@@ -51,14 +51,6 @@ def check_user(
     )
 
     if destination_profile:
-        if source_profile["id"] != destination_profile["id"]:
-            msg = (
-                f"IDs not equal for {username}: "
-                f"source_profile id={source_profile['id']} "
-                f"destination_profile id={destination_profile['id']}"
-            )
-            raise ValueError(msg)
-
         LOGGER.info("User already exists in destination: %s", username)
         return None
 

@@ -14,22 +14,6 @@ if TYPE_CHECKING:
     import xnat
 
 
-def test_check_users_mismatched_ids(
-    destination_connection: xnat.BaseXNATSession,
-    source_connection: xnat.BaseXNATSession,
-    unique_username: str,
-) -> None:
-    """Profiles with the same username but different IDs raise ValueError."""
-    userid_src = "1"
-    userid_dst = "999"
-    source_profiles = seed_user(source_connection, unique_username, userid=userid_src)
-    destination_profiles = seed_user(destination_connection, unique_username, userid=userid_dst)
-
-    msg = f"IDs not equal for {unique_username}: source_profile id={userid_src} destination_profile id={userid_dst}"
-    with pytest.raises(ValueError, match=msg):
-        xmigrate.check_user(unique_username, [source_profiles], [destination_profiles], destination_connection)
-
-
 def test_check_user_not_found_in_source(
     destination_connection: xnat.BaseXNATSession,
     unique_username: str,

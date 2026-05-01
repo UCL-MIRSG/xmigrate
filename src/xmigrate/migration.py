@@ -24,7 +24,7 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
-BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "output"
+BASE_OUTPUT_DIR = pathlib.Path.cwd() / "output"
 
 
 @dataclasses.dataclass
@@ -66,9 +66,8 @@ class Migration:
         self.experiment_sharing: dict = {}
         self.assessor_sharing: dict = {}
 
-        source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
         # load existing sitewide roles from JSON if exists
-        sitewide_roles_path = BASE_OUTPUT_DIR / source_name / "sitewide_roles.json"
+        sitewide_roles_path = BASE_OUTPUT_DIR / "sitewide_roles.json"
         if sitewide_roles_path.is_file():
             with sitewide_roles_path.open() as f:
                 self.sitewide_roles = json.load(f)
@@ -839,11 +838,10 @@ class Migration:
         destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-        folder_path = BASE_OUTPUT_DIR / source_name
-        folder_path.mkdir(parents=True, exist_ok=True)
-        user_permissions_path = folder_path / "user_permissions_per_project.json"
+        BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        user_permissions_path = BASE_OUTPUT_DIR / "user_permissions_per_project.json"
 
-        # Always ensure users exist and have site-wide roles
+        # Always ensure users exist and have site-wide roles before assigning project-specific permissions
         for user in source_project_ownership:
             username = user["login"]
             destination_profiles = check_user(
@@ -854,15 +852,12 @@ class Migration:
             )
             self.sitewide_roles = check_user_roles(
                 username,
-                folder_path,
+                BASE_OUTPUT_DIR,
                 self.sitewide_roles,
                 self.source_connection,
                 self.destination_connection,
             )
 
-        # Assign project-specific permissions
-        for user in source_project_ownership:
-            username = user["login"]
             ownership_type = user["displayname"]
             api_put_string = f"/data/projects/{destination_project}/users/{ownership_type}/{username}"
             self.destination_connection.put(api_put_string)
