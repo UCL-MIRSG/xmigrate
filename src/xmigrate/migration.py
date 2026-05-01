@@ -7,9 +7,9 @@ import pathlib
 import subprocess
 import time
 import urllib.parse
-import xml.etree.ElementTree as ET
 
 import pandas as pd
+from defusedxml import ElementTree
 
 import xnat
 from xnat.exceptions import XNATResponseError
@@ -66,7 +66,7 @@ class Migration:
         self.experiment_sharing: dict = {}
         self.assessor_sharing: dict = {}
 
-    def _get_source_xml(self, uri: str) -> ET.Element:
+    def _get_source_xml(self, uri: str) -> ElementTree.Element:
         """
         Retrieve the XML representation of an XNAT item.
 
@@ -85,7 +85,7 @@ class Migration:
             query={"format": "xml"},
         )
         response.raise_for_status()
-        return ET.fromstring(response.text)  # noqa: S314
+        return ElementTree.fromstring(response.text)
 
     def _set_project_configs(self) -> None:
         """
@@ -357,7 +357,7 @@ class Migration:
             root,
             resource_type=XnatType.project,
         )
-        xml_bytes = ET.tostring(root, encoding="utf-8")
+        xml_bytes = ElementTree.tostring(root, encoding="utf-8")
 
         if self.destination_info.id not in self.destination_connection.projects:
             self.destination_connection.post(
@@ -444,7 +444,7 @@ class Migration:
             root,
             resource_type=XnatType.subject,
         )
-        xml_bytes = ET.tostring(root, encoding="utf-8")
+        xml_bytes = ElementTree.tostring(root, encoding="utf-8")
 
         if subject.label not in self.destination_connection.projects[self.destination_info.id].subjects:
             self.destination_connection.post(
@@ -552,7 +552,7 @@ class Migration:
             root,
             resource_type=XnatType.experiment,
         )
-        xml_bytes = ET.tostring(root, encoding="utf-8")
+        xml_bytes = ElementTree.tostring(root, encoding="utf-8")
         if (
             experiment.label
             not in self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments
@@ -659,7 +659,7 @@ class Migration:
             root,
             resource_type=XnatType.scan,
         )
-        xml_bytes = ET.tostring(root, encoding="utf-8")
+        xml_bytes = ElementTree.tostring(root, encoding="utf-8")
         if (
             scan.id
             not in self.destination_connection.projects[self.destination_info.id]
@@ -767,7 +767,7 @@ class Migration:
             root,
             resource_type=XnatType.assessor,
         )
-        xml_bytes = ET.tostring(root, encoding="utf-8")
+        xml_bytes = ElementTree.tostring(root, encoding="utf-8")
         if (
             assessor.label
             not in self.destination_connection.projects[self.destination_info.id]

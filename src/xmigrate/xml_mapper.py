@@ -3,7 +3,8 @@
 import collections
 import dataclasses
 import enum
-import xml.etree.ElementTree as ET
+
+from defusedxml import ElementTree
 
 
 class XnatType(enum.StrEnum):
@@ -55,7 +56,7 @@ class XnatNS(enum.StrEnum):
 def register_namespaces() -> None:
     """Register XNAT XML namespaces for parsing."""
     for member in XnatNS:
-        ET.register_namespace(member.name, member.value)
+        ElementTree.register_namespace(member.name, member.value)
 
 
 @dataclasses.dataclass
@@ -156,7 +157,7 @@ class XMLMapper:
 
     def rewrite_uris(
         self,
-        child: ET.Element,
+        child: ElementTree.Element,
         source_path: str,
         destination_path: str,
     ) -> None:
@@ -214,9 +215,9 @@ class XMLMapper:
 
     def map_xml(  # noqa: PLR0912
         self,
-        element: ET.Element,
+        element: ElementTree.Element,
         resource_type: XnatType,
-    ) -> ET.Element:
+    ) -> ElementTree.Element:
         """
         Map XML tags and attributes for a given XNAT resource type.
 
