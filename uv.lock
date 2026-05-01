@@ -7,7 +7,7 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform == 'win32'",
 ]
-revision = 3
+revision = 2
 version = 1
 
 [[package]]
@@ -324,6 +324,15 @@ source = {registry = "https://pypi.org/simple"}
 version = "2.0"
 wheels = [
     {hash = "sha256:6de9ce507115cff0bed95ff0ce9ecc31088ef50cbdf09bc90a09349a318b3d00", size = 13475, upload-time = "2024-08-30T05:31:48.659Z", url = "https://files.pythonhosted.org/packages/2d/82/e5d2c1c67d19841e9edc74954c827444ae826978499bde3dfc1d007c8c11/deepmerge-2.0-py3-none-any.whl"},
+]
+
+[[package]]
+name = "defusedxml"
+sdist = {hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69", size = 75520, upload-time = "2021-03-08T10:59:26.269Z", url = "https://files.pythonhosted.org/packages/0f/d5/c66da9b79e5bdb124974bfe172b4daf3c984ebd9c2a06e2b8a4dc7331c72/defusedxml-0.7.1.tar.gz"}
+source = {registry = "https://pypi.org/simple"}
+version = "0.7.1"
+wheels = [
+    {hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61", size = 25604, upload-time = "2021-03-08T10:59:24.45Z", url = "https://files.pythonhosted.org/packages/07/6c/aa3f2f849e01cb6a001cd8554a88d4c77c5c1a31c95bdf1cf9301e6d9ef4/defusedxml-0.7.1-py2.py3-none-any.whl"},
 ]
 
 [[package]]
@@ -1458,6 +1467,7 @@ wheels = [
 dependencies = [
     {name = "attrs"},
     {name = "cyclopts"},
+    {name = "defusedxml"},
     {name = "docker"},
     {name = "pandas"},
     {name = "tqdm"},
@@ -1494,6 +1504,7 @@ test = [
 requires-dist = [
     {name = "attrs"},
     {name = "cyclopts"},
+    {name = "defusedxml", specifier = ">=0.7.1"},
     {name = "docker"},
     {name = "pandas"},
     {name = "tqdm"},
