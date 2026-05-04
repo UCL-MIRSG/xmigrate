@@ -1174,15 +1174,17 @@ class Migration:
             self._get_resource_metadata(resource="subjects", output_dir=output_dir)
             self._get_resource_metadata(resource="experiments", output_dir=output_dir)
 
-            # Update destination metadata with original upload date and time
-            sync_subject_metadata(
-                metadata_csv=output_dir / "subjects_metadata.csv",
-            )
-            sync_experiment_metadata(
-                metadata_csv=output_dir / "experiments_metadata.csv",
-            )
-
         self._apply_sharing()
+
+        # Update destination metadata with original upload date and time
+        # This must be done after sharing, otherwise the last_modified timestamp will be updated
+        # when sharing
+        sync_subject_metadata(
+            metadata_csv=output_dir / "subjects_metadata.csv",
+        )
+        sync_experiment_metadata(
+            metadata_csv=output_dir / "experiments_metadata.csv",
+        )
 
         end = time.time()
 

@@ -194,7 +194,7 @@ class TestMigration:
         ["subjects", "experiments"],
     )
     @pytest.mark.usefixtures("setup")
-    def test_subject_metadata(
+    def test_metadata(
         self,
         source_connection: xnat.BaseXNATSession,
         destination_connection: xnat.BaseXNATSession,
@@ -202,9 +202,7 @@ class TestMigration:
         resource: str,
     ) -> None:
         """Check subject metadata is migrated correctly in the destination XNAT."""
-        # ignore 'last_modified' for now as it is updated when we share the subject to another
-        # project
-        params = {"columns": "project,ID,label,insert_user,insert_date", "format": "json"}
+        params = {"columns": "project,ID,label,insert_user,insert_date,last_modified", "format": "json"}
 
         source_response = source_connection.get(f"/data/projects/{project_id}/{resource}", query=params)
         source_result = source_response.json()["ResultSet"]["Result"]
