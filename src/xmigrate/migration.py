@@ -1179,12 +1179,16 @@ class Migration:
         # Update destination metadata with original upload date and time
         # This must be done after sharing, otherwise the last_modified timestamp will be updated
         # when sharing
-        sync_subject_metadata(
-            metadata_csv=output_dir / "subjects_metadata.csv",
-        )
-        sync_experiment_metadata(
-            metadata_csv=output_dir / "experiments_metadata.csv",
-        )
+        for source_info in self.all_source_info:
+            self.source_info = source_info
+            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
+            output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
+            sync_subject_metadata(
+                metadata_csv=output_dir / "subjects_metadata.csv",
+            )
+            sync_experiment_metadata(
+                metadata_csv=output_dir / "experiments_metadata.csv",
+            )
 
         end = time.time()
 
