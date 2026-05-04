@@ -93,3 +93,20 @@ def sync_subject_metadata(
         )
     finally:
         connection.close()
+
+
+def sync_experiment_metadata(
+    metadata_csv: str | pathlib.Path,
+) -> None:
+    """Attach source and destination, then execute the experiment metadata sync SQL."""
+    connection = create_duckdb_connection()
+
+    try:
+        attach_destination_database(connection)
+        attach_metadata_csv(connection, metadata_csv)
+        run_sql_template(
+            connection,
+            template_filename="update_experiment_metadata.sql",
+        )
+    finally:
+        connection.close()
