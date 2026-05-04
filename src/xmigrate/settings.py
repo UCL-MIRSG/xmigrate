@@ -1,4 +1,4 @@
-"""Camino configuration via environment variables."""
+"""xmigrate configuration via environment variables."""
 
 from pydantic import BaseModel, SecretStr
 from pydantic_settings import (
