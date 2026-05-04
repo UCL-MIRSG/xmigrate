@@ -16,7 +16,7 @@ from xnat.exceptions import XNATResponseError
 
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
-from xmigrate.sync_metadata import sync_subject_metadata
+from xmigrate.sync_metadata import sync_experiment_metadata, sync_subject_metadata
 from xmigrate.users import create_users
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
@@ -1177,6 +1177,9 @@ class Migration:
             # Update destination metadata with original upload date and time
             sync_subject_metadata(
                 metadata_csv=output_dir / "subjects_metadata.csv",
+            )
+            sync_experiment_metadata(
+                metadata_csv=output_dir / "experiments_metadata.csv",
             )
 
         self._apply_sharing()
