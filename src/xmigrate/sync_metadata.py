@@ -10,11 +10,6 @@ from xmigrate.settings import Secrets
 
 def load_sql_template(filename: str) -> str:
     """Load SQL template from packaged ``src/xmigrate/sql`` data files."""
-    path = pathlib.Path(filename)
-    if path.name != filename or path.suffix.lower() != ".sql":
-        msg = "filename must be a plain .sql file name (e.g. 'query.sql')"
-        raise ValueError(msg)
-
     sql_file = resources.files("xmigrate").joinpath("sql", filename)
     return sql_file.read_text(encoding="utf-8")
 
