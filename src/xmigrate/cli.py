@@ -17,6 +17,7 @@ app = cyclopts.App(
         root_keys=["tool", "xmigrate"],
         search_parents=True,
     ),
+    result_action="return_none",
 )
 
 logger = logging.getLogger("xmigrate.cli")
