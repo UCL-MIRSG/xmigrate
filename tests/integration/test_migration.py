@@ -191,7 +191,7 @@ class TestMigration:
     )
     @pytest.mark.parametrize(
         "resource",
-        ["subjects"],
+        ["subjects", "experiments"],
     )
     @pytest.mark.usefixtures("setup")
     def test_subject_metadata(
