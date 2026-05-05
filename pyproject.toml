@@ -37,7 +37,6 @@ classifiers = [
     "Operating System :: POSIX",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
@@ -64,7 +63,7 @@ license-files = [
 ]
 name = "xmigrate"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 scripts = {xmigrate = """xmigrate.cli:app"""}
 urls.homepage = "https://github.com/UCL-MIRSG/xmigrate"
 
@@ -80,7 +79,7 @@ paths.source = [
 
 [tool.mypy]
 explicit_package_bases = true
-python_version = "3.12"
+python_version = "3.13"
 
 [tool.pytest.ini_options]
 addopts = [
