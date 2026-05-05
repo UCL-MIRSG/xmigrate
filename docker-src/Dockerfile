@@ -57,8 +57,10 @@ RUN curl -fSL -o xnat.war \
 USER postgres
 RUN /usr/lib/postgresql/16/bin/initdb \
     --pgdata=/var/lib/postgresql/data \
-    && printf "\ndatasource.driver = '/tmp'\n" >> \
-    /var/lib/postgresql/data/postgresql.conf
+    && printf "\ndatasource.driver = '/tmp'\nlisten_addresses = '*'\n" >> \
+    /var/lib/postgresql/data/postgresql.conf \
+    && printf "host all all all scram-sha-256\n" >> \
+    /var/lib/postgresql/data/pg_hba.conf
 # hadolint ignore=DL3002
 USER root
 
@@ -71,6 +73,7 @@ COPY xnat-prefs-init.ini ${XNAT_HOME}/config/prefs-init.ini
 COPY supervisord.conf /etc/supervisord.conf
 
 EXPOSE 8080
+EXPOSE 5432
 
 # Ensures test suite waits until XNAT is responding
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s \
