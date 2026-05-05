@@ -6,6 +6,7 @@ import os
 import typing
 import urllib.request
 
+import docker
 import pytest
 
 import medimages4tests.cache_dir
@@ -94,7 +95,30 @@ def destination_connection(
         xnat_root_dir=xnat_root_dirs["destination"],
     )
     setup_docker_image(config)
-    xnat4tests.start_xnat(config, rebuild=False)
+
+    # We need to publish the Postgres port so we can update the metadata after the migration
+    db_host_port = os.getenv("XNAT4TESTS_DESTINATION_DB_PORT", "15432")
+    original_run = docker.models.containers.ContainerCollection.run
+
+    def _run(
+        self: docker.models.containers.ContainerCollection,
+        *args: object,
+        **kwargs: object,
+    ) -> object:
+        """Patch Docker run to publish the Postgres port for the destination container."""
+        if kwargs.get("name") == config.docker_container:
+            existing_ports = kwargs.get("ports")
+            ports = dict(existing_ports) if isinstance(existing_ports, dict) else {}
+            ports["5432/tcp"] = ("127.0.0.1", db_host_port)
+            kwargs["ports"] = ports
+        return original_run(self, *args, **kwargs)
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(docker.models.containers.ContainerCollection, "run", _run)
+    try:
+        xnat4tests.start_xnat(config, rebuild=False, relaunch=True)
+    finally:
+        monkeypatch.undo()
 
     conn = wait_for_connection(config)
     yield wait_for_datatypes(conn)
