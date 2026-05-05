@@ -344,8 +344,7 @@ class Migration:
                 msg = f"Migrated custom form data for {resource_type_name} {resource_type.id}"
                 LOGGER.info(msg)
             except XNATResponseError as e:
-                msg_str = str(e)
-                msg = f"Failed to migrate custom form data for {resource_type_name} {resource_type.id}: {msg_str}"
+                msg = f"Failed to migrate custom form data for {resource_type_name} {resource_type.id}: {e}"
                 LOGGER.warning(msg)
 
     def _create_project(self) -> None:
@@ -1034,8 +1033,7 @@ class Migration:
                     msg = f"Shared subject {label} with project {project_id}"
                     LOGGER.info(msg)
                 except XNATResponseError as e:
-                    msg_str = str(e)
-                    msg = f"Failed to share subject {label} with project {project_id}: {msg_str}"
+                    msg = f"Failed to share subject {label} with project {project_id}: {e}"
                     LOGGER.warning(msg)
 
         # Share experiments
@@ -1068,8 +1066,7 @@ class Migration:
                     msg = f"Shared experiment {label} (ID: {destination_experiment_id}) with project {project_id}"
                     LOGGER.info(msg)
                 except XNATResponseError as e:
-                    msg_str = str(e)
-                    msg = f"Failed to share experiment {label} with project {project_id}: {msg_str}"
+                    msg = f"Failed to share experiment {label} with project {project_id}: {e}"
                     LOGGER.warning(msg)
 
         # Share assessors
@@ -1101,8 +1098,7 @@ class Migration:
                     msg = f"Shared assessor {label} with project {project_id}"
                     LOGGER.info(msg)
                 except XNATResponseError as e:
-                    msg_str = str(e)
-                    msg = f"Failed to share assessor {label} with project {project_id}: {msg_str}"
+                    msg = f"Failed to share assessor {label} with project {project_id}: {e}"
                     LOGGER.warning(msg)
 
         LOGGER.info("Sharing configurations applied.")
