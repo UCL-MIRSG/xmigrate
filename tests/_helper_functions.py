@@ -8,11 +8,11 @@ import shutil
 import time
 import typing
 import unittest.mock
-import xml.etree.ElementTree as ET
 
 import docker
 import docker.errors
 import requests
+from defusedxml.ElementTree import fromstring
 
 import xnat4tests
 
@@ -20,6 +20,8 @@ import xmigrate
 import xmigrate.migration
 
 if typing.TYPE_CHECKING:
+    from xml.etree import ElementTree as ET
+
     import xnat
 
 logger = logging.getLogger(__name__)
@@ -120,7 +122,7 @@ def get_xml(session: xnat.XNATSession, uri: str) -> ET.Element:
         query=dict(format="xml"),  # noqa: C408
     )
     response.raise_for_status()
-    return ET.fromstring(response.text)  # noqa: S314
+    return fromstring(response.text)
 
 
 def make_connection(datatypes: list[str]) -> unittest.mock.MagicMock:
