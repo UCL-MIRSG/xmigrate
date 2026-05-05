@@ -322,6 +322,7 @@ class Migration:
                 msg = (
                     f"Could not find matching destination form for source formUUID "
                     f"{source_form_uuid} in resource {resource_type_name}"
+                )
                 LOGGER.warning(msg)
                 continue
 
