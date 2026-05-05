@@ -210,4 +210,5 @@ class TestMigration:
         destination_response = destination_connection.get(f"/data/projects/{project_id}/{resource}", query=params)
         destination_result = destination_response.json()["ResultSet"]["Result"]
 
-        assert source_result == destination_result
+        # Results are returned in an arbitrary order, so we compare them as sets of frozensets to ignore the ordering
+        assert {frozenset(d.items()) for d in source_result} == {frozenset(d.items()) for d in destination_result}

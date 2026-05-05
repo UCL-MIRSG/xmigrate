@@ -22,7 +22,7 @@ from tests._helper_functions import (
 
 if typing.TYPE_CHECKING:
     import pathlib
-    from collections.abc import Generator
+    from collections.abc import Iterator
 
     import xnat
 
@@ -30,7 +30,7 @@ if typing.TYPE_CHECKING:
 @pytest.fixture(scope="session")
 def source_connection(
     xnat_root_dirs: dict[str, pathlib.Path],
-) -> Generator[xnat.BaseXNATSession, None, None]:
+) -> Iterator[xnat.BaseXNATSession]:
     """
     Provide a connection to the source XNAT instance.
 
@@ -78,7 +78,7 @@ def source_connection(
 @pytest.fixture(scope="session")
 def destination_connection(
     xnat_root_dirs: dict[str, pathlib.Path],
-) -> Generator[xnat.BaseXNATSession, None, None]:
+) -> Iterator[xnat.BaseXNATSession]:
     """
     Provide a connection to the destination XNAT instance.
 

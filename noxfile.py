@@ -14,7 +14,6 @@ nox.options.sessions = [
 ]
 
 ALL_PYTHON = [
-    "3.12",
     "3.13",
     "3.14",
 ]
