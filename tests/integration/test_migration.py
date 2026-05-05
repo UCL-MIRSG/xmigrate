@@ -3,6 +3,7 @@
 import pathlib
 import shutil
 import typing
+from typing import Any
 
 import pytest
 
@@ -210,4 +211,7 @@ class TestMigration:
         destination_response = destination_connection.get(f"/data/projects/{project_id}/{resource}", query=params)
         destination_result = destination_response.json()["ResultSet"]["Result"]
 
-        assert set(source_result) == set(destination_result)
+        def _sort_results(results: dict) -> list[Any]:
+            return sorted(results, key=lambda x: x["ID"])
+
+        assert _sort_results(source_result) == _sort_results(destination_result)
