@@ -46,7 +46,9 @@ dependencies = [
     "attrs",
     "cyclopts",
     "docker",
+    "duckdb",
     "pandas",
+    "pydantic-settings",
     "tqdm",
     "xnat",
 ]
@@ -137,6 +139,15 @@ lint.select = [
 lint.mccabe.max-complexity = 18
 lint.pep8-naming.classmethod-decorators = [
     "classmethod",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+xmigrate = [
+    "sql/**/*.sql",
+    "sql/*.sql",
 ]
 
 [tool.setuptools_scm]

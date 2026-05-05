@@ -13,10 +13,12 @@ __all__ = [
     "create_custom_forms_json",
     "create_users",
     "register_namespaces",
+    "sync_subject_metadata",
 ]
 
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.migration import Migration
+from xmigrate.sync_metadata import sync_subject_metadata
 from xmigrate.users import check_users, create_users
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatNS, XnatType, register_namespaces
