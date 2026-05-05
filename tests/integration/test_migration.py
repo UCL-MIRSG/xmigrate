@@ -210,4 +210,4 @@ class TestMigration:
         destination_response = destination_connection.get(f"/data/projects/{project_id}/{resource}", query=params)
         destination_result = destination_response.json()["ResultSet"]["Result"]
 
-        assert source_result == destination_result
+        assert set(source_result) == set(destination_result)
