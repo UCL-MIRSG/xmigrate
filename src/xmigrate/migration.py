@@ -873,7 +873,7 @@ class Migration:
         with user_permissions_path.open("w") as f:
             json.dump(user_permissions_per_project, f, indent=4)
 
-        self._logger.info("User permissions updated for project %s in %s", self.destination_info.id, source_name)
+        LOGGER.info("User permissions updated for project %s in %s", self.destination_info.id, source_name)
 
     def _create_resources(self) -> None:
         """
