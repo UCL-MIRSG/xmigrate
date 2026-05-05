@@ -1,0 +1,9 @@
+[sqlfluff]
+dialect = duckdb
+templater = jinja
+
+[sqlfluff:indentation]
+tab_width = 4
+
+[sqlfluff:templater:placeholder]
+param_style = dollar
