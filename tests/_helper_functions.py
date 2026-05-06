@@ -21,6 +21,7 @@ import xmigrate.migration
 
 if typing.TYPE_CHECKING:
     from xml.etree import ElementTree as ET
+    from typing import Any
 
     import xnat
 
@@ -174,9 +175,10 @@ def make_mapper() -> xmigrate.XMLMapper:
 def seed_user(
     connection: xnat.BaseXNATSession,
     username: str,
+    userid: str = "1",
     email: str = "test@example.com",
     roles: tuple[str, ...] = ("user",),
-) -> None:
+) -> dict[str, Any]:
     """
     Create a user directly on an XNAT instance via REST.
 
@@ -191,10 +193,15 @@ def seed_user(
     roles
         The roles to assign to the user.
 
+    Returns
+    -------
+        The updated profile dictionary.
+
     """
     profile = {
         "email": email,
         "enabled": True,
+        "id": userid,
         "firstName": "Test",
         "lastName": "User",
         "username": username,
@@ -214,6 +221,7 @@ def seed_user(
             f"/xapi/users/{username}/roles/{role}",
             accepted_status=[200, 201, 304],
         )
+    return profile
 
 
 def setup_docker_image(config: xnat4tests.Config) -> None:

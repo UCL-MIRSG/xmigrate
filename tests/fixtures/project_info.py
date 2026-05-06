@@ -11,6 +11,8 @@ import xmigrate
 if typing.TYPE_CHECKING:
     import pathlib
 
+    import xnat
+
 
 @pytest.fixture
 def destination_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[xmigrate.ProjectInfo]:
@@ -50,3 +52,20 @@ def source_info(xnat_root_dirs: dict[str, pathlib.Path]) -> list[xmigrate.Projec
         )
         for source_proj in source_projects
     ]
+
+
+@pytest.fixture
+def migration(
+    source_connection: xnat.BaseXNATSession,
+    destination_connection: xnat.BaseXNATSession,
+    source_info: xmigrate.ProjectInfo,
+    destination_info: xmigrate.ProjectInfo,
+) -> xmigrate.Migration:
+    """Set up migration instance."""
+    return xmigrate.Migration(
+        all_destination_info=destination_info,
+        all_source_info=source_info,
+        destination_connection=destination_connection,
+        no_rsync=True,
+        source_connection=source_connection,
+    )

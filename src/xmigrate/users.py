@@ -1,6 +1,8 @@
 """Module for handling users on XNAT instances."""
 
+import json
 import logging
+import pathlib
 
 import xnat
 
@@ -10,97 +12,113 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
-def check_users(
+def check_user(
+    username: str,
     source_profiles: list,
     destination_profiles: list,
-) -> tuple[list, list]:
+    destination_connection: xnat.BaseXNATSession,
+) -> list | None:
     """
-    Check users on the destination XNAT instance.
+    Check user on the destination XNAT instance.
 
     Parameters
     ----------
+    username
+        String for the username on the source XNAT instance.
     source_profiles
         List of user profiles from the source XNAT instance.
     destination_profiles
         List of user profiles from the destination XNAT instance.
+    destination_connection
+        The destination XNAT connection.
 
     Returns
     -------
-        A tuple containing two lists:
-        - List of indices of users in the destination_profiles that need to be updated.
-        - List of indices of users in the source_profiles that need to be updated.
+        An updated list of user profiles from the destination XNAT instance.
 
     """
-    idx_source_all = []
-    idx_destination_all = []
+    source_profile = next(
+        (p for p in source_profiles if p["username"] == username),
+        None,
+    )
+    if source_profile is None:
+        msg = f"User {username} not found in source profiles"
+        raise ValueError(msg)
 
-    for source_profile, destination_profile in zip(source_profiles, destination_profiles, strict=False):
-        if source_profile["username"] != destination_profile["username"]:
-            msg = f"Skipping... Usernames not equal: {source_profile['username']=} {destination_profile['username']=}"
-            LOGGER.info(msg)
-            idx_destination_all.append(destination_profiles.index(destination_profile))
-            idx_source_all.append(source_profiles.index(source_profile))
+    destination_profile = next(
+        (p for p in destination_profiles if p["username"] == username),
+        None,
+    )
 
-        if source_profile["id"] != destination_profile["id"]:
-            msg = f"IDs not equal: {source_profile['id']=} {destination_profile['id']=}"
-            raise (ValueError(msg))
-    return idx_destination_all, idx_source_all
+    if destination_profile:
+        LOGGER.info("User already exists in destination: %s", username)
+        return None
+
+    LOGGER.info("Creating user: %s", username)
+    destination_profile = {
+        "username": source_profile["username"].removesuffix("#EXT#"),
+        "enabled": source_profile["enabled"],
+        "email": source_profile["email"],
+        "id": source_profile["id"],
+        "verified": source_profile["verified"],
+        "firstName": source_profile["firstName"],
+        "lastName": source_profile["lastName"],
+    }
+    destination_connection.post("/xapi/users", json=destination_profile)
+    destination_profiles.append(
+        {
+            "username": destination_profile["username"],
+            "id": source_profile["id"],
+        },
+    )
+    return destination_profiles
 
 
-def create_users(
-    source_connection: xnat.BaseXNATSession,
+def check_user_roles(
+    username: str,
+    folder_path: pathlib.Path,
+    sitewide_roles: dict,
     destination_connection: xnat.BaseXNATSession,
-) -> None:
+    source_connection: xnat.BaseXNATSession,
+) -> dict:
     """
-    Create users on the destination XNAT instance.
+    Check user on the destination XNAT instance.
 
     Parameters
     ----------
-    source_connection
-        The XNAT session for the source instance.
+    username
+        String for the username on the source XNAT instance.
+    folder_path
+        Path where sitewide_roles.json lives.
+    sitewide_roles
+        Dictionary of sitewide_roles currently on destination.
     destination_connection
-        The XNAT session for the destination instance.
+        The destination XNAT connection.
+    source_connection
+        The source XNAT connection.
 
-    Raises
-    ------
-    ValueError
-        If there is a mismatch in user IDs between the source and destination.
+
+    Returns
+    -------
+        An dictionary of sitewide_roles currently on destination.
 
     """
-    source_profiles = source_connection.get("/xapi/users/profiles", format="json").json()
-    destination_profiles = destination_connection.get("/xapi/users/profiles", format="json").json()
+    # skip if we already have roles checkpointed
+    if username in sitewide_roles:
+        LOGGER.info("User roles already exist in destination: %s", username)
+        return sitewide_roles
 
-    # First check that existing users on the destination are identical to the source
-    idx_destination_all, idx_source_all = check_users(source_profiles, destination_profiles)
+    api_get_string = f"/xapi/users/{username}/roles"
+    roles = source_connection.get(api_get_string).json()
 
-    for idx_destination, idx_source in zip(idx_destination_all, idx_source_all, strict=False):
-        destination_profiles.pop(idx_destination)
-        source_profiles.pop(idx_source)
+    for role in roles:
+        destination_connection.put(f"/xapi/users/{username}/roles/{role}")
 
-    # Now create missing users from the source on the destination
-    for source_profile in source_profiles[len(destination_profiles) :]:
-        LOGGER.info("Creating user: %s", source_profile["username"])
-        destination_profile = {
-            "username": source_profile["username"].removesuffix("#EXT#"),
-            "enabled": source_profile["enabled"],
-            "email": source_profile["email"],
-            "verified": source_profile["verified"],
-            "firstName": source_profile["firstName"],
-            "lastName": source_profile["lastName"],
-        }
-        destination_connection.post("/xapi/users", json=destination_profile)
+    # checkpoint
+    sitewide_roles[username] = roles
+    sitewide_roles_path = folder_path / "sitewide_roles.json"
+    folder_path.mkdir(parents=True, exist_ok=True)
+    with sitewide_roles_path.open("w") as f:
+        json.dump(sitewide_roles, f, indent=4)
 
-    # Re-fetch so destination_profiles reflects newly created users
-    destination_profiles = destination_connection.get("/xapi/users/profiles", format="json").json()
-
-    # Set site-wide permission roles for users
-    for source_profile in source_profiles:
-        username = source_profile["username"].removesuffix("#EXT#")
-        if all(profile["username"] != username for profile in destination_profiles):
-            msg = f"Username {username} not in destination."
-            raise ValueError(msg)
-        api_get_string = f"/xapi/users/{username}/roles"
-        roles = source_connection.get(api_get_string).json()
-
-        for role in roles:
-            destination_connection.put(f"/xapi/users/{username}/roles/{role}")
+    return sitewide_roles

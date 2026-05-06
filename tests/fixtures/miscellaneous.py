@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import typing
+import uuid
 
 import pytest
 
@@ -27,5 +28,7 @@ def remove_destination_test_data(
 
 @pytest.fixture
 def unique_username(request: pytest.FixtureRequest) -> str:
-    """Generate a unique username based on the test name."""
-    return request.node.name.replace("[", "_").replace("]", "_")
+    """Generate a globally unique username per test run."""
+    base_name = request.node.name.replace("[", "_").replace("]", "_")
+    unique_suffix = uuid.uuid4().hex[:8]  # 8-char random suffix
+    return f"{base_name}_{unique_suffix}"
