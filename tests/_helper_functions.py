@@ -20,8 +20,8 @@ import xmigrate
 import xmigrate.migration
 
 if typing.TYPE_CHECKING:
-    from xml.etree import ElementTree as ET
     from typing import Any
+    from xml.etree import ElementTree as ET
 
     import xnat
 

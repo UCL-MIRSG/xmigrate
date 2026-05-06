@@ -7,10 +7,10 @@ import pathlib
 import subprocess
 import time
 import urllib.parse
-from xml.etree import ElementTree as ET
+import xml.etree.ElementTree as ET
 
+import defusedxml.ElementTree as DefusedET
 import pandas as pd
-from defusedxml.ElementTree import fromstring
 
 import xnat
 from xnat.exceptions import XNATResponseError
@@ -92,7 +92,7 @@ class Migration:
             query={"format": "xml"},
         )
         response.raise_for_status()
-        return fromstring(response.text)
+        return DefusedET.fromstring(response.text)
 
     def _set_project_configs(self) -> None:
         """
