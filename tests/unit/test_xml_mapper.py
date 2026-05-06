@@ -1,6 +1,6 @@
 """Tests for the xmigrate.xml_mapper module."""
 
-from xml.etree import ElementTree as ET
+import xml.etree.ElementTree as ET
 
 import pytest
 

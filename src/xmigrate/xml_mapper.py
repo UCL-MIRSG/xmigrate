@@ -3,7 +3,7 @@
 import collections
 import dataclasses
 import enum
-from xml.etree import ElementTree as ET
+import xml.etree.ElementTree as ET
 
 
 class XnatType(enum.StrEnum):
