@@ -3,7 +3,6 @@
 import pathlib
 import shutil
 import typing
-from typing import Any
 
 import pytest
 
