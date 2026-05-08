@@ -31,12 +31,12 @@ def check_plugins_matching(
 
     """
     plugins_source = {
-        plugin_id: plugin_data.get["version"]
+        plugin_id: plugin_data.get("version")
         for plugin_id, plugin_data in source_connection.get("/xapi/plugins").json().items()
     }
 
     plugins_destination = {
-        plugin_id: plugin_data.get["version"]
+        plugin_id: plugin_data.get("version")
         for plugin_id, plugin_data in destination_connection.get("/xapi/plugins").json().items()
     }
 
