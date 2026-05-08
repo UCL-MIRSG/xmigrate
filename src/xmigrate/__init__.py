@@ -9,6 +9,7 @@ __all__ = [
     "XnatNS",
     "XnatType",
     "check_datatypes_matching",
+    "check_plugins_matching",
     "check_user",
     "check_user_roles",
     "create_custom_forms_json",
@@ -19,6 +20,7 @@ __all__ = [
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.migration import Migration
+from xmigrate.plugins import check_plugins_matching
 from xmigrate.sync_metadata import sync_subject_metadata
 from xmigrate.users import check_user, check_user_roles
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatNS, XnatType, register_namespaces
