@@ -84,13 +84,15 @@ def migrate_project_list(  # noqa: PLR0913
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
-            logger.warning("Failed to fetch source archive path: %s", e)
+            msg = f"Failed to fetch source archive path: {e}"
+            logger.warning(msg)
             source_archive = None
 
         try:
             destination_archive = destination_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
-            logger.warning("Failed to fetch destination archive path: %s", e)
+            msg = f"Failed to fetch destination archive path: {e}"
+            logger.warning(msg)
             destination_archive = None
 
         # Create a list of ProjectInfo objects, one for each project
@@ -182,13 +184,15 @@ def migrate_all_projects(
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
-            logger.warning("Failed to fetch source archive path: %s", e)
+            msg = f"Failed to fetch source archive path: {e}"
+            logger.warning(msg)
             source_archive = None
 
         try:
             destination_archive = destination_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
-            logger.warning("Failed to fetch destination archive path: %s", e)
+            msg = f"Failed to fetch destination archive path: {e}"
+            logger.warning(msg)
             destination_archive = None
 
         # Create a list of ProjectInfo objects, one for each project
