@@ -9,6 +9,7 @@ import time
 import urllib.parse
 import xml.etree.ElementTree as ET
 
+import defusedxml.ElementTree as DefusedET
 import pandas as pd
 
 import xnat
@@ -92,7 +93,7 @@ class Migration:
             query={"format": "xml"},
         )
         response.raise_for_status()
-        return ET.fromstring(response.text)  # noqa: S314
+        return DefusedET.fromstring(response.text)
 
     def _set_project_configs(self) -> None:
         """

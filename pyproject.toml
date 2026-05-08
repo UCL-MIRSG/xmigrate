@@ -44,6 +44,7 @@ classifiers = [
 dependencies = [
     "attrs",
     "cyclopts",
+    "defusedxml>=0.7.1",
     "docker",
     "duckdb",
     "pandas",
