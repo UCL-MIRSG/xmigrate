@@ -1,10 +1,9 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
-import urllib.parse
 
 import cyclopts
-import requests  # type: ignore[import-untyped]
+import requests
 
 import xnat
 
@@ -18,6 +17,7 @@ app = cyclopts.App(
         root_keys=["tool", "xmigrate"],
         search_parents=True,
     ),
+    result_action="return_none",
 )
 
 logger = logging.getLogger("xmigrate.cli")
@@ -34,8 +34,6 @@ def migrate_project_list(  # noqa: PLR0913
     source_projects: list[str],
     source_rsync: str,
     destination: str,
-    destination_user: str,
-    destination_password: str,
     destination_rsync: str,
     destination_projects: list[str] | None = None,
     destination_secondary_ids: list[str] | None = None,
@@ -55,16 +53,14 @@ def migrate_project_list(  # noqa: PLR0913
 
     Parameters
     ----------
+    source
+        The source XNAT instance URL.
     source_projects
         A list of source project IDs.
     source_rsync
         The path to the source rsync directory.
     destination
         The destination XNAT instance URL.
-    destination_user
-        The username for the destination XNAT instance.
-    destination_password
-        The password for the destination XNAT instance.
     destination_rsync
         The path to the destination rsync directory.
     destination_projects
@@ -77,21 +73,13 @@ def migrate_project_list(  # noqa: PLR0913
         Flag indicating whether to skipping running rsync.
 
     """
-    if "://" not in source:
-        source = "http://" + source
-    host, _, port = urllib.parse.urlparse(source).netloc.partition(":")
-    base = host.split(".")[0]
-    source_name = f"{base}_{port}" if port else base
     destination_projects = destination_projects if destination_projects is not None else source_projects
-    destination_projects = [f"{source_name}_{p}" for p in destination_projects]
     destination_secondary_ids = destination_secondary_ids if destination_secondary_ids is not None else source_projects
-    destination_secondary_ids = [f"{source_name}_{s}" for s in destination_secondary_ids]
     destination_project_names = destination_project_names if destination_project_names is not None else source_projects
-    destination_project_names = [f"{source_name}_{n}" for n in destination_project_names]
 
     with (
         xnat.connect(source) as source_connection,
-        xnat.connect(destination, destination_user, destination_password) as destination_connection,
+        xnat.connect(destination) as destination_connection,
     ):
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
@@ -146,12 +134,10 @@ def migrate_project_list(  # noqa: PLR0913
 
 
 @app.command
-def migrate_all_projects(  # noqa: PLR0913
+def migrate_all_projects(
     source: str,
     source_rsync: str,
     destination: str,
-    destination_user: str,
-    destination_password: str,
     destination_rsync: str,
     *,
     no_rsync: bool = False,
@@ -168,14 +154,12 @@ def migrate_all_projects(  # noqa: PLR0913
 
     Parameters
     ----------
+    source
+        The source XNAT instance URL.
     source_rsync
         The local path for the source XNAT instance's rsync.
     destination
         The destination XNAT instance URL.
-    destination_user
-        The username for the destination XNAT instance.
-    destination_password
-        The password for the destination XNAT instance.
     destination_rsync
         The local path for the destination XNAT instance's rsync.
     no_rsync
@@ -184,23 +168,16 @@ def migrate_all_projects(  # noqa: PLR0913
     """
     with (
         xnat.connect(source) as source_connection,
-        xnat.connect(destination, destination_user, destination_password) as destination_connection,
+        xnat.connect(destination) as destination_connection,
     ):
         rows = [(p.id, p.secondary_id, p.project) for p in source_connection.projects]
         source_projects, source_secondary_ids, source_project_names = (
             map(list, zip(*rows, strict=False)) if rows else ([], [], [])
         )
-        if "://" not in source:
-            source = "http://" + source
-        host, _, port = urllib.parse.urlparse(source).netloc.partition(":")
-        base = host.split(".")[0]
-        source_name = f"{base}_{port}" if port else base
+
         destination_projects = source_projects
-        destination_projects = [f"{source_name}_{p}" for p in destination_projects]
         destination_secondary_ids = source_secondary_ids
-        destination_secondary_ids = [f"{source_name}_{s}" for s in destination_secondary_ids]
         destination_project_names = source_project_names
-        destination_project_names = [f"{source_name}_{n}" for n in destination_project_names]
 
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
@@ -265,4 +242,5 @@ def default_action() -> None:
     logger.info("No input commands given.")
 
 
-app()
+if __name__ == "__main__":
+    app()
