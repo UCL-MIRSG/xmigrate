@@ -1,5 +1,7 @@
 """Nox config."""
 
+import pathlib
+
 import nox
 import nox_uv
 
@@ -12,7 +14,6 @@ nox.options.sessions = [
 ]
 
 ALL_PYTHON = [
-    "3.12",
     "3.13",
     "3.14",
 ]
@@ -32,7 +33,7 @@ def build(session: nox.Session) -> None:
     uv_groups=["test"],
 )
 def coverage(session: nox.Session) -> None:
-    """Run tests and compute coverage for the tests."""
+    """Run unit tests and compute coverage for the unit tests."""
     session.run("pytest", "--cov", "--cov-report=lcov", *session.posargs)
 
 
@@ -64,6 +65,16 @@ def lint(session: nox.Session) -> None:
 def tests(session: nox.Session) -> None:
     """Run the unit tests."""
     session.run("pytest", *session.posargs)
+
+
+@nox_uv.session(uv_groups=["test"])
+def tests_integration(session: nox.Session) -> None:
+    """Run the integration tests."""
+    session.run(
+        "pytest",
+        pathlib.Path("tests/integration"),
+        *session.posargs,
+    )
 
 
 @nox_uv.session

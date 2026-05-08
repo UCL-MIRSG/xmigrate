@@ -16,7 +16,8 @@ from xnat.exceptions import XNATResponseError
 
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
-from xmigrate.users import create_users
+from xmigrate.sync_metadata import sync_experiment_metadata, sync_subject_metadata
+from xmigrate.users import check_user, check_user_roles
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 
 # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
@@ -24,16 +25,13 @@ from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
-BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parent / "output"
+BASE_OUTPUT_DIR = pathlib.Path.cwd() / "output"
 
 
 @dataclasses.dataclass
 class Migration:
     """Class to handle migration of XNAT projects."""
 
-    # Instance logger (not included in dataclass init or repr)
-    _logger: logging.Logger = dataclasses.field(default=LOGGER, init=False, repr=False)
-    """The logger for the migration class."""
     source_connection: xnat.BaseXNATSession
     """The source XNAT connection."""
     destination_connection: xnat.BaseXNATSession
@@ -45,7 +43,7 @@ class Migration:
     no_rsync: bool = False
     """Conditional for whether to run rsync only."""
 
-    def __post_init__(self):  # noqa: ANN204
+    def __post_init__(self) -> None:
         """Post-initialisation to set up mappers and initial project information."""
         self.mappers = [
             XMLMapper(
@@ -62,9 +60,17 @@ class Migration:
         self.exp_failed_count = 0
         self.scan_failed_count = 0
         self.assess_failed_count = 0
-        self.subject_sharing = {}
-        self.experiment_sharing = {}
-        self.assessor_sharing = {}
+        self.subject_sharing: dict = {}
+        self.experiment_sharing: dict = {}
+        self.assessor_sharing: dict = {}
+
+        # load existing sitewide roles from JSON if exists
+        sitewide_roles_path = BASE_OUTPUT_DIR / "sitewide_roles.json"
+        if sitewide_roles_path.is_file():
+            with sitewide_roles_path.open() as f:
+                self.sitewide_roles = json.load(f)
+        else:
+            self.sitewide_roles = {}
 
     def _get_source_xml(self, uri: str) -> ET.Element:
         """
@@ -82,7 +88,7 @@ class Migration:
         """
         response = self.source_connection.get(
             uri,
-            query=dict(format="xml"),  # noqa: C408
+            query={"format": "xml"},
         )
         response.raise_for_status()
         return ET.fromstring(response.text)  # noqa: S314
@@ -107,7 +113,7 @@ class Migration:
         except XNATResponseError as e:
             if "Couldn't find config for" in e.text:
                 msg = f"No custom project configuration found for project {self.source_info.id}."
-                self._logger.info(msg)
+                LOGGER.info(msg)
                 return
             msg = f"Invalid response from XNAT\n: {e.text}"
             raise RuntimeError(msg) from e
@@ -152,9 +158,19 @@ class Migration:
 
         """
         output_dir.mkdir(parents=True, exist_ok=True)
-        params = {"columns": "ID,label,insert_user,insert_date,last_modified", "format": "json"}
+        params = {"columns": "project,ID,label,insert_user,insert_date,last_modified", "format": "json"}
         response = self.source_connection.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
         df = pd.DataFrame(response.json()["ResultSet"]["Result"])
+
+        # Store the destination project and resource ID
+        df["project"] = self.destination_info.id
+
+        # A resource ID cannot be mapped if it is not the owner of the resource
+        resource_type = getattr(XnatType, resource.removesuffix("s"))
+        id_map = self.mapper.id_map[resource_type]
+        df["ID"] = df["ID"].astype(str).map(id_map)
+        df = df[df["ID"].notna()].copy()
+
         df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
 
     def _export_id_map(
@@ -289,10 +305,8 @@ class Migration:
         try:
             source_custom_forms_data = self.source_connection.get_json(api_get_string)
         except ValueError:
-            self._logger.exception(
-                "Resource %s doesn't match suggested resource types",
-                resource_type_name,
-            )
+            msg = f"Resource {resource_type_name} doesn't match suggested resource types"
+            LOGGER.exception(msg)
 
         if not source_custom_forms_data:
             return
@@ -324,29 +338,22 @@ class Migration:
             destination_form_uuid = form_uuid_mapping.get(source_form_uuid)
 
             if not destination_form_uuid:
-                self._logger.warning(
-                    "Could not find matching destination form for source formUUID %s in resource %s",
-                    source_form_uuid,
-                    resource_type_name,
+                msg = (
+                    f"Could not find matching destination form for source formUUID "
+                    f"{source_form_uuid} in resource {resource_type_name}"
                 )
+                LOGGER.warning(msg)
                 continue
 
             destination_form_data = {destination_form_uuid: source_form_data}
 
             try:
                 self.destination_connection.put(api_put_string, json=destination_form_data)
-                self._logger.info(
-                    "Migrated custom form data for %s %s",
-                    resource_type_name,
-                    resource_type.id,
-                )
+                msg = f"Migrated custom form data for {resource_type_name} {resource_type.id}"
+                LOGGER.info(msg)
             except XNATResponseError as e:
-                self._logger.warning(
-                    "Failed to migrate custom form data for %s %s: %s",
-                    resource_type_name,
-                    resource_type.id,
-                    str(e),
-                )
+                msg = f"Failed to migrate custom form data for {resource_type_name} {resource_type.id}: {e}"
+                LOGGER.warning(msg)
 
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
@@ -403,10 +410,10 @@ class Migration:
             )
         else:
             msg = f"Skipping creation of subject {subject.id} as already exists on destination."
-            self._logger.info(msg)
+            LOGGER.info(msg)
             self.mapper.update_id_map(
                 source=subject.id,
-                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label],
+                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label].id,
                 map_type=XnatType.subject,
             )
             sharing_subject_exists = False
@@ -457,7 +464,7 @@ class Migration:
         try:
             self.mapper.update_id_map(
                 source=subject.id,
-                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label],
+                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label].id,
                 map_type=XnatType.subject,
             )
         except (KeyError, AttributeError):
@@ -509,7 +516,7 @@ class Migration:
             )
         else:
             msg = f"Skipping creation of experiment {experiment.id} as already exists on destination."
-            self._logger.info(msg)
+            LOGGER.info(msg)
             self.mapper.update_id_map(
                 source=experiment.id,
                 destination=self.destination_connection.projects[self.destination_info.id]
@@ -613,7 +620,7 @@ class Migration:
             .scans
         ):
             msg = f"Skipping creation of scan {scan.id} as already exists on destination."
-            self._logger.info(msg)
+            LOGGER.info(msg)
             self.mapper.update_id_map(
                 source=scan.id,
                 destination=scan.id,  # Scan IDs must be preserved
@@ -648,11 +655,8 @@ class Migration:
 
         # If this project doesn't own the experiment, skip creating the scan
         if exp_root.attrib["project"] != self.source_info.id:
-            self._logger.info(
-                "Skipping scan %s for shared experiment %s",
-                scan.id,
-                experiment.label,
-            )
+            msg = f"Skipping scan {scan.id} for shared experiment {experiment.label}"
+            LOGGER.info(msg)
             return
 
         root = self.mapper.map_xml(
@@ -719,7 +723,7 @@ class Migration:
             .assessors
         ):
             msg = f"Skipping creation of scan {assessor.id} as already exists on destination."
-            self._logger.info(msg)
+            LOGGER.info(msg)
             self.mapper.update_id_map(
                 source=assessor.id,
                 destination=self.destination_connection.projects[self.destination_info.id]
@@ -820,55 +824,55 @@ class Migration:
         Raises
         ------
         ValueError
-            If a username from the source project does not exist in the destination.
+            If a username not found in source profiles or if IDs not equal in source and destination profile.
 
         """
         api_get_string = f"/data/projects/{source_project}/users"
         source_project_ownership = self.source_connection.get(api_get_string).json()["ResultSet"]["Result"]
+        source_profiles = self.source_connection.get("/xapi/users/profiles", format="json").json()
         destination_project = self.mapper.get_destination_id(source_project, XnatType.project)
         destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
         source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-        folder_path = BASE_OUTPUT_DIR / source_name
-        folder_path.mkdir(parents=True, exist_ok=True)
-        dest_project_id = self.destination_info.id
+        BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        user_permissions_path = BASE_OUTPUT_DIR / "user_permissions_per_project.json"
 
-        path = folder_path / "user_permissions_per_project.json"
-        if path.is_file():
-            msg = f"user_permissions_per_project.json file exists for {source_name}. Checking progress..."
-            self._logger.info(msg)
-            with pathlib.Path(path).open() as file:
-                dest_project_ownership = json.load(file)
-
-            if dest_project_id not in list(dest_project_ownership.keys()):
-                msg = f"User permissions not yet migrated for project {dest_project_id} in {source_name}."
-                self._logger.info(msg)
-            elif source_project_ownership == dest_project_ownership[dest_project_id]:
-                msg = f"User permissions already migrated for project {dest_project_id} in {source_name}."
-                self._logger.info(msg)
-                return
-
+        # Always ensure users exist and have site-wide roles before assigning project-specific permissions
         for user in source_project_ownership:
             username = user["login"]
+            destination_profiles = check_user(
+                username,
+                source_profiles,
+                destination_profiles,
+                self.destination_connection,
+            )
+            self.sitewide_roles = check_user_roles(
+                username,
+                BASE_OUTPUT_DIR,
+                self.sitewide_roles,
+                self.source_connection,
+                self.destination_connection,
+            )
+
             ownership_type = user["displayname"]
-            if all(profile["username"] != username for profile in destination_profiles):
-                msg = f"Username {username} not in destination."
-                raise ValueError(msg)
             api_put_string = f"/data/projects/{destination_project}/users/{ownership_type}/{username}"
             self.destination_connection.put(api_put_string)
 
-        if path.is_file():
-            msg = f"Updating user_permissions_per_project.json for {dest_project_id} in {source_name}."
-            self._logger.info(msg)
+        # Read existing JSON or start empty
+        if user_permissions_path.is_file():
+            with user_permissions_path.open() as f:
+                user_permissions_per_project = json.load(f)
         else:
-            msg = f"Creating user_permissions_per_project.json for {dest_project_id} in {source_name}."
-            self._logger.info(msg)
-            dest_project_ownership = {}
+            user_permissions_per_project = {}
 
-        dest_project_ownership[self.destination_info.id] = source_project_ownership
+        # Update/add the current project
+        user_permissions_per_project[self.destination_info.id] = source_project_ownership
 
-        with pathlib.Path(path).open("w") as file:
-            json.dump(dest_project_ownership, file, indent=4)
+        # Write back
+        with user_permissions_path.open("w") as f:
+            json.dump(user_permissions_per_project, f, indent=4)
+
+        LOGGER.info("User permissions updated for project %s in %s", self.destination_info.id, source_name)
 
     def _create_resources(self) -> None:
         """
@@ -888,13 +892,12 @@ class Migration:
             rsync_source = f"{self.source_info.rsync_path}/{self.source_info.id}/"
             pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
-            command_to_run = [
+            cmd = [
                 "rsync",
                 "-azP",
                 "--ignore-existing",
                 "--exclude=*.log",
                 "--exclude=.*",
-                "--exclude=*.json",
                 "--stats",
                 "--progress",
                 "--checksum",
@@ -903,7 +906,7 @@ class Migration:
             ]
 
             try:
-                subprocess.check_output(command_to_run)  # noqa: S603
+                subprocess.check_output(cmd)  # noqa: S603
             except subprocess.CalledProcessError as exc:
                 msg = f"An error occurred running the rsync command; the error was: {exc}"
                 raise RuntimeError(msg) from exc
@@ -947,11 +950,11 @@ class Migration:
                 for assessor in experiment.assessors:
                     self._check_assessor_exists(assessor, experiment, subject)
 
-        self._logger.info("Subjects failed: %d", self.subj_failed_count)
-        self._logger.info("Total subjects: %d", len(source_project.subjects))
-        self._logger.info("Experiments failed: %d", self.exp_failed_count)
-        self._logger.info("Scans failed: %d", self.scan_failed_count)
-        self._logger.info("Assessors failed: %d", self.assess_failed_count)
+        LOGGER.info("Subjects failed: %d", self.subj_failed_count)
+        LOGGER.info("Total subjects: %d", len(source_project.subjects))
+        LOGGER.info("Experiments failed: %d", self.exp_failed_count)
+        LOGGER.info("Scans failed: %d", self.scan_failed_count)
+        LOGGER.info("Assessors failed: %d", self.assess_failed_count)
 
     def _refresh_catalogue(self, resource_path: str) -> None:
         """
@@ -976,14 +979,23 @@ class Migration:
         for subject in self.destination_connection.projects[self.destination_info.id].subjects:
             for experiment in subject.experiments:
                 for scan in experiment.scans:
-                    resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/scans/{scan.id}"  # noqa: E501
+                    resource_path = (
+                        f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
+                        f"experiments/{experiment.label}/scans/{scan.id}"
+                    )
                     self._refresh_catalogue(resource_path)
 
                 for assessor in experiment.assessors:
-                    resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors/{assessor.label}"  # noqa: E501
+                    resource_path = (
+                        f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
+                        f"experiments/{experiment.label}/assessors/{assessor.label}"
+                    )
                     self._refresh_catalogue(resource_path)
 
-                resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}"  # noqa: E501
+                resource_path = (
+                    f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
+                    f"experiments/{experiment.label}"
+                )
                 self._refresh_catalogue(resource_path)
                 # Regenerate OHIF session data
                 self.destination_connection.post(
@@ -996,25 +1008,29 @@ class Migration:
         resource_path = f"/archive/projects/{self.destination_info.id}"
         self._refresh_catalogue(resource_path)
 
-    def _apply_sharing(self) -> None:  # noqa: C901, PLR0912
+    def _apply_sharing(self) -> None:  # noqa: C901, PLR0912, PLR0915
         """Apply sharing configurations to resources on the destination instance."""
-        self._logger.info("Applying sharing configurations...")
+        LOGGER.info("Applying sharing configurations...")
 
         # Share subjects
         for label, sharing_info in self.subject_sharing.items():
+            if not sharing_info["projects"]:
+                continue
+
+            # Get the correct mapper based on the owner of the subject
             owner = sharing_info["owner"]
-
-            # Search across all mappers for the destination ID
-            destination_subject_id = None
             for mapper in self.mappers:
-                try:
-                    destination_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
+                if mapper.destination.id == owner:
                     break
-                except KeyError:
-                    continue
+            else:
+                msg = f"Could not find mapper for owner {owner} of subject {label}"
+                LOGGER.warning(msg)
+                continue
 
+            destination_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
             if destination_subject_id is None:
-                self._logger.warning("Could not find destination ID for subject %s", label)
+                msg = f"Could not find destination ID for subject {label}"
+                LOGGER.warning(msg)
                 continue
 
             for project_id in sharing_info["projects"]:
@@ -1022,37 +1038,31 @@ class Migration:
                     self.destination_connection.put(
                         f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}",
                     )
-                    self._logger.info(
-                        "Shared subject %s with project %s",
-                        label,
-                        project_id,
-                    )
+                    msg = f"Shared subject {label} with project {project_id}"
+                    LOGGER.info(msg)
                 except XNATResponseError as e:
-                    self._logger.warning(
-                        "Failed to share subject %s with project %s: %s",
-                        label,
-                        project_id,
-                        str(e),
-                    )
+                    msg = f"Failed to share subject {label} with project {project_id}: {e}"
+                    LOGGER.warning(msg)
 
         # Share experiments
         for label, sharing_info in self.experiment_sharing.items():
+            if not sharing_info["projects"]:
+                continue
+
+            # Get the correct mapper based on the owner of the experiment
             owner = sharing_info["owner"]
-
-            # Search across all mappers for the destination ID
-            destination_experiment_id = None
             for mapper in self.mappers:
-                try:
-                    destination_experiment_id = mapper.get_destination_id(
-                        sharing_info["source_id"],
-                        XnatType.experiment,
-                    )
+                if mapper.destination.id == owner:
                     break
-                except KeyError:
-                    continue
+            else:
+                msg = f"Could not find mapper for owner {owner} of experiment {label}"
+                LOGGER.warning(msg)
+                continue
 
+            destination_experiment_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.experiment)
             if destination_experiment_id is None:
-                self._logger.warning("Could not find destination ID for experiment %s", label)
+                msg = f"Could not find destination ID for experiment {label}"
+                LOGGER.warning(msg)
                 continue
 
             for project_id in sharing_info["projects"]:
@@ -1061,35 +1071,31 @@ class Migration:
                     self.destination_connection.put(
                         f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}",
                     )
-                    self._logger.info(
-                        "Shared experiment %s (ID: %s) with project %s",
-                        label,
-                        destination_experiment_id,
-                        project_id,
-                    )
+                    msg = f"Shared experiment {label} (ID: {destination_experiment_id}) with project {project_id}"
+                    LOGGER.info(msg)
                 except XNATResponseError as e:
-                    self._logger.warning(
-                        "Failed to share experiment %s with project %s: %s",
-                        label,
-                        project_id,
-                        str(e),
-                    )
+                    msg = f"Failed to share experiment {label} with project {project_id}: {e}"
+                    LOGGER.warning(msg)
 
         # Share assessors
         for label, sharing_info in self.assessor_sharing.items():
+            if not sharing_info["projects"]:
+                continue
+
+            # Get the correct mapper based on the owner of the assessor
             owner = sharing_info["owner"]
-
-            # Search across all mappers for the destination ID
-            destination_assessor_id = None
             for mapper in self.mappers:
-                try:
-                    destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
+                if mapper.destination.id == owner:
                     break
-                except KeyError:
-                    continue
+            else:
+                msg = f"Could not find mapper for owner {owner} of assessor {label}"
+                LOGGER.warning(msg)
+                continue
 
+            destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
             if destination_assessor_id is None:
-                self._logger.warning("Could not find destination ID for assessor %s", label)
+                msg = f"Could not find destination ID for assessor {label}"
+                LOGGER.warning(msg)
                 continue
 
             for project_id in sharing_info["projects"]:
@@ -1097,27 +1103,19 @@ class Migration:
                     self.destination_connection.put(
                         f"/data/projects/{owner}/assessors/{destination_assessor_id}/projects/{project_id}?label={label}",
                     )
-                    self._logger.info(
-                        "Shared assessor %s with project %s",
-                        label,
-                        project_id,
-                    )
+                    msg = f"Shared assessor {label} with project {project_id}"
+                    LOGGER.info(msg)
                 except XNATResponseError as e:
-                    self._logger.warning(
-                        "Failed to share assessor %s with project %s: %s",
-                        label,
-                        project_id,
-                        str(e),
-                    )
+                    msg = f"Failed to share assessor {label} with project {project_id}: {e}"
+                    LOGGER.warning(msg)
 
-        self._logger.info("Sharing configurations applied.")
+        LOGGER.info("Sharing configurations applied.")
 
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
         check_datatypes_matching(self.source_connection, self.destination_connection)
-        create_users(self.source_connection, self.destination_connection)
         create_custom_forms_json(self.source_connection, self.destination_connection)
 
         # Iterate over all projects
@@ -1132,37 +1130,52 @@ class Migration:
             self.source_info = source_info
             self.destination_info = destination_info
 
-            self._logger.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
-
-            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-            path = BASE_OUTPUT_DIR / source_name / self.destination_info.id
-            full_path = path / "subjects_metadata.csv"
-            if full_path.is_file():
-                self._logger.info("Skipping _get_resource_metadata as subjects_metadata.csv file exists")
-            else:
-                self._get_resource_metadata(resource="subjects", output_dir=path)
-
-            full_path = path / "experiments_metadata.csv"
-            if full_path.is_file():
-                self._logger.info("Skipping _get_resource_metadata as experiments_metadata.csv file exists")
-            else:
-                self._get_resource_metadata(resource="experiments", output_dir=path)
+            LOGGER.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
             self._create_resources()
             self._set_project_configs()
+            self._refresh_catalogues()
+
+            # Export ID maps and metadata
+            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
+            output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
             self._export_id_map(
                 resource="subjects",
                 id_map=self.mapper.id_map[XnatType.subject],
-                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
+                output_dir=output_dir,
             )
             self._export_id_map(
                 resource="experiments",
                 id_map=self.mapper.id_map[XnatType.experiment],
-                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
+                output_dir=output_dir,
             )
-            self._refresh_catalogues()
+            self._get_resource_metadata(resource="subjects", output_dir=output_dir)
+            self._get_resource_metadata(resource="experiments", output_dir=output_dir)
 
         self._apply_sharing()
 
+        # Update destination metadata with original upload date and time
+        # This must be done after sharing, otherwise the last_modified timestamp will be updated
+        # when sharing
+        for mapper, source_info, destination_info in zip(
+            self.mappers,
+            self.all_source_info,
+            self.all_destination_info,
+            strict=True,
+        ):
+            # Set current project context
+            self.mapper = mapper
+            self.source_info = source_info
+            self.destination_info = destination_info
+
+            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
+            output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
+            sync_subject_metadata(
+                metadata_csv=output_dir / "subjects_metadata.csv",
+            )
+            sync_experiment_metadata(
+                metadata_csv=output_dir / "experiments_metadata.csv",
+            )
+
         end = time.time()
 
-        self._logger.info("Duration = %d", end - start)
+        LOGGER.info("Duration = %d", end - start)

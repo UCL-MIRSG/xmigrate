@@ -4,8 +4,19 @@ repos:
     rev: v0.239.0
     hooks:
       - id: mirsg-hooks
-        exclude: ^.github/schemas/github-issue-forms.json$
+        exclude: |-
+          (?x)^(
+              .github/schemas/github-issue-forms.json|
+              tests/integration/configs/.*
+          )$
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.19.1
     hooks:
       - id: mypy
+        additional_dependencies:
+          - types-requests
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 4.1.0
+    hooks:
+      - id: sqlfluff-lint
+      - id: sqlfluff-fix

@@ -39,7 +39,7 @@ cd xmigrate
 Then install `xmigrate` in editable mode using `uv`:
 
 ```sh
-uv venv --python=3.12
+uv venv --python=3.13
 source .venv/bin/activate
 uv sync --group test
 ```

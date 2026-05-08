@@ -24,7 +24,6 @@ lint = [
     "prek",
 ]
 test = [
-    "defusedxml",
     "pytest",
     "pytest-cov",
     "xnat4tests",
@@ -38,14 +37,17 @@ classifiers = [
     "Operating System :: POSIX",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
 dependencies = [
+    "attrs",
     "cyclopts",
+    "docker",
+    "duckdb",
     "pandas",
+    "pydantic-settings",
     "tqdm",
     "xnat",
 ]
@@ -61,7 +63,7 @@ license-files = [
 ]
 name = "xmigrate"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 scripts = {xmigrate = """xmigrate.cli:app"""}
 urls.homepage = "https://github.com/UCL-MIRSG/xmigrate"
 
@@ -77,7 +79,7 @@ paths.source = [
 
 [tool.mypy]
 explicit_package_bases = true
-python_version = "3.12"
+python_version = "3.13"
 
 [tool.pytest.ini_options]
 addopts = [
@@ -89,7 +91,7 @@ filterwarnings = [
     "ignore:Changing XNAT port from:UserWarning",
 ]
 testpaths = [
-    "tests",
+    "tests/unit",
 ]
 
 [tool.ruff]
@@ -105,6 +107,7 @@ lint.ignore = [
     "ISC001", # simplify implicit str concatenation (ruff-format recommended)
 ]
 lint.isort = {known-first-party = [
+    "tests",
     "xmigrate",
 ], section-order = [
     "future",
@@ -114,11 +117,20 @@ lint.isort = {known-first-party = [
     "first-party",
     "local-folder",
 ], sections = {"xnat" = [
+    "medimages4tests",
     "xnat",
+    "xnat4tests",
 ]}}
-lint.per-file-ignores = {"tests*" = [
-    "INP001", # File is part of an implicit namespace package.
-    "S101", # Use of `assert` detected
+lint.per-file-ignores = {"tests/*" = [
+    "INP001", # implicit-namespace-package
+], "tests/fixtures/*" = [
+    "INP001", # implicit-namespace-package
+], "tests/integration/*" = [
+    "INP001", # implicit-namespace-package
+    "S101", # Checks for uses of the assert keyword
+], "tests/unit/*" = [
+    "INP001", # implicit-namespace-package
+    "S101", # Checks for uses of the assert keyword
 ]}
 lint.select = [
     "ALL",
@@ -126,6 +138,15 @@ lint.select = [
 lint.mccabe.max-complexity = 18
 lint.pep8-naming.classmethod-decorators = [
     "classmethod",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+xmigrate = [
+    "sql/**/*.sql",
+    "sql/*.sql",
 ]
 
 [tool.setuptools_scm]
