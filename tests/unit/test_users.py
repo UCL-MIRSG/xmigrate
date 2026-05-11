@@ -37,14 +37,26 @@ def test_check_users_source_longer(
     source_profiles = [source_profile_unique, source_profile_second]
 
     with caplog.at_level(logging.INFO):
-        xmigrate.check_user(unique_username, source_profiles, [destination_profiles], destination_connection)
+        returned_profiles = xmigrate.check_user(
+            unique_username,
+            source_profiles,
+            [destination_profiles],
+            destination_connection,
+        )
     assert any(record.message == f"User already exists in destination: {unique_username}" for record in caplog.records)
+    assert returned_profiles is None
     assert second_username not in get_usernames(destination_connection)
 
     with caplog.at_level(logging.INFO):
-        xmigrate.check_user(second_username, source_profiles, [destination_profiles], destination_connection)
+        returned_profiles = xmigrate.check_user(
+            second_username,
+            source_profiles,
+            [destination_profiles],
+            destination_connection,
+        )
     assert any(record.message == f"Creating user: {second_username}" for record in caplog.records)
     assert second_username in get_usernames(destination_connection)
+    assert any(p["username"] == second_username for p in returned_profiles)
 
 
 def test_creates_missing_users(
@@ -59,9 +71,15 @@ def test_creates_missing_users(
     assert unique_username not in get_usernames(destination_connection)
 
     with caplog.at_level(logging.INFO):
-        xmigrate.check_user(unique_username, [source_profiles], [], destination_connection)
+        returned_profiles = xmigrate.check_user(
+            unique_username,
+            [source_profiles],
+            [],
+            destination_connection,
+        )
     assert any(record.message == f"Creating user: {unique_username}" for record in caplog.records)
     assert unique_username in get_usernames(destination_connection)
+    assert any(p["username"] == unique_username for p in returned_profiles)
 
 
 def test_creates_missing_users_roles(
@@ -74,19 +92,14 @@ def test_creates_missing_users_roles(
     roles = ("user", "data_manager")
     seed_user(source_connection, unique_username, roles=roles)
     seed_user(destination_connection, unique_username, roles=roles)
-    folder_path = xmigrate.migration.BASE_OUTPUT_DIR / "localhost"
-    xmigrate.check_user_roles(
+    updated_roles = xmigrate.check_user_roles(
         unique_username,
-        folder_path,
         migration.sitewide_roles,
-        destination_connection,
         source_connection,
+        destination_connection,
     )
     assert "data_manager" in get_roles(destination_connection, unique_username)
-    assert set(migration.sitewide_roles[unique_username]) == set(roles)
-
-    checkpoint_file = folder_path / "sitewide_roles.json"
-    assert checkpoint_file.exists()
+    assert set(updated_roles[unique_username]) == set(roles)
 
 
 def test_roles_skipped_if_checkpoint_exists(
@@ -100,28 +113,24 @@ def test_roles_skipped_if_checkpoint_exists(
     roles = ("user", "data_manager")
     seed_user(source_connection, unique_username, roles=roles)
     seed_user(destination_connection, unique_username, roles=roles)
-    folder_path = xmigrate.migration.BASE_OUTPUT_DIR / "localhost"
-    xmigrate.check_user_roles(
+    updated_roles = xmigrate.check_user_roles(
         unique_username,
-        folder_path,
         migration.sitewide_roles,
-        destination_connection,
         source_connection,
+        destination_connection,
     )
-    checkpoint_file = folder_path / "sitewide_roles.json"
-    assert checkpoint_file.exists()
 
     with caplog.at_level(logging.INFO):
-        xmigrate.check_user_roles(
+        updated_roles = xmigrate.check_user_roles(
             unique_username,
-            folder_path,
-            migration.sitewide_roles,
-            destination_connection,
+            updated_roles,
             source_connection,
+            destination_connection,
         )
     assert any(
         record.message == f"User roles already exist in destination: {unique_username}" for record in caplog.records
     )
+    assert set(updated_roles[unique_username]) == set(roles)
 
 
 def test_existing_users_not_duplicated(
@@ -135,8 +144,11 @@ def test_existing_users_not_duplicated(
     destination_profiles = seed_user(destination_connection, unique_username)
 
     with caplog.at_level(logging.INFO):
-        xmigrate.check_user(unique_username, [source_profiles], [destination_profiles], destination_connection)
+        returned_profiles = xmigrate.check_user(
+            unique_username, [source_profiles], [destination_profiles], destination_connection
+        )
     assert any(record.message == f"User already exists in destination: {unique_username}" for record in caplog.records)
+    assert returned_profiles is None
     user_count = sum(u == unique_username for u in get_usernames(destination_connection))
     assert user_count == 1
 
@@ -154,11 +166,15 @@ def test_creates_multiple_users(
     source_profiles = [source_profile_unique, source_profile_second]
 
     with caplog.at_level(logging.INFO):
-        xmigrate.check_user(unique_username, source_profiles, [], destination_connection)
+        returned_profiles = xmigrate.check_user(unique_username, source_profiles, [], destination_connection)
     assert any(record.message == f"Creating user: {unique_username}" for record in caplog.records)
     assert unique_username in get_usernames(destination_connection)
+    assert any(p["username"] == unique_username for p in returned_profiles)
 
     with caplog.at_level(logging.INFO):
-        xmigrate.check_user(second_username, source_profiles, [source_profile_unique], destination_connection)
+        returned_profiles = xmigrate.check_user(
+            second_username, source_profiles, [source_profile_unique], destination_connection
+        )
     assert any(record.message == f"Creating user: {second_username}" for record in caplog.records)
     assert second_username in get_usernames(destination_connection)
+    assert any(p["username"] == second_username for p in returned_profiles)
