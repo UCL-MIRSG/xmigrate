@@ -8,6 +8,7 @@ import requests
 import xnat
 
 from xmigrate.migration import Migration
+from xmigrate.rsync import rsync
 from xmigrate.xml_mapper import ProjectInfo
 
 app = cyclopts.App(
@@ -167,6 +168,52 @@ def migrate(  # noqa: PLR0913
 
         migration.run()
         logger.info("Migration run finished.")
+
+
+@app.command
+def rsync_only(
+    source: str,
+    source_rsync: str,
+    destination_rsync: str,
+    source_projects: list[str] | None = None,
+    destination_projects: list[str] | None = None,
+) -> None:
+    """
+    Migrating data from source to destination project archive or archives using rsync.
+
+    Example:
+        xmigrate rsync_only
+
+    Command can be run with the arguments within an xmigrate.toml config file.
+
+    Note that source_rsync and destination_rsync must both be local paths.
+
+    Parameters
+    ----------
+    source
+        The source XNAT instance URL.
+    source_rsync
+        The path to the source rsync directory.
+    destination_rsync
+        The path to the destination rsync directory.
+    source_projects
+        A list of source project IDs.
+    destination_projects
+        A list of destination project IDs.
+
+    """
+    if source_projects is None:
+        with xnat.connect(source) as source_connection:
+            source_projects = [p.id for p in source_connection.projects]
+    if destination_projects is None:
+        destination_projects = source_projects
+
+    rsync(
+        destination_rsync,
+        destination_projects,
+        source_rsync,
+        source_projects,
+    )
 
 
 @app.default

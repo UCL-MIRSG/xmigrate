@@ -4,7 +4,6 @@ import dataclasses
 import json
 import logging
 import pathlib
-import subprocess
 import time
 import urllib.parse
 import xml.etree.ElementTree as ET
@@ -18,6 +17,7 @@ from xnat.exceptions import XNATResponseError
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.plugins import check_plugins_matching
+from xmigrate.rsync import rsync
 from xmigrate.sync_metadata import sync_experiment_metadata, sync_subject_metadata
 from xmigrate.users import check_user, check_user_roles
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
@@ -890,28 +890,12 @@ class Migration:
         source_project = self.source_connection.projects[self.source_info.id]
 
         if not self.no_rsync:
-            rsync_destination = f"{self.destination_info.rsync_path}/{self.destination_info.id}"
-            rsync_source = f"{self.source_info.rsync_path}/{self.source_info.id}/"
-            pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
-
-            cmd = [
-                "rsync",
-                "-azP",
-                "--ignore-existing",
-                "--exclude=*.log",
-                "--exclude=.*",
-                "--stats",
-                "--progress",
-                "--checksum",
-                rsync_source,
-                rsync_destination,
-            ]
-
-            try:
-                subprocess.check_output(cmd)  # noqa: S603
-            except subprocess.CalledProcessError as exc:
-                msg = f"An error occurred running the rsync command; the error was: {exc}"
-                raise RuntimeError(msg) from exc
+            rsync(
+                self.destination_info.rsync_path,
+                self.destination_info.id,
+                self.source_info.rsync_path,
+                self.source_info.id,
+            )
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project.id)
