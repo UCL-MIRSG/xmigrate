@@ -86,11 +86,11 @@ class Migration:
         self.assessor_sharing: dict = {}
 
         self._db = xdb.open_db()
-        self._source_instance_id = xdb.upsert_instance(
+        self._source_instance_id = xdb.insert_instance(
             self._db,
             self.source_connection._original_uri,  # noqa: SLF001
         )
-        self._destination_instance_id = xdb.upsert_instance(
+        self._destination_instance_id = xdb.insert_instance(
             self._db,
             self.destination_connection._original_uri,  # noqa: SLF001
         )
