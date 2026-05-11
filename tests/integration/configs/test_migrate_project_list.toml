@@ -1,4 +1,4 @@
-[tool.xmigrate.migrate-project-list]
+[tool.xmigrate.migrate]
 source = "http://localhost:8888"
 source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
 destination = "http://localhost:8889"
