@@ -75,7 +75,7 @@ class TestInsertProject:
 class TestUpsertSubject:
     """Tests for upsert_subject."""
 
-    def _make_df(self, xnat_id: str = "SUB001", **kwargs) -> pd.DataFrame:
+    def _make_df(self, xnat_id: str = "SUB001", **kwargs: str | None) -> pd.DataFrame:
         row = {"xnat_id": xnat_id, "label": None, "insert_user": None, "insert_date": None, "last_modified": None}
         row.update(kwargs)
         return pd.DataFrame([row])
@@ -118,10 +118,24 @@ class TestUpsertSubject:
         project_id: int,
     ) -> None:
         """upsert_subject inserts multiple rows from a single DataFrame."""
-        df = pd.DataFrame([
-            {"xnat_id": "SUB001", "label": "Sub 1", "insert_user": None, "insert_date": None, "last_modified": None},
-            {"xnat_id": "SUB002", "label": "Sub 2", "insert_user": None, "insert_date": None, "last_modified": None},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "xnat_id": "SUB001",
+                    "label": "Sub 1",
+                    "insert_user": None,
+                    "insert_date": None,
+                    "last_modified": None,
+                },
+                {
+                    "xnat_id": "SUB002",
+                    "label": "Sub 2",
+                    "insert_user": None,
+                    "insert_date": None,
+                    "last_modified": None,
+                },
+            ]
+        )
         xdb.upsert_subject(
             db,
             instance_id=destination_id,
@@ -149,7 +163,7 @@ class TestUpsertSubject:
 class TestUpsertExperiment:
     """Tests for upsert_experiment."""
 
-    def _make_df(self, xnat_id: str = "EXP001", **kwargs) -> pd.DataFrame:
+    def _make_df(self, xnat_id: str = "EXP001", **kwargs: str | None) -> pd.DataFrame:
         row = {"xnat_id": xnat_id, "label": None, "insert_user": None, "insert_date": None, "last_modified": None}
         row.update(kwargs)
         return pd.DataFrame([row])
@@ -190,10 +204,24 @@ class TestUpsertExperiment:
         project_id: int,
     ) -> None:
         """upsert_experiment inserts multiple rows from a single DataFrame."""
-        df = pd.DataFrame([
-            {"xnat_id": "EXP001", "label": "Exp 1", "insert_user": None, "insert_date": None, "last_modified": None},
-            {"xnat_id": "EXP002", "label": "Exp 2", "insert_user": None, "insert_date": None, "last_modified": None},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "xnat_id": "EXP001",
+                    "label": "Exp 1",
+                    "insert_user": None,
+                    "insert_date": None,
+                    "last_modified": None,
+                },
+                {
+                    "xnat_id": "EXP002",
+                    "label": "Exp 2",
+                    "insert_user": None,
+                    "insert_date": None,
+                    "last_modified": None,
+                },
+            ]
+        )
         xdb.upsert_experiment(
             db,
             instance_id=destination_id,

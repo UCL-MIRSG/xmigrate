@@ -17,5 +17,5 @@ VALUES (
 )
 ON CONFLICT (
     type, source_project, destination_project, source_xnat_id
-) DO UPDATE SET destination_xnat_id = EXCLUDED.destination_xnat_id
+) DO UPDATE SET destination_xnat_id = excluded.destination_xnat_id
 RETURNING id

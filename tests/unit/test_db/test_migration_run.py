@@ -83,7 +83,11 @@ class TestRecordMigrationRunItems:
         run_id: int,
     ) -> None:
         """record_migration_run_items links map IDs to the given run."""
-        kwargs = {"resource_type": "subject", "source_project_id": source_project_id, "destination_project_id": destination_project_id}
+        kwargs = {
+            "resource_type": "subject",
+            "source_project_id": source_project_id,
+            "destination_project_id": destination_project_id,
+        }
         map_ids = [
             xdb.insert_map(db, **kwargs, source_xnat_id="S1", destination_xnat_id="D1"),
             xdb.insert_map(db, **kwargs, source_xnat_id="S2", destination_xnat_id="D2"),
@@ -110,14 +114,16 @@ class TestRecordMigrationRunItems:
         run_id: int,
     ) -> None:
         """Calling record_migration_run_items twice with the same ids is idempotent."""
-        map_ids = [xdb.insert_map(
-            db,
-            resource_type="subject",
-            source_project_id=source_project_id,
-            destination_project_id=destination_project_id,
-            source_xnat_id="S1",
-            destination_xnat_id="D1",
-        )]
+        map_ids = [
+            xdb.insert_map(
+                db,
+                resource_type="subject",
+                source_project_id=source_project_id,
+                destination_project_id=destination_project_id,
+                source_xnat_id="S1",
+                destination_xnat_id="D1",
+            )
+        ]
         xdb.record_migration_run_items(db, run_id=run_id, map_ids=map_ids)
         xdb.record_migration_run_items(db, run_id=run_id, map_ids=map_ids)
         count = db.execute("SELECT count(*) FROM migration_run_item WHERE run = ?", [run_id]).fetchone()[0]
