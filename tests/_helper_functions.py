@@ -17,6 +17,7 @@ import requests
 import xnat4tests
 
 import xmigrate
+import xmigrate.db
 import xmigrate.migration
 
 if typing.TYPE_CHECKING:
@@ -62,9 +63,12 @@ def delete_data(
             if project.is_dir():
                 shutil.rmtree(project)
 
-    metadata_folder = xmigrate.migration.BASE_OUTPUT_DIR / "localhost"
+    metadata_folder = xmigrate.db.BASE_OUTPUT_DIR / "localhost"
     if metadata_folder.exists():
         shutil.rmtree(str(metadata_folder))
+
+    db_file = xmigrate.db.DB_PATH
+    db_file.unlink(missing_ok=True)
 
 
 def get_roles(connection: xnat.BaseXNATSession, username: str) -> list[str]:
