@@ -42,7 +42,7 @@ class Migration:
     """The source projects information."""
     all_destination_info: list[ProjectInfo]
     """The destination projects information."""
-    no_rsync: bool = False
+    include_rsync: bool = False
     """Conditional for whether to run rsync only."""
 
     def __post_init__(self) -> None:
@@ -889,7 +889,7 @@ class Migration:
         self._create_project()
         source_project = self.source_connection.projects[self.source_info.id]
 
-        if not self.no_rsync:
+        if self.include_rsync:
             rsync(
                 self.destination_info.rsync_path,
                 self.destination_info.id,

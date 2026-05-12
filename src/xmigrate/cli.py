@@ -40,7 +40,7 @@ def migrate(  # noqa: PLR0913
     destination_project_names: list[str] | None = None,
     source_projects: list[str] | None = None,
     *,
-    no_rsync: bool = False,
+    include_rsync: bool = False,
 ) -> None:
     """
     Migrate a project or projects from source to destination XNAT instance.
@@ -70,7 +70,7 @@ def migrate(  # noqa: PLR0913
         A list of names for the destination projects.
     source_projects
         A list of source project IDs.
-    no_rsync
+    include_rsync
         Flag indicating whether to skipping running rsync.
 
     """
@@ -163,7 +163,7 @@ def migrate(  # noqa: PLR0913
             destination_connection=destination_connection,
             all_source_info=all_source_info,
             all_destination_info=all_destination_info,
-            no_rsync=no_rsync,
+            include_rsync=include_rsync,
         )
 
         migration.run()
