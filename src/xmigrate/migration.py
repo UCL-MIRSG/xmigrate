@@ -17,7 +17,6 @@ from xnat.exceptions import XNATResponseError
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.plugins import check_plugins_matching
-from xmigrate.rsync import rsync
 from xmigrate.sync_metadata import sync_experiment_metadata, sync_subject_metadata
 from xmigrate.users import check_user, check_user_roles
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
@@ -42,8 +41,6 @@ class Migration:
     """The source projects information."""
     all_destination_info: list[ProjectInfo]
     """The destination projects information."""
-    include_rsync: bool = False
-    """Conditional for whether to run rsync only."""
 
     def __post_init__(self) -> None:
         """Post-initialisation to set up mappers and initial project information."""
@@ -888,14 +885,6 @@ class Migration:
         """
         self._create_project()
         source_project = self.source_connection.projects[self.source_info.id]
-
-        if self.include_rsync:
-            rsync(
-                self.destination_info.rsync_path,
-                self.destination_info.id,
-                self.source_info.rsync_path,
-                self.source_info.id,
-            )
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project.id)

@@ -85,6 +85,14 @@ def migrate(  # noqa: PLR0913
             destination_project_names if destination_project_names is not None else source_projects
         )
 
+        if include_rsync:
+            rsync_only(
+                source_rsync,
+                destination_rsync,
+                source_projects,
+                destination_projects,
+            )
+
     with (
         xnat.connect(source) as source_connection,
         xnat.connect(destination) as destination_connection,
@@ -163,7 +171,6 @@ def migrate(  # noqa: PLR0913
             destination_connection=destination_connection,
             all_source_info=all_source_info,
             all_destination_info=all_destination_info,
-            include_rsync=include_rsync,
         )
 
         migration.run()
@@ -208,12 +215,17 @@ def rsync_only(
     if destination_projects is None:
         destination_projects = source_projects
 
-    rsync(
-        destination_rsync,
-        destination_projects,
-        source_rsync,
-        source_projects,
-    )
+    if len(source_projects) != len(destination_projects):
+        msg = "source_projects and destination_projects must have the same length"
+        raise ValueError(msg)
+
+    for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
+        rsync(
+            destination_rsync,
+            destination_proj,
+            source_rsync,
+            source_proj,
+        )
 
 
 @app.default
