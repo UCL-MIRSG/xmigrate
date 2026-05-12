@@ -1,8 +1,6 @@
 """Module for handling users on XNAT instances."""
 
-import json
 import logging
-import pathlib
 
 import xnat
 
@@ -76,10 +74,9 @@ def check_user(
 
 def check_user_roles(
     username: str,
-    folder_path: pathlib.Path,
     sitewide_roles: dict,
-    destination_connection: xnat.BaseXNATSession,
     source_connection: xnat.BaseXNATSession,
+    destination_connection: xnat.BaseXNATSession,
 ) -> dict:
     """
     Check user on the destination XNAT instance.
@@ -88,22 +85,19 @@ def check_user_roles(
     ----------
     username
         String for the username on the source XNAT instance.
-    folder_path
-        Path where sitewide_roles.json lives.
     sitewide_roles
-        Dictionary of sitewide_roles currently on destination.
-    destination_connection
-        The destination XNAT connection.
+        In-memory dictionary of sitewide roles already applied this session.
     source_connection
         The source XNAT connection.
-
+    destination_connection
+        The destination XNAT connection.
 
     Returns
     -------
-        An dictionary of sitewide_roles currently on destination.
+        An updated dictionary of sitewide roles applied this session.
 
     """
-    # skip if we already have roles checkpointed
+    # skip if we already have roles checkpointed in memory
     if username in sitewide_roles:
         LOGGER.info("User roles already exist in destination: %s", username)
         return sitewide_roles
@@ -114,11 +108,5 @@ def check_user_roles(
     for role in roles:
         destination_connection.put(f"/xapi/users/{username}/roles/{role}")
 
-    # checkpoint
     sitewide_roles[username] = roles
-    sitewide_roles_path = folder_path / "sitewide_roles.json"
-    folder_path.mkdir(parents=True, exist_ok=True)
-    with sitewide_roles_path.open("w") as f:
-        json.dump(sitewide_roles, f, indent=4)
-
     return sitewide_roles

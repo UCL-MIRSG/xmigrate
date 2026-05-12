@@ -15,10 +15,10 @@ SELECT
     $project,
     $owner_project,
     xnat_id,
-    NULLIF(label, ''),
-    NULLIF(insert_user, ''),
-    NULLIF(insert_date, ''),
-    NULLIF(last_modified, '')
+    NULLIF(label, '') AS lbl,
+    NULLIF(insert_user, '') AS insert_user,
+    NULLIF(insert_date, '') AS insert_date,
+    NULLIF(last_modified, '') AS last_modified
 FROM subject_df
 ON CONFLICT (instance, project, xnat_id) DO UPDATE SET
     label = excluded.label,
