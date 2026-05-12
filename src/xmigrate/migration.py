@@ -357,6 +357,32 @@ class Migration:
                 msg = f"Failed to migrate custom form data for {resource_type_name} {resource_type.id}: {e}"
                 LOGGER.warning(msg)
 
+    def _get_run_ids(self) -> XMigrateIDs:
+        """Get the IDs for the current migration run."""
+        _source_instance = xdb.insert_instance(
+            self._db,
+            self.source_connection._original_uri,  # noqa: SLF001
+        )
+        _destination_instance = xdb.insert_instance(
+            self._db,
+            self.destination_connection._original_uri,  # noqa: SLF001
+        )
+        _migration_run = xdb.create_migration_run(
+            self._db,
+            source_instance_id=_source_instance,
+            destination_instance_id=_destination_instance,
+        )
+
+        # We cannot set the source_project and destination_project attributes until
+        # we know the they exist in the db (which happens within 'Migration._run')
+        return XMigrateIDs(
+            source_instance=_source_instance,
+            destination_instance=_destination_instance,
+            migration_run=_migration_run,
+            source_project=None,
+            destination_project=None,
+        )
+
     def _load_id_maps(self) -> None:
         """
         Restore already-persisted ID maps from the DB into the current mapper.
@@ -1143,29 +1169,7 @@ class Migration:
         create_custom_forms_json(self.source_connection, self.destination_connection)
 
         with xdb.open_db() as self._db:
-            _source_instance = xdb.insert_instance(
-                self._db,
-                self.source_connection._original_uri,  # noqa: SLF001
-            )
-            _destination_instance = xdb.insert_instance(
-                self._db,
-                self.destination_connection._original_uri,  # noqa: SLF001
-            )
-            _migration_run = xdb.create_migration_run(
-                self._db,
-                source_instance_id=_source_instance,
-                destination_instance_id=_destination_instance,
-            )
-
-            # We cannot set the source_project and destination_project attributes until
-            # we know the they exist in the db (which happens within 'Migration._run')
-            self._xmigrate_ids = XMigrateIDs(
-                source_instance=_source_instance,
-                destination_instance=_destination_instance,
-                migration_run=_migration_run,
-                source_project=None,
-                destination_project=None,
-            )
+            self._xmigrate_ids = self._get_run_ids()
             try:
                 self._run()
             finally:
