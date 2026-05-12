@@ -7,6 +7,7 @@ import pathlib
 import subprocess
 import time
 import xml.etree.ElementTree as ET
+from typing import TYPE_CHECKING
 
 import defusedxml.ElementTree as DefusedET
 import pandas as pd
@@ -20,6 +21,9 @@ from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.plugins import check_plugins_matching
 from xmigrate.users import check_user, check_user_roles
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
+
+if TYPE_CHECKING:
+    import duckdb
 
 # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
 # packages importing this module can configure logging more specifically.
@@ -43,9 +47,9 @@ class XMigrateIDs:
     """Surrogate PK for the destination XNAT instance row in xmigrate.duckdb."""
     migration_run: int
     """Surrogate PK for the current migration_run row in xmigrate.duckdb."""
-    source_project: int = 0
+    source_project: int | None = None
     """Surrogate PK for the source project row in xmigrate.duckdb."""
-    destination_project: int = 0
+    destination_project: int | None = None
     """Surrogate PK for the destination project row in xmigrate.duckdb."""
 
 
@@ -85,22 +89,11 @@ class Migration:
         self.experiment_sharing: dict = {}
         self.assessor_sharing: dict = {}
 
-        self._db = xdb.open_db()
-        self._source_instance_id = xdb.upsert_instance(
-            self._db,
-            self.source_connection._original_uri,  # noqa: SLF001
-        )
-        self._destination_instance_id = xdb.upsert_instance(
-            self._db,
-            self.destination_connection._original_uri,  # noqa: SLF001
-        )
-        self._migration_run_id: int = xdb.create_migration_run(
-            self._db,
-            source_instance_id=self._source_instance_id,
-            destination_instance_id=self._destination_instance_id,
-        )
         self._destination_project_id: int = 0  # updated per-iteration in _create_project
         self.sitewide_roles: dict = {}
+
+        self._xmigrate_connection: duckdb.DuckDBPyConnection
+        self._xmigrate_ids: XMigrateIDs
 
     def _get_source_xml(self, uri: str) -> ET.Element:
         """
@@ -194,15 +187,15 @@ class Migration:
         df = df.rename(columns={"ID": "xnat_id"})
         if resource == "subjects":
             xdb.upsert_subject(
-                self._db,
+                self._xmigrate_connection,
                 instance_id=self._xmigrate_ids.destination_instance,
                 project_id=self._xmigrate_ids.destination_project,
                 owner_project_id=self._xmigrate_ids.destination_project,
                 df=df,
             )
-        else:  # experiments
+        else:
             xdb.upsert_experiment(
-                self._db,
+                self._xmigrate_connection,
                 instance_id=self._xmigrate_ids.destination_instance,
                 project_id=self._xmigrate_ids.destination_project,
                 df=df,
@@ -367,6 +360,32 @@ class Migration:
                 msg = f"Failed to migrate custom form data for {resource_type_name} {resource_type.id}: {e}"
                 LOGGER.warning(msg)
 
+    def _get_run_ids(self) -> XMigrateIDs:
+        """Get the IDs for the current migration run."""
+        _source_instance = xdb.insert_instance(
+            self._xmigrate_connection,
+            self.source_connection._original_uri,  # noqa: SLF001
+        )
+        _destination_instance = xdb.insert_instance(
+            self._xmigrate_connection,
+            self.destination_connection._original_uri,  # noqa: SLF001
+        )
+        _migration_run = xdb.create_migration_run(
+            self._xmigrate_connection,
+            source_instance_id=_source_instance,
+            destination_instance_id=_destination_instance,
+        )
+
+        # We cannot set the source_project and destination_project attributes until
+        # we know the they exist in the db (which happens within 'Migration._run')
+        return XMigrateIDs(
+            source_instance=_source_instance,
+            destination_instance=_destination_instance,
+            migration_run=_migration_run,
+            source_project=None,
+            destination_project=None,
+        )
+
     def _load_id_maps(self) -> None:
         """
         Restore already-persisted ID maps from the DB into the current mapper.
@@ -382,7 +401,7 @@ class Migration:
                 continue
 
             self.mapper.id_map[xnat_type] = xdb.get_id_map(
-                conn=self._db,
+                conn=self._xmigrate_connection,
                 resource_type=resource_type,
                 source_project_id=self._xmigrate_ids.source_project,
                 destination_project_id=self._xmigrate_ids.destination_project,
@@ -409,27 +428,27 @@ class Migration:
 
         """
         map_id = xdb.insert_map(
-            self._db,
+            self._xmigrate_connection,
             resource_type=resource_type,
             source_project_id=self._xmigrate_ids.source_project,
             destination_project_id=self._xmigrate_ids.destination_project,
             source_xnat_id=source_xnat_id,
             destination_xnat_id=destination_xnat_id,
         )
-        xdb.record_migration_run_item(self._db, run_id=self._xmigrate_ids.migration_run, map_id=map_id)
+        xdb.record_migration_run_item(self._xmigrate_connection, run_id=self._xmigrate_ids.migration_run, map_id=map_id)
 
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
         # Register both projects in the DB first so surrogate PKs are
         # available before any id_map export.
         self._xmigrate_ids.source_project = xdb.insert_project(
-            self._db,
+            self._xmigrate_connection,
             instance_id=self._xmigrate_ids.source_instance,
             xnat_id=self.source_info.id,
             secondary_id=self.source_info.secondary_id,
         )
         self._xmigrate_ids.destination_project = xdb.insert_project(
-            self._db,
+            self._xmigrate_connection,
             instance_id=self._xmigrate_ids.destination_instance,
             xnat_id=self.destination_info.id,
             secondary_id=self.destination_info.secondary_id,
@@ -827,7 +846,7 @@ class Migration:
         destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
         # Resume: skip if permissions have already been persisted for this project.
-        if xdb.get_user_permissions_for_project(self._db, self._xmigrate_ids.destination_project):
+        if xdb.get_user_permissions_for_project(self._xmigrate_connection, self._xmigrate_ids.destination_project):
             msg = f"User permissions already migrated for project {self.destination_info.id}."
             LOGGER.info(msg)
             return
@@ -853,7 +872,7 @@ class Migration:
             self.destination_connection.put(api_put_string)
 
             user_id = xdb.upsert_user(
-                self._db,
+                self._xmigrate_connection,
                 instance_id=self._xmigrate_ids.destination_instance,
                 login=username,
                 firstname=user.get("firstname"),
@@ -861,7 +880,7 @@ class Migration:
                 email=user.get("email"),
             )
             xdb.upsert_user_permission(
-                self._db,
+                self._xmigrate_connection,
                 instance_id=self._xmigrate_ids.destination_instance,
                 project_id=self._xmigrate_ids.destination_project,
                 user_id=user_id,
@@ -1089,9 +1108,38 @@ class Migration:
 
         LOGGER.info("Sharing configurations applied.")
 
+    def _sync_destination_metadata(self) -> None:
+        """
+        Push stored metadata (insert_user, insert_date, last_modified) to the destination.
+
+        Must be called after sharing so that the last_modified timestamp is not
+        overwritten by the sharing operation.
+        """
+        dest_project_ids = [
+            xdb.insert_project(
+                self._xmigrate_connection,
+                instance_id=self._xmigrate_ids.destination_instance,
+                xnat_id=destination_info.id,
+                secondary_id=destination_info.secondary_id,
+            )
+            for destination_info in self.all_destination_info
+        ]
+
+        for mapper, source_info, destination_info, dest_project_id in zip(
+            self.mappers,
+            self.all_source_info,
+            self.all_destination_info,
+            dest_project_ids,
+            strict=True,
+        ):
+            self.mapper = mapper
+            self.source_info = source_info
+            self.destination_info = destination_info
+            xdb.sync_subject_metadata(self._xmigrate_connection, destination_project_id=dest_project_id)
+            xdb.sync_experiment_metadata(self._xmigrate_connection, destination_project_id=dest_project_id)
+
     def _run(self) -> None:
         """Run the migration process."""
-        # Iterate over all projects
         for mapper, source_info, destination_info in zip(
             self.mappers,
             self.all_source_info,
@@ -1113,36 +1161,7 @@ class Migration:
             self._save_resource_metadata_to_db(resource="experiments")
 
         self._apply_sharing()
-
-    def _sync_destination_metadata(self) -> None:
-        """
-        Push stored metadata (insert_user, insert_date, last_modified) to the destination.
-
-        Must be called after sharing so that the last_modified timestamp is not
-        overwritten by the sharing operation.
-        """
-        dest_project_ids = [
-            xdb.insert_project(
-                self._db,
-                instance_id=self._xmigrate_ids.destination_instance,
-                xnat_id=destination_info.id,
-                secondary_id=destination_info.secondary_id,
-            )
-            for destination_info in self.all_destination_info
-        ]
-
-        for mapper, source_info, destination_info, dest_project_id in zip(
-            self.mappers,
-            self.all_source_info,
-            self.all_destination_info,
-            dest_project_ids,
-            strict=True,
-        ):
-            self.mapper = mapper
-            self.source_info = source_info
-            self.destination_info = destination_info
-            xdb.sync_subject_metadata(self._db, destination_project_id=dest_project_id)
-            xdb.sync_experiment_metadata(self._db, destination_project_id=dest_project_id)
+        self._sync_destination_metadata()
 
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
@@ -1152,31 +1171,12 @@ class Migration:
         check_datatypes_matching(self.source_connection, self.destination_connection)
         create_custom_forms_json(self.source_connection, self.destination_connection)
 
-        with xdb.open_db() as self._db:
-            _source_instance = xdb.insert_instance(
-                self._db,
-                self.source_connection._original_uri,  # noqa: SLF001
-            )
-            _destination_instance = xdb.insert_instance(
-                self._db,
-                self.destination_connection._original_uri,  # noqa: SLF001
-            )
-            _migration_run = xdb.create_migration_run(
-                self._db,
-                source_instance_id=_source_instance,
-                destination_instance_id=_destination_instance,
-            )
-
-            # We cannot set the source_project and destination_project attributes until
-            # we know the they exist in the db (which happens within 'Migration._run')
-            self._xmigrate_ids = XMigrateIDs(
-                source_instance=_source_instance,
-                destination_instance=_destination_instance,
-                migration_run=_migration_run,
-            )
-            self._run()
-            self._sync_destination_metadata()
-            xdb.complete_migration_run(self._db, self._xmigrate_ids.migration_run)
+        with xdb.open_db() as self._xmigrate_connection:
+            self._xmigrate_ids = self._get_run_ids()
+            try:
+                self._run()
+            finally:
+                xdb.complete_migration_run(self._xmigrate_connection, self._xmigrate_ids.migration_run)
 
         end = time.time()
 
