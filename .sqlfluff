@@ -1,9 +1,13 @@
 [sqlfluff]
 dialect = duckdb
-templater = jinja
+templater = placeholder
 
 [sqlfluff:indentation]
 tab_width = 4
+
+[sqlfluff:rules:layout.long_lines]
+max_line_length = 120
+ignore_comment_lines = True
 
 [sqlfluff:templater:placeholder]
 param_style = dollar
