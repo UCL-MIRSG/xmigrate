@@ -9,6 +9,7 @@ import time
 import xml.etree.ElementTree as ET
 
 import defusedxml.ElementTree as DefusedET
+import duckdb
 import pandas as pd
 
 import xnat
@@ -43,9 +44,9 @@ class XMigrateIDs:
     """Surrogate PK for the destination XNAT instance row in xmigrate.duckdb."""
     migration_run: int
     """Surrogate PK for the current migration_run row in xmigrate.duckdb."""
-    source_project: int = 0
+    source_project: int | None = None
     """Surrogate PK for the source project row in xmigrate.duckdb."""
-    destination_project: int = 0
+    destination_project: int | None = None
     """Surrogate PK for the destination project row in xmigrate.duckdb."""
 
 
@@ -85,22 +86,11 @@ class Migration:
         self.experiment_sharing: dict = {}
         self.assessor_sharing: dict = {}
 
-        self._db = xdb.open_db()
-        self._source_instance_id = xdb.insert_instance(
-            self._db,
-            self.source_connection._original_uri,  # noqa: SLF001
-        )
-        self._destination_instance_id = xdb.insert_instance(
-            self._db,
-            self.destination_connection._original_uri,  # noqa: SLF001
-        )
-        self._migration_run_id: int = xdb.create_migration_run(
-            self._db,
-            source_instance_id=self._source_instance_id,
-            destination_instance_id=self._destination_instance_id,
-        )
         self._destination_project_id: int = 0  # updated per-iteration in _create_project
         self.sitewide_roles: dict = {}
+
+        self._db: duckdb.DuckDBPyConnection
+        self._xmigrate_ids: XMigrateIDs
 
     def _get_source_xml(self, uri: str) -> ET.Element:
         """
@@ -1089,31 +1079,6 @@ class Migration:
 
         LOGGER.info("Sharing configurations applied.")
 
-    def _run(self) -> None:
-        """Run the migration process."""
-        # Iterate over all projects
-        for mapper, source_info, destination_info in zip(
-            self.mappers,
-            self.all_source_info,
-            self.all_destination_info,
-            strict=True,
-        ):
-            # Set current project context
-            self.mapper = mapper
-            self.source_info = source_info
-            self.destination_info = destination_info
-
-            LOGGER.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
-            self._create_resources()
-            self._set_project_configs()
-            self._refresh_catalogues()
-
-            # Persist final ID maps and source metadata to the migration DB
-            self._save_resource_metadata_to_db(resource="subjects")
-            self._save_resource_metadata_to_db(resource="experiments")
-
-        self._apply_sharing()
-
     def _sync_destination_metadata(self) -> None:
         """
         Push stored metadata (insert_user, insert_date, last_modified) to the destination.
@@ -1144,6 +1109,31 @@ class Migration:
             xdb.sync_subject_metadata(self._db, destination_project_id=dest_project_id)
             xdb.sync_experiment_metadata(self._db, destination_project_id=dest_project_id)
 
+    def _run(self) -> None:
+        """Run the migration process."""
+        for mapper, source_info, destination_info in zip(
+            self.mappers,
+            self.all_source_info,
+            self.all_destination_info,
+            strict=True,
+        ):
+            # Set current project context
+            self.mapper = mapper
+            self.source_info = source_info
+            self.destination_info = destination_info
+
+            LOGGER.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
+            self._create_resources()
+            self._set_project_configs()
+            self._refresh_catalogues()
+
+            # Persist final ID maps and source metadata to the migration DB
+            self._save_resource_metadata_to_db(resource="subjects")
+            self._save_resource_metadata_to_db(resource="experiments")
+
+        self._apply_sharing()
+        self._sync_destination_metadata()
+
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
@@ -1173,10 +1163,13 @@ class Migration:
                 source_instance=_source_instance,
                 destination_instance=_destination_instance,
                 migration_run=_migration_run,
+                source_project=None,
+                destination_project=None,
             )
-            self._run()
-            self._sync_destination_metadata()
-            xdb.complete_migration_run(self._db, self._xmigrate_ids.migration_run)
+            try:
+                self._run()
+            finally:
+                xdb.complete_migration_run(self._db, self._xmigrate_ids.migration_run)
 
         end = time.time()
 
