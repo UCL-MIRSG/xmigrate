@@ -25,6 +25,5 @@ from xmigrate.db import sync_experiment_metadata, sync_subject_metadata
 from xmigrate.migration import Migration
 from xmigrate.plugins import check_plugins_matching
 from xmigrate.rsync import rsync
-from xmigrate.sync_metadata import sync_subject_metadata
 from xmigrate.users import check_user, check_user_roles
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatNS, XnatType, register_namespaces
