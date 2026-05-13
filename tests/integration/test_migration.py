@@ -49,7 +49,7 @@ class TestMigration:
         subject = owner.subjects[0]
         shared = source_connection.projects["OPENNEURO_T1W"]
         sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
-        response_status = 409
+
         try:
             source_connection.put(
                 sharing_uri,
@@ -57,7 +57,7 @@ class TestMigration:
             )
 
         except XNATResponseError as e:
-            if e.response.status_code != response_status:
+            if "409" not in str(e):
                 raise
 
         # Run the migration
