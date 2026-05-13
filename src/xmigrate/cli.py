@@ -74,6 +74,24 @@ def migrate(  # noqa: PLR0913
         Flag indicating whether to skipping running rsync.
 
     """
+    if source_projects == []:
+        msg = "source_projects cannot be an empty list. Use None to migrate all projects."
+        raise ValueError(msg)
+
+    if source_projects is None and any(
+        value is not None
+        for value in (
+            destination_projects,
+            destination_secondary_ids,
+            destination_project_names,
+        )
+    ):
+        msg = (
+            "destination_* arguments cannot be set when source_projects is None. "
+            "Use source_projects to explicitly define project mappings."
+        )
+        raise ValueError(msg)
+
     if source_projects:
         source_secondary_ids = source_projects
         source_project_names = source_projects
@@ -210,6 +228,18 @@ def rsync(
         A list of destination project IDs.
 
     """
+    if source_projects == []:
+        msg = "source_projects cannot be an empty list. Use None to rsync all projects."
+        raise ValueError(msg)
+
+    if destination_projects == []:
+        msg = "destination_projects cannot be an empty list."
+        raise ValueError(msg)
+
+    if source_projects is None and destination_projects is not None:
+        msg = "destination_projects cannot be set when source_projects is None."
+        raise ValueError(msg)
+
     if source_projects is None:
         with xnat.connect(source) as source_connection:
             source_projects = [p.id for p in source_connection.projects]
