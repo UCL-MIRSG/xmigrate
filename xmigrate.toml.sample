@@ -9,7 +9,7 @@ destination_project_names = '["Destination Project 11", "Destination Project 12"
 destination_rsync = "/new/local/path/"
 include_rsync = true # optional as default is true
 
-[tool.xmigrate.rsync_only]
+[tool.xmigrate.rsync]
 source_projects= '["proj1", "proj2"]' # optional as default is None
 source_rsync = "/original/local/path/"
 destination_projects = '["proj11", "proj12"]'

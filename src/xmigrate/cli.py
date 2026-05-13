@@ -8,7 +8,7 @@ import requests
 import xnat
 
 from xmigrate.migration import Migration
-from xmigrate.rsync import rsync
+from xmigrate.rsync import run_rsync
 from xmigrate.xml_mapper import ProjectInfo
 
 app = cyclopts.App(
@@ -86,7 +86,7 @@ def migrate(  # noqa: PLR0913
         )
 
         if include_rsync:
-            rsync_only(
+            rsync(
                 source,
                 source_rsync,
                 destination_rsync,
@@ -179,7 +179,7 @@ def migrate(  # noqa: PLR0913
 
 
 @app.command
-def rsync_only(
+def rsync(
     source: str,
     source_rsync: str,
     destination_rsync: str,
@@ -190,7 +190,7 @@ def rsync_only(
     Migrating data from source to destination project archive or archives using rsync.
 
     Example:
-        xmigrate rsync_only
+        xmigrate rsync
 
     Command can be run with the arguments within an xmigrate.toml config file.
 
@@ -221,7 +221,7 @@ def rsync_only(
         raise ValueError(msg)
 
     for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
-        rsync(
+        run_rsync(
             destination_rsync,
             destination_proj,
             source_rsync,
