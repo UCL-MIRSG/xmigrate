@@ -7,6 +7,7 @@ import typing
 import pytest
 
 import xnat
+from xnat.exceptions import XNATResponseError
 
 from xmigrate.cli import app
 
@@ -48,7 +49,16 @@ class TestMigration:
         subject = owner.subjects[0]
         shared = source_connection.projects["OPENNEURO_T1W"]
         sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
-        source_connection.put(sharing_uri, data={"label": subject.label})
+        response_status = 409
+        try:
+            source_connection.put(
+                sharing_uri,
+                query={"label": subject.label},
+            )
+
+        except XNATResponseError as e:
+            if e.response.status_code != response_status:
+                raise
 
         # Run the migration
         app(

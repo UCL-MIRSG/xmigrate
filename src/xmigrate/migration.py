@@ -500,7 +500,17 @@ class Migration:
 
         # Check if the project is the owner of the subject
         sharing_info = self.subject_sharing.get(subject.label, {"owner": None, "projects": [], "source_id": subject.id})
-        if root.attrib["project"] != self.source_info.id:
+        owner_project = root.attrib["project"]
+        if owner_project != self.source_info.id:
+            requested_projects = {info.id for info in self.all_source_info}
+
+            if owner_project not in requested_projects:
+                msg =f"Cannot migrate subject {subject.label!r} in project {self.source_info.id!r}: "
+                f"it is owned by project {owner_project!r}, which is not included in this migration. "
+                f"Migrate {owner_project!r} first, include it in the same migration run, or rerun with "
+                "'--skip-shared-missing-owners'."
+                raise RuntimeError(msg)
+
             # this project is not the owner of the resource, no need to create it on the destination
             sharing_info["projects"].append(self.destination_info.id)
             sharing_info["source_id"] = subject.id  # Store the source ID
