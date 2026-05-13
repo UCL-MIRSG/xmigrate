@@ -7,7 +7,6 @@ import typing
 import pytest
 
 import xnat
-from xnat.exceptions import XNATResponseError
 
 from xmigrate.cli import app
 from xmigrate.db import DB_PATH
@@ -239,11 +238,7 @@ def test_migration_errors_when_owner_project_appears_later(
         shared = source_connection.projects["OPENNEURO_T1W"]
         sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
 
-        try:
-            source_connection.put(sharing_uri, query={"label": subject.label})
-        except XNATResponseError as e:
-            if "409" not in str(e):
-                raise
+        source_connection.put(sharing_uri, query={"label": subject.label})
 
         DB_PATH.unlink(missing_ok=True)
 
