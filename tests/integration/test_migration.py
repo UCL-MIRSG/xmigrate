@@ -10,6 +10,7 @@ import xnat
 from xnat.exceptions import XNATResponseError
 
 from xmigrate.cli import app
+from xmigrate.db import DB_PATH
 
 
 @pytest.mark.usefixtures("destination_connection")
@@ -252,6 +253,8 @@ def test_migration_errors_when_owner_project_appears_later(
         except XNATResponseError as e:
             if "409" not in str(e):
                 raise
+
+        DB_PATH.unlink(missing_ok=True)
 
         with pytest.raises(RuntimeError, match="appears later in the migration list"):
             app(
