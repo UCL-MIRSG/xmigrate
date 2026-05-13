@@ -1,0 +1,7 @@
+# These files use DuckDB-specific syntax that sqlfluff's duckdb dialect cannot parse
+
+# # Uses CREATE SECRET
+src/xmigrate/sql/create_destination_secret.sql
+
+# Uses ATTACH
+src/xmigrate/sql/attach_destination_postgres.sql

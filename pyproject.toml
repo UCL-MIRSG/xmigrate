@@ -122,7 +122,9 @@ lint.isort = {known-first-party = [
     "xnat",
     "xnat4tests",
 ]}}
-lint.per-file-ignores = {"tests/*" = [
+lint.per-file-ignores = {"src/xmigrate/db/*" = [
+    "PLR0913", # too-many-arguments: SQL upsert helpers mirror table columns
+], "tests/*" = [
     "INP001", # implicit-namespace-package
 ], "tests/fixtures/*" = [
     "INP001", # implicit-namespace-package

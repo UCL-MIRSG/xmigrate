@@ -5,8 +5,8 @@ import json
 import logging
 import pathlib
 import time
-import urllib.parse
 import xml.etree.ElementTree as ET
+from typing import TYPE_CHECKING
 
 import defusedxml.ElementTree as DefusedET
 import pandas as pd
@@ -14,19 +14,42 @@ import pandas as pd
 import xnat
 from xnat.exceptions import XNATResponseError
 
+from xmigrate import db as xdb
 from xmigrate.custom_forms import create_custom_forms_json
 from xmigrate.datatypes import check_datatypes_matching
 from xmigrate.plugins import check_plugins_matching
-from xmigrate.sync_metadata import sync_experiment_metadata, sync_subject_metadata
 from xmigrate.users import check_user, check_user_roles
 from xmigrate.xml_mapper import ProjectInfo, XMLMapper, XnatType
+
+if TYPE_CHECKING:
+    import duckdb
 
 # Configure a module-level logger. Keep basicConfig here for simple CLI runs;
 # packages importing this module can configure logging more specifically.
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
-BASE_OUTPUT_DIR = pathlib.Path.cwd() / "output"
+
+@dataclasses.dataclass
+class XMigrateIDs:
+    """
+    Internal DuckDB surrogate integer keys for the current migration run.
+
+    These are xmigrate-internal IDs, not XNAT IDs, and are used for persisting
+    migration state to the DB.
+
+    """
+
+    source_instance: int
+    """Surrogate PK for the source XNAT instance row in xmigrate.duckdb."""
+    destination_instance: int
+    """Surrogate PK for the destination XNAT instance row in xmigrate.duckdb."""
+    migration_run: int
+    """Surrogate PK for the current migration_run row in xmigrate.duckdb."""
+    source_project: int | None = None
+    """Surrogate PK for the source project row in xmigrate.duckdb."""
+    destination_project: int | None = None
+    """Surrogate PK for the destination project row in xmigrate.duckdb."""
 
 
 @dataclasses.dataclass
@@ -63,13 +86,11 @@ class Migration:
         self.experiment_sharing: dict = {}
         self.assessor_sharing: dict = {}
 
-        # load existing sitewide roles from JSON if exists
-        sitewide_roles_path = BASE_OUTPUT_DIR / "sitewide_roles.json"
-        if sitewide_roles_path.is_file():
-            with sitewide_roles_path.open() as f:
-                self.sitewide_roles = json.load(f)
-        else:
-            self.sitewide_roles = {}
+        self._destination_project_id: int = 0  # updated per-iteration in _create_project
+        self.sitewide_roles: dict = {}
+
+        self._xmigrate_connection: duckdb.DuckDBPyConnection
+        self._xmigrate_ids: XMigrateIDs
 
     def _get_source_xml(self, uri: str) -> ET.Element:
         """
@@ -136,13 +157,9 @@ class Migration:
                     msg = f"Failed to put config to destination XNAT\n: {e.text}"
                     raise RuntimeError(msg) from e
 
-    def _get_resource_metadata(
-        self,
-        resource: str,
-        output_dir: pathlib.Path,
-    ) -> None:
+    def _save_resource_metadata_to_db(self, resource: str) -> None:
         """
-        Retrieve resource metadata and write to CSV.
+        Retrieve resource metadata from source and persist to the migration DB.
 
         This can be used to set the correct insert_user, insert_date, and
         last_modified metadata on the destination after migration.
@@ -152,48 +169,34 @@ class Migration:
         resource
             The resource type to retrieve metadata for, e.g., 'subjects' or
             'experiments'.
-        output_dir
-            The directory to write the CSV file to.
 
         """
-        output_dir.mkdir(parents=True, exist_ok=True)
         params = {"columns": "project,ID,label,insert_user,insert_date,last_modified", "format": "json"}
         response = self.source_connection.get(f"/data/projects/{self.source_info.id}/{resource}", query=params)
         df = pd.DataFrame(response.json()["ResultSet"]["Result"])
 
-        # Store the destination project and resource ID
-        df["project"] = self.destination_info.id
-
         # A resource ID cannot be mapped if it is not the owner of the resource
         resource_type = getattr(XnatType, resource.removesuffix("s"))
         id_map = self.mapper.id_map[resource_type]
-        df["ID"] = df["ID"].astype(str).map(id_map)
-        df = df[df["ID"].notna()].copy()
+        df["ID"] = df["ID"].astype(str).map(id_map)  # replace source xnat IDs with destination xnat IDs
+        df = df[df["ID"].notna()].copy()  # removes resources that cannot be mapped
 
-        df.to_csv(output_dir / f"{resource}_metadata.csv", index=False)
-
-    def _export_id_map(
-        self,
-        resource: str,
-        id_map: dict[str, str],
-        output_dir: pathlib.Path,
-    ) -> None:
-        """
-        Write ID map to CSV.
-
-        Parameters
-        ----------
-        resource
-            The resource type, e.g., 'subjects' or 'experiments'.
-        id_map
-            The mapping of source IDs to destination IDs.
-        output_dir
-            The directory to write the CSV file to.
-
-        """
-        output_dir.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame(list(id_map.items()), columns=["source_id", "destination_id"])
-        df.to_csv(output_dir / f"{resource}_id_map.csv", index=False)
+        df = df.rename(columns={"ID": "xnat_id"})
+        if resource == "subjects":
+            xdb.upsert_subject(
+                self._xmigrate_connection,
+                instance_id=self._xmigrate_ids.destination_instance,
+                project_id=self._xmigrate_ids.destination_project,
+                owner_project_id=self._xmigrate_ids.destination_project,
+                df=df,
+            )
+        else:
+            xdb.upsert_experiment(
+                self._xmigrate_connection,
+                instance_id=self._xmigrate_ids.destination_instance,
+                project_id=self._xmigrate_ids.destination_project,
+                df=df,
+            )
 
     def _extract_resource_type_name(self, resource_type: xnat.core.XNATListing) -> str:
         """
@@ -354,73 +357,133 @@ class Migration:
                 msg = f"Failed to migrate custom form data for {resource_type_name} {resource_type.id}: {e}"
                 LOGGER.warning(msg)
 
+    def _get_run_ids(self) -> XMigrateIDs:
+        """Get the IDs for the current migration run."""
+        _source_instance = xdb.insert_instance(
+            self._xmigrate_connection,
+            self.source_connection._original_uri,  # noqa: SLF001
+        )
+        _destination_instance = xdb.insert_instance(
+            self._xmigrate_connection,
+            self.destination_connection._original_uri,  # noqa: SLF001
+        )
+        _migration_run = xdb.create_migration_run(
+            self._xmigrate_connection,
+            source_instance_id=_source_instance,
+            destination_instance_id=_destination_instance,
+        )
+
+        # We cannot set the source_project and destination_project attributes until
+        # we know the they exist in the db (which happens within 'Migration._run')
+        return XMigrateIDs(
+            source_instance=_source_instance,
+            destination_instance=_destination_instance,
+            migration_run=_migration_run,
+            source_project=None,
+            destination_project=None,
+        )
+
+    def _load_id_maps(self) -> None:
+        """
+        Restore already-persisted ID maps from the DB into the current mapper.
+
+        Project, subject, experiment, and assessor maps are restored. Scan IDs
+        are *not* globally unique — they are only unique within their parent
+        experiment — so they are not persisted to or restored from the DB.
+        """
+        for xnat_type in XnatType:
+            resource_type = xnat_type.value
+
+            if resource_type == "scan":
+                continue
+
+            self.mapper.id_map[xnat_type] = xdb.get_id_map(
+                conn=self._xmigrate_connection,
+                resource_type=resource_type,
+                source_project_id=self._xmigrate_ids.source_project,
+                destination_project_id=self._xmigrate_ids.destination_project,
+            )
+
+    def _export_id_map(
+        self,
+        resource_type: str,
+        source_xnat_id: str,
+        destination_xnat_id: str,
+    ) -> None:
+        """
+        Persist a single ID map entry to the migration database.
+
+        Parameters
+        ----------
+        resource_type
+            The XNAT resource type string, e.g. ``"subject"``, ``"experiment"``,
+            ``"project"``, ``"scan"``, ``"assessor"``.
+        source_xnat_id
+            The source XNAT ID.
+        destination_xnat_id
+            The destination XNAT ID.
+
+        """
+        map_id = xdb.insert_map(
+            self._xmigrate_connection,
+            resource_type=resource_type,
+            source_project_id=self._xmigrate_ids.source_project,
+            destination_project_id=self._xmigrate_ids.destination_project,
+            source_xnat_id=source_xnat_id,
+            destination_xnat_id=destination_xnat_id,
+        )
+        xdb.record_migration_run_item(self._xmigrate_connection, run_id=self._xmigrate_ids.migration_run, map_id=map_id)
+
     def _create_project(self) -> None:
         """Create the project on the destination XNAT instance."""
-        root = self._get_source_xml(
-            f"/data/projects/{self.source_info.id}",
+        # Register both projects in the DB first so surrogate PKs are
+        # available before any id_map export.
+        self._xmigrate_ids.source_project = xdb.insert_project(
+            self._xmigrate_connection,
+            instance_id=self._xmigrate_ids.source_instance,
+            xnat_id=self.source_info.id,
+            secondary_id=self.source_info.secondary_id,
         )
-        root = self.mapper.map_xml(
-            root,
-            resource_type=XnatType.project,
+        self._xmigrate_ids.destination_project = xdb.insert_project(
+            self._xmigrate_connection,
+            instance_id=self._xmigrate_ids.destination_instance,
+            xnat_id=self.destination_info.id,
+            secondary_id=self.destination_info.secondary_id,
         )
-        xml_bytes = ET.tostring(root, encoding="utf-8")
 
         if self.destination_info.id not in self.destination_connection.projects:
+            root = self._get_source_xml(
+                f"/data/projects/{self.source_info.id}",
+            )
+            root = self.mapper.map_xml(
+                root,
+                resource_type=XnatType.project,
+            )
+            xml_bytes = ET.tostring(root, encoding="utf-8")
             self.destination_connection.post(
                 "/data/projects",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_connection.projects.clearcache()
+            self.destination_connection.projects.clearcache()
+
+        # Always update the in-memory map and persist — both are idempotent.
         self.mapper.update_id_map(
             source=self.source_info.id,
             destination=self.destination_info.id,
             map_type=XnatType.project,
         )
+        self._export_id_map(
+            resource_type="project",
+            source_xnat_id=self.source_info.id,
+            destination_xnat_id=self.destination_info.id,
+        )
 
-    def _check_subject_exists(
-        self,
-        subject: xnat.core.XNATListing,
-        subjects_id_map_list: list,
-        source_name: str,
-    ) -> bool:
-        """
-        Check if subject exists on the destination XNAT instance.
-
-        Parameters
-        ----------
-        subject
-            The XNATListing object representing the subject.
-        subjects_id_map_list
-            A list of subject IDs that already exist on the destination XNAT instance.
-        source_name
-            The name of the source XNAT instance.
-
-        """
-        if subject.id not in subjects_id_map_list:
-            sharing_subject_exists = self._create_subject(subject)
-            if not sharing_subject_exists:
-                self._create_custom_forms_data(subject)
-
-            self._export_id_map(
-                resource="subjects",
-                id_map=self.mapper.id_map[XnatType.subject],
-                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
-            )
-        else:
-            msg = f"Skipping creation of subject {subject.id} as already exists on destination."
-            LOGGER.info(msg)
-            self.mapper.update_id_map(
-                source=subject.id,
-                destination=self.destination_connection.projects[self.destination_info.id].subjects[subject.label].id,
-                map_type=XnatType.subject,
-            )
-            sharing_subject_exists = False
-        return sharing_subject_exists
-
-    def _create_subject(self, subject: xnat.core.XNATListing) -> bool:
+    def _create_subject(self, subject: xnat.core.XNATListing) -> None:
         """
         Create a subject on the destination XNAT instance.
+
+        Idempotent: skips creation if the subject is already in the ID map.
 
         Parameters
         ----------
@@ -432,19 +495,25 @@ class Migration:
             f"/data/projects/{self.source_info.id}/subjects/{subject.id}",
         )
 
-        # _collect_sharing_info
+        # Check if the project is the owner of the subject
         sharing_info = self.subject_sharing.get(subject.label, {"owner": None, "projects": [], "source_id": subject.id})
         if root.attrib["project"] != self.source_info.id:
             # this project is not the owner of the resource, no need to create it on the destination
             sharing_info["projects"].append(self.destination_info.id)
             sharing_info["source_id"] = subject.id  # Store the source ID
             self.subject_sharing[subject.label] = sharing_info
-            return True
+            return
         # otherwise, this project is the owner
         sharing_info["owner"] = self.destination_info.id
         sharing_info["label"] = subject.label
         sharing_info["source_id"] = subject.id  # Store the source ID
         self.subject_sharing[subject.label] = sharing_info
+
+        # Check if the subject has already been migrated in a previous run
+        if subject.id in self.mapper.id_map[XnatType.subject]:
+            msg = f"Skipping creation of subject {subject.id} as already exists on destination."
+            LOGGER.info(msg)
+            return
 
         root = self.mapper.map_xml(
             root,
@@ -468,29 +537,27 @@ class Migration:
             )
         except (KeyError, AttributeError):
             self.subj_failed_count = self.subj_failed_count + 1
-        return False
 
-    def _check_experiment_exists(
-        self,
-        experiment: xnat.core.XNATListing,
-        subject: xnat.core.XNATListing,
-        experiments_id_map_list: list,
-        source_name: str,
-        destination_datatypes: dict,
-    ) -> None:
+        self._create_custom_forms_data(subject)
+        dest_subject_id = self.mapper.id_map[XnatType.subject].get(subject.id)
+        if dest_subject_id is not None:
+            self._export_id_map(
+                resource_type="subject",
+                source_xnat_id=subject.id,
+                destination_xnat_id=dest_subject_id,
+            )
+        return
+
+    def _create_experiment(self, experiment: xnat.core.XNATListing, destination_datatypes: dict) -> None:
         """
-        Check if experiment exists on the destination XNAT instance.
+        Create an experiment on the destination XNAT instance.
+
+        Idempotent: skips creation if the experiment is already in the ID map.
 
         Parameters
         ----------
         experiment
             The XNATListing object representing the experiment.
-        subject
-            The XNATListing object representing the subject.
-        experiments_id_map_list
-            A list of experiment IDs that have already been mapped.
-        source_name
-            The name of the source XNAT instance.
         destination_datatypes
             A dictionary of available datatypes on the destination XNAT instance.
 
@@ -500,42 +567,18 @@ class Migration:
             If the experiment's datatype is not available on the destination server.
 
         """
+        subject = experiment.parent
+
         if experiment.fulldata["meta"]["xsi:type"] not in destination_datatypes:
             datatype = experiment.fulldata["meta"]["xsi:type"]
             msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
             raise RuntimeError(msg)
 
-        if experiment.id not in experiments_id_map_list:
-            self._create_experiment(experiment)
-            self._create_custom_forms_data(experiment)
-            self._export_id_map(
-                resource="experiments",
-                id_map=self.mapper.id_map[XnatType.experiment],
-                output_dir=BASE_OUTPUT_DIR / source_name / self.destination_info.id,
-            )
-        else:
+        if experiment.id in self.mapper.id_map[XnatType.experiment]:
             msg = f"Skipping creation of experiment {experiment.id} as already exists on destination."
             LOGGER.info(msg)
-            self.mapper.update_id_map(
-                source=experiment.id,
-                destination=self.destination_connection.projects[self.destination_info.id]
-                .subjects[subject.label]
-                .experiments[experiment.label]
-                .id,
-                map_type=XnatType.experiment,
-            )
+            return
 
-    def _create_experiment(self, experiment: xnat.core.XNATListing) -> None:
-        """
-        Create an experiment on the destination XNAT instance.
-
-        Parameters
-        ----------
-        experiment
-            The XNATListing object representing the experiment.
-
-        """
-        subject = experiment.parent
         root = self._get_source_xml(
             f"/data/projects/{self.source_info.id}/subjects/{subject.id}/experiments/{experiment.id}",
         )
@@ -592,25 +635,30 @@ class Migration:
                 map_type=XnatType.experiment,
             )
 
-    def _check_scan_exists(
-        self,
-        scan: xnat.core.XNATListing,
-        experiment: xnat.core.XNATListing,
-        subject: xnat.core.XNATListing,
-    ) -> None:
+        self._create_custom_forms_data(experiment)
+        dest_experiment_id = self.mapper.id_map[XnatType.experiment].get(experiment.id)
+        if dest_experiment_id is not None:
+            self._export_id_map(
+                resource_type="experiment",
+                source_xnat_id=experiment.id,
+                destination_xnat_id=dest_experiment_id,
+            )
+
+    def _create_scan(self, scan: xnat.core.XNATListing) -> None:
         """
-        Check if scan exists on the destination XNAT instance.
+        Create a scan on the destination XNAT instance.
+
+        Idempotent: skips creation if the scan is already in the ID map.
 
         Parameters
         ----------
         scan
             The XNATListing object representing the scan.
-        experiment
-            The XNATListing object representing the experiment.
-        subject
-            The XNATListing object representing the subject.
 
         """
+        experiment = scan.parent
+        subject = experiment.parent
+
         if (
             scan.id
             in self.destination_connection.projects[self.destination_info.id]
@@ -625,22 +673,7 @@ class Migration:
                 destination=scan.id,  # Scan IDs must be preserved
                 map_type=XnatType.scan,
             )
-        else:
-            self._create_scan(scan)
-            self._create_custom_forms_data(scan)
-
-    def _create_scan(self, scan: xnat.core.XNATListing) -> None:
-        """
-        Create a scan on the destination XNAT instance.
-
-        Parameters
-        ----------
-        scan
-            The XNATListing object representing the scan.
-
-        """
-        experiment = scan.parent
-        subject = experiment.parent
+            return
 
         # Check if this experiment belongs to a shared subject
         root = self._get_source_xml(
@@ -695,57 +728,25 @@ class Migration:
                 map_type=XnatType.scan,
             )
 
-    def _check_assessor_exists(
-        self,
-        assessor: xnat.core.XNATListing,
-        experiment: xnat.core.XNATListing,
-        subject: xnat.core.XNATListing,
-    ) -> None:
-        """
-        Check if assessor exists on the destination XNAT instance.
-
-        Parameters
-        ----------
-        assessor
-            The XNATListing object representing the assessor.
-        experiment
-            The XNATListing object representing the experiment.
-        subject
-            The XNATListing object representing the subject.
-
-        """
-        if (
-            assessor.label
-            in self.destination_connection.projects[self.destination_info.id]
-            .subjects[subject.label]
-            .experiments[experiment.label]
-            .assessors
-        ):
-            msg = f"Skipping creation of scan {assessor.id} as already exists on destination."
-            LOGGER.info(msg)
-            self.mapper.update_id_map(
-                source=assessor.id,
-                destination=self.destination_connection.projects[self.destination_info.id]
-                .subjects[subject.label]
-                .experiments[experiment.label]
-                .assessors[assessor.label]
-                .id,
-                map_type=XnatType.assessor,
-            )
-        else:
-            self._create_assessor(assessor)
-            self._create_custom_forms_data(assessor)
+        self._create_custom_forms_data(scan)
 
     def _create_assessor(self, assessor: xnat.core.XNATListing) -> None:
         """
         Create an assessor on the destination XNAT instance.
 
+        Idempotent: skips creation if the assessor is already in the ID map.
+
         Parameters
         ----------
         assessor
             The XNATListing object representing the assessor.
 
         """
+        if assessor.id in self.mapper.id_map[XnatType.assessor]:
+            msg = f"Skipping creation of assessor {assessor.id} as already exists on destination."
+            LOGGER.info(msg)
+            return
+
         experiment = assessor.parent
         subject = experiment.parent
         root = self._get_source_xml(
@@ -811,6 +812,15 @@ class Migration:
                 map_type=XnatType.assessor,
             )
 
+        self._create_custom_forms_data(assessor)
+        dest_assessor_id = self.mapper.id_map[XnatType.assessor].get(assessor.id)
+        if dest_assessor_id is not None:
+            self._export_id_map(
+                resource_type="assessor",
+                source_xnat_id=assessor.id,
+                destination_xnat_id=dest_assessor_id,
+            )
+
     def _assign_user_permissions_per_project(self, source_project: str) -> None:
         """
         Assign user permissions for the project on the destination XNAT instance.
@@ -832,9 +842,11 @@ class Migration:
         destination_project = self.mapper.get_destination_id(source_project, XnatType.project)
         destination_profiles = self.destination_connection.get("/xapi/users/profiles", format="json").json()
 
-        source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-        BASE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        user_permissions_path = BASE_OUTPUT_DIR / "user_permissions_per_project.json"
+        # Resume: skip if permissions have already been persisted for this project.
+        if xdb.get_user_permissions_for_project(self._xmigrate_connection, self._xmigrate_ids.destination_project):
+            msg = f"User permissions already migrated for project {self.destination_info.id}."
+            LOGGER.info(msg)
+            return
 
         # Always ensure users exist and have site-wide roles before assigning project-specific permissions
         for user in source_project_ownership:
@@ -847,7 +859,6 @@ class Migration:
             )
             self.sitewide_roles = check_user_roles(
                 username,
-                BASE_OUTPUT_DIR,
                 self.sitewide_roles,
                 self.source_connection,
                 self.destination_connection,
@@ -857,21 +868,23 @@ class Migration:
             api_put_string = f"/data/projects/{destination_project}/users/{ownership_type}/{username}"
             self.destination_connection.put(api_put_string)
 
-        # Read existing JSON or start empty
-        if user_permissions_path.is_file():
-            with user_permissions_path.open() as f:
-                user_permissions_per_project = json.load(f)
-        else:
-            user_permissions_per_project = {}
-
-        # Update/add the current project
-        user_permissions_per_project[self.destination_info.id] = source_project_ownership
-
-        # Write back
-        with user_permissions_path.open("w") as f:
-            json.dump(user_permissions_per_project, f, indent=4)
-
-        LOGGER.info("User permissions updated for project %s in %s", self.destination_info.id, source_name)
+            user_id = xdb.upsert_user(
+                self._xmigrate_connection,
+                instance_id=self._xmigrate_ids.destination_instance,
+                login=username,
+                firstname=user.get("firstname"),
+                lastname=user.get("lastname"),
+                email=user.get("email"),
+            )
+            xdb.upsert_user_permission(
+                self._xmigrate_connection,
+                instance_id=self._xmigrate_ids.destination_instance,
+                project_id=self._xmigrate_ids.destination_project,
+                user_id=user_id,
+                run_id=self._xmigrate_ids.migration_run,
+                displayname=ownership_type,
+                group_id=user.get("GROUP_ID"),
+            )
 
     def _create_resources(self) -> None:
         """
@@ -884,6 +897,7 @@ class Migration:
 
         """
         self._create_project()
+        self._load_id_maps()
         source_project = self.source_connection.projects[self.source_info.id]
 
         self._create_custom_forms_data(source_project)
@@ -891,39 +905,20 @@ class Migration:
 
         destination_datatypes = self.destination_connection.get("/xapi/schemas/datatypes").json()
 
-        source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-        output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
-        subj_full_path = output_dir / "subjects_id_map.csv"
-        if subj_full_path.is_file():
-            subjects_id_map = pd.read_csv(subj_full_path)
-            subjects_id_map_list = subjects_id_map["source_id"].tolist()
-        else:
-            subjects_id_map_list = []
-
-        exp_full_path = output_dir / "experiments_id_map.csv"
-        if exp_full_path.is_file():
-            experiments_id_map = pd.read_csv(exp_full_path)
-            experiments_id_map_list = experiments_id_map["source_id"].tolist()
-        else:
-            experiments_id_map_list = []
-
         for subject in source_project.subjects:
-            sharing_subject_exists = self._check_subject_exists(subject, subjects_id_map_list, source_name)
-            if sharing_subject_exists:
-                continue
-            for experiment in subject.experiments:
-                self._check_experiment_exists(
-                    experiment,
-                    subject,
-                    experiments_id_map_list,
-                    source_name,
-                    destination_datatypes,
-                )
-                for scan in experiment.scans:
-                    self._check_scan_exists(scan, experiment, subject)
+            self._create_subject(subject)
 
+            # Skip resource creation for this subject if it is shared and this project is not the owner
+            sharing_info = self.subject_sharing[subject.label]
+            if sharing_info["owner"] != self.destination_info.id:
+                continue
+
+            for experiment in subject.experiments:
+                self._create_experiment(experiment, destination_datatypes)
+                for scan in experiment.scans:
+                    self._create_scan(scan)
                 for assessor in experiment.assessors:
-                    self._check_assessor_exists(assessor, experiment, subject)
+                    self._create_assessor(assessor)
 
         LOGGER.info("Subjects failed: %d", self.subj_failed_count)
         LOGGER.info("Total subjects: %d", len(source_project.subjects))
@@ -1086,15 +1081,38 @@ class Migration:
 
         LOGGER.info("Sharing configurations applied.")
 
-    def run(self) -> None:
-        """Migrate a project from source to destination XNAT instance."""
-        start = time.time()
+    def _sync_destination_metadata(self) -> None:
+        """
+        Push stored metadata (insert_user, insert_date, last_modified) to the destination.
 
-        check_plugins_matching(self.source_connection, self.destination_connection)
-        check_datatypes_matching(self.source_connection, self.destination_connection)
-        create_custom_forms_json(self.source_connection, self.destination_connection)
+        Must be called after sharing so that the last_modified timestamp is not
+        overwritten by the sharing operation.
+        """
+        dest_project_ids = [
+            xdb.insert_project(
+                self._xmigrate_connection,
+                instance_id=self._xmigrate_ids.destination_instance,
+                xnat_id=destination_info.id,
+                secondary_id=destination_info.secondary_id,
+            )
+            for destination_info in self.all_destination_info
+        ]
 
-        # Iterate over all projects
+        for mapper, source_info, destination_info, dest_project_id in zip(
+            self.mappers,
+            self.all_source_info,
+            self.all_destination_info,
+            dest_project_ids,
+            strict=True,
+        ):
+            self.mapper = mapper
+            self.source_info = source_info
+            self.destination_info = destination_info
+            xdb.sync_subject_metadata(self._xmigrate_connection, destination_project_id=dest_project_id)
+            xdb.sync_experiment_metadata(self._xmigrate_connection, destination_project_id=dest_project_id)
+
+    def _run(self) -> None:
+        """Run the migration process."""
         for mapper, source_info, destination_info in zip(
             self.mappers,
             self.all_source_info,
@@ -1111,46 +1129,27 @@ class Migration:
             self._set_project_configs()
             self._refresh_catalogues()
 
-            # Export ID maps and metadata
-            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-            output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
-            self._export_id_map(
-                resource="subjects",
-                id_map=self.mapper.id_map[XnatType.subject],
-                output_dir=output_dir,
-            )
-            self._export_id_map(
-                resource="experiments",
-                id_map=self.mapper.id_map[XnatType.experiment],
-                output_dir=output_dir,
-            )
-            self._get_resource_metadata(resource="subjects", output_dir=output_dir)
-            self._get_resource_metadata(resource="experiments", output_dir=output_dir)
+            # Persist final ID maps and source metadata to the migration DB
+            self._save_resource_metadata_to_db(resource="subjects")
+            self._save_resource_metadata_to_db(resource="experiments")
 
         self._apply_sharing()
+        self._sync_destination_metadata()
 
-        # Update destination metadata with original upload date and time
-        # This must be done after sharing, otherwise the last_modified timestamp will be updated
-        # when sharing
-        for mapper, source_info, destination_info in zip(
-            self.mappers,
-            self.all_source_info,
-            self.all_destination_info,
-            strict=True,
-        ):
-            # Set current project context
-            self.mapper = mapper
-            self.source_info = source_info
-            self.destination_info = destination_info
+    def run(self) -> None:
+        """Migrate a project from source to destination XNAT instance."""
+        start = time.time()
 
-            source_name = urllib.parse.urlparse(self.source_connection._original_uri).hostname.split(".")[0]  # noqa: SLF001
-            output_dir = BASE_OUTPUT_DIR / source_name / self.destination_info.id
-            sync_subject_metadata(
-                metadata_csv=output_dir / "subjects_metadata.csv",
-            )
-            sync_experiment_metadata(
-                metadata_csv=output_dir / "experiments_metadata.csv",
-            )
+        check_plugins_matching(self.source_connection, self.destination_connection)
+        check_datatypes_matching(self.source_connection, self.destination_connection)
+        create_custom_forms_json(self.source_connection, self.destination_connection)
+
+        with xdb.open_db() as self._xmigrate_connection:
+            self._xmigrate_ids = self._get_run_ids()
+            try:
+                self._run()
+            finally:
+                xdb.complete_migration_run(self._xmigrate_connection, self._xmigrate_ids.migration_run)
 
         end = time.time()
 
