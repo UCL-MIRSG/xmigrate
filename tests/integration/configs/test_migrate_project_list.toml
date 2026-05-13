@@ -1,5 +1,5 @@
 [tool.xmigrate.migrate-project-list]
 source = "http://localhost:8888"
-source_projects = ["OPENNEURO_T1W", "dummydicomproject"]
+source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
 destination = "http://localhost:8889"
 no_rsync = false
