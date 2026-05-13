@@ -909,8 +909,8 @@ class Migration:
             If an error occurs while creating resources.
 
         """
-        self._create_project()
         self._load_id_maps()
+        self._create_project()
         source_project = self.source_connection.projects[self.source_info.id]
 
         if not self.no_rsync:
