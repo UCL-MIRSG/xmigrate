@@ -222,3 +222,46 @@ class TestMigration:
 
         # Results are returned in an arbitrary order, so we compare them as sets of frozensets to ignore the ordering
         assert {frozenset(d.items()) for d in source_result} == {frozenset(d.items()) for d in destination_result}
+
+
+@pytest.mark.usefixtures("destination_connection")
+def test_migration_errors_when_owner_project_appears_later(
+    tmp_path_factory: pytest.TempPathFactory,
+    source_connection: xnat.BaseXNATSession,
+    xnat_root_dirs: dict[str, pathlib.Path],
+) -> None:
+    """Error clearly if a shared resource owner appears later in the project list."""
+    mpatch = pytest.MonkeyPatch()
+    configs_path = pathlib.Path(__file__).parent / "configs"
+    tmp_path = tmp_path_factory.mktemp("wrong_order_migration")
+
+    shutil.copy(configs_path / "test_migrate_project_list_wrong_order.toml", tmp_path / "xmigrate.toml")
+    shutil.copy(configs_path / "test_migrate_project_list_secrets.toml", tmp_path / "secrets.toml")
+
+    mpatch.chdir(tmp_path)
+    mpatch.setenv("NETRC", (configs_path / "test-netrc").as_posix())
+
+    try:
+        owner = source_connection.projects["dummydicomproject"]
+        subject = owner.subjects[0]
+        shared = source_connection.projects["OPENNEURO_T1W"]
+        sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
+
+        try:
+            source_connection.put(sharing_uri, query={"label": subject.label})
+        except XNATResponseError as e:
+            if "409" not in str(e):
+                raise
+
+        with pytest.raises(RuntimeError, match="appears later in the migration list"):
+            app(
+                [
+                    "migrate-project-list",
+                    "--source_rsync",
+                    (xnat_root_dirs["source"] / "archive").as_posix(),
+                    "--destination_rsync",
+                    (xnat_root_dirs["destination"] / "archive").as_posix(),
+                ],
+            )
+    finally:
+        mpatch.undo()
