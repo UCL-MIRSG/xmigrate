@@ -14,7 +14,7 @@ __all__ = [
     "check_user_roles",
     "create_custom_forms_json",
     "register_namespaces",
-    "rsync",
+    "run_rsync",
     "sync_experiment_metadata",
     "sync_subject_metadata",
 ]
