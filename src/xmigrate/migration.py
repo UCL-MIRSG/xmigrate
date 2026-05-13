@@ -496,9 +496,11 @@ class Migration:
                 owner = root.attrib["project"]
 
                 if owner != source_info.id and owner in requested_projects and owner not in seen_projects:
-                    msg = f"Project {source_info.id!r} contains shared subject {subject.label!r} "
-                    f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
-                    f"Move {owner!r} before {source_info.id!r}."
+                    msg = (
+                        f"Project {source_info.id!r} contains shared subject {subject.label!r} "
+                        f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
+                        f"Move {owner!r} before {source_info.id!r}."
+                    )
                     raise RuntimeError(msg)
 
                 for experiment in subject.experiments:
@@ -508,9 +510,11 @@ class Migration:
                     owner = root.attrib["project"]
 
                     if owner != source_info.id and owner in requested_projects and owner not in seen_projects:
-                        msg = f"Project {source_info.id!r} contains shared experiment {experiment.label!r} "
-                        f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
-                        f"Move {owner!r} before {source_info.id!r}."
+                        msg = (
+                            f"Project {source_info.id!r} contains shared experiment {experiment.label!r} "
+                            f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
+                            f"Move {owner!r} before {source_info.id!r}."
+                        )
                         raise RuntimeError(msg)
 
                     for assessor in experiment.assessors:
@@ -520,9 +524,11 @@ class Migration:
                         owner = root.attrib["project"]
 
                         if owner != source_info.id and owner in requested_projects and owner not in seen_projects:
-                            msg = f"Project {source_info.id!r} contains shared assessor {assessor.label!r} "
-                            f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
-                            f"Move {owner!r} before {source_info.id!r}."
+                            msg = (
+                                f"Project {source_info.id!r} contains shared assessor {assessor.label!r} "
+                                f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
+                                f"Move {owner!r} before {source_info.id!r}."
+                            )
                             raise RuntimeError(msg)
 
             seen_projects.add(source_info.id)
