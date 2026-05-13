@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
 
-def rsync(
+def run_rsync(
     destination_rsync_path: str,
     destination_project: str,
     source_rsync_path: str,
