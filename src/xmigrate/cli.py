@@ -87,6 +87,7 @@ def migrate(  # noqa: PLR0913
 
         if include_rsync:
             rsync_only(
+                source,
                 source_rsync,
                 destination_rsync,
                 source_projects,

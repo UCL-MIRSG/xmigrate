@@ -3,7 +3,6 @@
 import dataclasses
 import json
 import logging
-import pathlib
 import time
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
