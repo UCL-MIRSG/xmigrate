@@ -71,7 +71,7 @@ def migrate(  # noqa: PLR0913
     source_projects
         A list of source project IDs.
     include_rsync
-        Flag indicating whether to skipping running rsync.
+        Flag indicating whether to skip running rsync.
 
     """
     if source_projects == []:

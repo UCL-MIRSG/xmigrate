@@ -47,7 +47,6 @@ def run_rsync(
         "--exclude=*.log",
         "--exclude=.*",
         "--stats",
-        "--progress",
         "--checksum",
         rsync_source,
         rsync_destination,
