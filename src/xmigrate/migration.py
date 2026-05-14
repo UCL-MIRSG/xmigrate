@@ -500,7 +500,7 @@ class Migration:
 
         # Check if the project is the owner of the subject
         sharing_info = self.subject_sharing.get(subject.label, {"owner": None, "projects": [], "source_id": subject.id})
-        owner_project = root.attrib["project"]
+        owner_project = root.attrib.get("project")
         if owner_project != self.source_info.id:
             requested_projects = {info.id for info in self.all_source_info}
 
