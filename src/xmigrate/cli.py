@@ -92,51 +92,38 @@ def migrate(  # noqa: PLR0913
         )
         raise ValueError(msg)
 
-    if source_projects:
-        source_secondary_ids = source_projects
-        source_project_names = source_projects
-        destination_projects = destination_projects if destination_projects is not None else source_projects
-        destination_secondary_ids = (
-            destination_secondary_ids if destination_secondary_ids is not None else source_projects
-        )
-        destination_project_names = (
-            destination_project_names if destination_project_names is not None else source_projects
-        )
-
-        if include_rsync:
-            rsync(
-                source,
-                source_rsync,
-                destination_rsync,
-                source_projects,
-                destination_projects,
-            )
-
     with (
         xnat.connect(source) as source_connection,
         xnat.connect(destination) as destination_connection,
     ):
-        if source_projects is None:
+        if source_projects:
+            source_secondary_ids = source_projects
+            source_project_names = source_projects
+            destination_projects = destination_projects if destination_projects is not None else source_projects
+            destination_secondary_ids = (
+                destination_secondary_ids if destination_secondary_ids is not None else source_projects
+            )
+            destination_project_names = (
+                destination_project_names if destination_project_names is not None else source_projects
+            )
+        else:
             rows = [(p.id, p.secondary_id, p.project) for p in source_connection.projects]
             source_projects, source_secondary_ids, source_project_names = (
                 map(list, zip(*rows, strict=False)) if rows else ([], [], [])
             )
 
-            destination_projects = source_projects
+            destination_projects = destination_projects if destination_projects is not None else source_projects
             destination_secondary_ids = source_secondary_ids
             destination_project_names = source_project_names
 
-        if (
-            source_projects is None
-            or source_secondary_ids is None
-            or source_project_names is None
-            or destination_projects is None
-            or destination_secondary_ids is None
-            or destination_project_names is None
-        ):
-            msg = "Project lists could not be resolved."
-
-            raise ValueError(msg)
+        if include_rsync:
+            for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
+                run_rsync(
+                    destination_rsync,
+                    destination_proj,
+                    source_rsync,
+                    source_proj,
+                )
 
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
