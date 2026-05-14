@@ -66,6 +66,5 @@ def migration(
         all_destination_info=destination_info,
         all_source_info=source_info,
         destination_connection=destination_connection,
-        no_rsync=True,
         source_connection=source_connection,
     )

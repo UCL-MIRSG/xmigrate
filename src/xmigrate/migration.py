@@ -3,8 +3,6 @@
 import dataclasses
 import json
 import logging
-import pathlib
-import subprocess
 import time
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
@@ -65,8 +63,6 @@ class Migration:
     """The source projects information."""
     all_destination_info: list[ProjectInfo]
     """The destination projects information."""
-    no_rsync: bool = False
-    """Conditional for whether to run rsync only."""
 
     def __post_init__(self) -> None:
         """Post-initialisation to set up mappers and initial project information."""
@@ -902,30 +898,6 @@ class Migration:
         self._create_project()
         self._load_id_maps()
         source_project = self.source_connection.projects[self.source_info.id]
-
-        if not self.no_rsync:
-            rsync_destination = f"{self.destination_info.rsync_path}/{self.destination_info.id}"
-            rsync_source = f"{self.source_info.rsync_path}/{self.source_info.id}/"
-            pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
-
-            cmd = [
-                "rsync",
-                "-azP",
-                "--ignore-existing",
-                "--exclude=*.log",
-                "--exclude=.*",
-                "--stats",
-                "--progress",
-                "--checksum",
-                rsync_source,
-                rsync_destination,
-            ]
-
-            try:
-                subprocess.check_output(cmd)  # noqa: S603
-            except subprocess.CalledProcessError as exc:
-                msg = f"An error occurred running the rsync command; the error was: {exc}"
-                raise RuntimeError(msg) from exc
 
         self._create_custom_forms_data(source_project)
         self._assign_user_permissions_per_project(source_project.id)

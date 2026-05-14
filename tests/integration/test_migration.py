@@ -53,7 +53,7 @@ class TestMigration:
         # Run the migration
         app(
             [
-                "migrate-project-list",
+                "migrate",
                 "--source_rsync",
                 (xnat_root_dirs["source"] / "archive").as_posix(),
                 "--destination_rsync",
