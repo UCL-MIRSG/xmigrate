@@ -74,7 +74,7 @@ def migrate(  # noqa: PLR0913
         Flag indicating whether to skip running rsync.
 
     """
-    if source_projects == []:
+    if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to migrate all projects."
         raise ValueError(msg)
 
@@ -215,11 +215,11 @@ def rsync(
         A list of destination project IDs.
 
     """
-    if source_projects == []:
+    if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to rsync all projects."
         raise ValueError(msg)
 
-    if destination_projects == []:
+    if destination_projects is not None and not destination_projects:
         msg = "destination_projects cannot be an empty list."
         raise ValueError(msg)
 
