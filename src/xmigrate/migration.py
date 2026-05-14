@@ -482,57 +482,6 @@ class Migration:
             destination_xnat_id=self.destination_info.id,
         )
 
-    def _check_project_order(self) -> None:
-        seen_projects: set[str] = set()
-        requested_projects = {info.id for info in self.all_source_info}
-
-        for source_info in self.all_source_info:
-            project = self.source_connection.projects[source_info.id]
-
-            for subject in project.subjects:
-                root = self._get_source_xml(
-                    f"/data/projects/{source_info.id}/subjects/{subject.id}",
-                )
-                owner = root.attrib["project"]
-
-                if owner != source_info.id and owner in requested_projects and owner not in seen_projects:
-                    msg = (
-                        f"Project {source_info.id!r} contains shared subject {subject.label!r} "
-                        f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
-                        f"Move {owner!r} before {source_info.id!r}."
-                    )
-                    raise RuntimeError(msg)
-
-                for experiment in subject.experiments:
-                    root = self._get_source_xml(
-                        f"/data/projects/{source_info.id}/subjects/{subject.id}/experiments/{experiment.id}",
-                    )
-                    owner = root.attrib["project"]
-
-                    if owner != source_info.id and owner in requested_projects and owner not in seen_projects:
-                        msg = (
-                            f"Project {source_info.id!r} contains shared experiment {experiment.label!r} "
-                            f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
-                            f"Move {owner!r} before {source_info.id!r}."
-                        )
-                        raise RuntimeError(msg)
-
-                    for assessor in experiment.assessors:
-                        root = self._get_source_xml(
-                            f"/data/projects/{source_info.id}/subjects/{subject.id}/experiments/{experiment.id}/assessors/{assessor.id}",
-                        )
-                        owner = root.attrib["project"]
-
-                        if owner != source_info.id and owner in requested_projects and owner not in seen_projects:
-                            msg = (
-                                f"Project {source_info.id!r} contains shared assessor {assessor.label!r} "
-                                f"owned by {owner!r}, but {owner!r} appears later in the migration list. "
-                                f"Move {owner!r} before {source_info.id!r}."
-                            )
-                            raise RuntimeError(msg)
-
-            seen_projects.add(source_info.id)
-
     def _create_subject(self, subject: xnat.core.XNATListing) -> None:
         """
         Create a subject on the destination XNAT instance.
@@ -959,8 +908,8 @@ class Migration:
             If an error occurs while creating resources.
 
         """
-        self._load_id_maps()
         self._create_project()
+        self._load_id_maps()
         source_project = self.source_connection.projects[self.source_info.id]
 
         if not self.no_rsync:
@@ -1200,7 +1149,6 @@ class Migration:
 
     def _run(self) -> None:
         """Run the migration process."""
-        self._check_project_order()
         for mapper, source_info, destination_info in zip(
             self.mappers,
             self.all_source_info,
