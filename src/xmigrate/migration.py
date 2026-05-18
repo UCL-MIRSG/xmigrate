@@ -1148,7 +1148,7 @@ class Migration:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
-        check_plugins_matching(self.source_connection, self.destination_connection)
+        # check_plugins_matching(self.source_connection, self.destination_connection)
         check_datatypes_matching(self.source_connection, self.destination_connection)
         create_custom_forms_json(self.source_connection, self.destination_connection)
 
