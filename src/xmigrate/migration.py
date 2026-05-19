@@ -3,6 +3,7 @@
 import dataclasses
 import json
 import logging
+import pathlib
 import time
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
@@ -1144,7 +1145,7 @@ class Migration:
         self._apply_sharing()
         self._sync_destination_metadata()
 
-    def run(self) -> None:
+    def run(self, duckdb_path: pathlib.Path) -> None:
         """Migrate a project from source to destination XNAT instance."""
         start = time.time()
 
@@ -1152,7 +1153,7 @@ class Migration:
         check_datatypes_matching(self.source_connection, self.destination_connection)
         create_custom_forms_json(self.source_connection, self.destination_connection)
 
-        with xdb.open_db() as self._xmigrate_connection:
+        with xdb.open_db(duckdb_path) as self._xmigrate_connection:
             self._xmigrate_ids = self._get_run_ids()
             try:
                 self._run()

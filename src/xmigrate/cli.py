@@ -1,6 +1,7 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
+import pathlib
 
 import cyclopts
 import requests
@@ -35,6 +36,7 @@ def migrate(  # noqa: PLR0913
     source_rsync: str,
     destination: str,
     destination_rsync: str,
+    duckdb_path: pathlib.Path,
     destination_projects: list[str] | None = None,
     destination_secondary_ids: list[str] | None = None,
     destination_project_names: list[str] | None = None,
@@ -179,7 +181,7 @@ def migrate(  # noqa: PLR0913
             all_destination_info=all_destination_info,
         )
 
-        migration.run()
+        migration.run(duckdb_path)
         logger.info("Migration run finished.")
 
 
