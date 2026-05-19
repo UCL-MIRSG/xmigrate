@@ -1,6 +1,8 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 import cyclopts
 import requests
@@ -21,12 +23,24 @@ app = cyclopts.App(
     result_action="return_none",
 )
 
-logger = logging.getLogger("xmigrate.cli")
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-    logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+LOGGER = logging.getLogger(__name__)
+
+
+def configure_logging(log_file: str | Path = "xmigrate.log") -> None:
+    """Configure application logging once for the xmigrate CLI."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        handlers=[
+            RotatingFileHandler(
+                log_file,
+                maxBytes=10_000_000,
+                backupCount=5,
+            ),
+            logging.StreamHandler(),
+        ],
+        force=True,
+    )
 
 
 @app.command
@@ -74,6 +88,7 @@ def migrate(  # noqa: PLR0913
         Flag indicating whether to skip running rsync.
 
     """
+    configure_logging()
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to migrate all projects."
         raise ValueError(msg)
@@ -129,14 +144,14 @@ def migrate(  # noqa: PLR0913
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
             msg = f"Failed to fetch source archive path: {e}"
-            logger.warning(msg)
+            LOGGER.warning(msg)
             source_archive = None
 
         try:
             destination_archive = destination_connection.get("/xapi/siteConfig/archivePath").text
         except (requests.exceptions.RequestException, OSError) as e:
             msg = f"Failed to fetch destination archive path: {e}"
-            logger.warning(msg)
+            LOGGER.warning(msg)
             destination_archive = None
 
         # Create a list of ProjectInfo objects, one for each project
@@ -180,7 +195,7 @@ def migrate(  # noqa: PLR0913
         )
 
         migration.run()
-        logger.info("Migration run finished.")
+        LOGGER.info("Migration run finished.")
 
 
 @app.command
@@ -215,6 +230,7 @@ def rsync(
         A list of destination project IDs.
 
     """
+    configure_logging()
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to rsync all projects."
         raise ValueError(msg)
@@ -249,7 +265,8 @@ def rsync(
 @app.default
 def default_action() -> None:
     """Docstring for default_action."""
-    logger.info("No input commands given.")
+    configure_logging()
+    LOGGER.info("No input commands given.")
 
 
 if __name__ == "__main__":
