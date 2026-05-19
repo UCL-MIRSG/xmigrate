@@ -1,8 +1,8 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
+import pathlib
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
 import cyclopts
 import requests
@@ -26,7 +26,7 @@ app = cyclopts.App(
 LOGGER = logging.getLogger(__name__)
 
 
-def configure_logging(log_file: str | Path = "xmigrate.log") -> None:
+def configure_logging(log_file: str | pathlib.Path = "xmigrate.log") -> None:
     """Configure application logging once for the xmigrate CLI."""
     logging.basicConfig(
         level=logging.INFO,
@@ -49,6 +49,7 @@ def migrate(  # noqa: PLR0913
     source_rsync: str,
     destination: str,
     destination_rsync: str,
+    logging_file_path: pathlib.Path,
     destination_projects: list[str] | None = None,
     destination_secondary_ids: list[str] | None = None,
     destination_project_names: list[str] | None = None,
@@ -88,7 +89,9 @@ def migrate(  # noqa: PLR0913
         Flag indicating whether to skip running rsync.
 
     """
-    configure_logging()
+    logging_file_path = logging_file_path / "migrate.log"
+    configure_logging(logging_file_path)
+
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to migrate all projects."
         raise ValueError(msg)
@@ -199,10 +202,11 @@ def migrate(  # noqa: PLR0913
 
 
 @app.command
-def rsync(
+def rsync(  # noqa: PLR0913
     source: str,
     source_rsync: str,
     destination_rsync: str,
+    logging_file_path: pathlib.Path,
     source_projects: list[str] | None = None,
     destination_projects: list[str] | None = None,
 ) -> None:
@@ -230,7 +234,9 @@ def rsync(
         A list of destination project IDs.
 
     """
-    configure_logging()
+    logging_file_path = logging_file_path / "rsync.log"
+    configure_logging(logging_file_path)
+
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to rsync all projects."
         raise ValueError(msg)
