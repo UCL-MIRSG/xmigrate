@@ -15,4 +15,4 @@ source_projects= '["proj1", "proj2"]' # optional so can be removed as default is
 source_rsync = "/original/local/path/"
 destination_projects = '["proj11", "proj12"]' # optional so can be removed as default is None, do not set to empty list []
 destination_rsync = "/new/local/path/"
-logging_file_path = "/xmigrate-configs/path/"
+logging_folder_path = "/xmigrate-configs/path/"

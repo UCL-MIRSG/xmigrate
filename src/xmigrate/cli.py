@@ -28,6 +28,8 @@ LOGGER = logging.getLogger(__name__)
 
 def configure_logging(log_file: str | pathlib.Path = "xmigrate.log") -> None:
     """Configure application logging once for the xmigrate CLI."""
+    log_file = pathlib.Path(log_file)
+    log_file.parent.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
@@ -49,7 +51,7 @@ def migrate(  # noqa: PLR0913
     source_rsync: str,
     destination: str,
     destination_rsync: str,
-    logging_file_path: pathlib.Path,
+    logging_folder_path: pathlib.Path,
     destination_projects: list[str] | None = None,
     destination_secondary_ids: list[str] | None = None,
     destination_project_names: list[str] | None = None,
@@ -89,7 +91,7 @@ def migrate(  # noqa: PLR0913
         Flag indicating whether to skip running rsync.
 
     """
-    logging_file_path = logging_file_path / "migrate.log"
+    logging_file_path = logging_folder_path / "migrate.log"
     configure_logging(logging_file_path)
 
     if source_projects is not None and not source_projects:
@@ -206,7 +208,7 @@ def rsync(  # noqa: PLR0913
     source: str,
     source_rsync: str,
     destination_rsync: str,
-    logging_file_path: pathlib.Path,
+    logging_folder_path: pathlib.Path,
     source_projects: list[str] | None = None,
     destination_projects: list[str] | None = None,
 ) -> None:
@@ -234,7 +236,7 @@ def rsync(  # noqa: PLR0913
         A list of destination project IDs.
 
     """
-    logging_file_path = logging_file_path / "rsync.log"
+    logging_file_path = logging_folder_path / "rsync.log"
     configure_logging(logging_file_path)
 
     if source_projects is not None and not source_projects:
