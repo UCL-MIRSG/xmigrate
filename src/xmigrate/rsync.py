@@ -49,6 +49,8 @@ def run_rsync(
         rsync_source,
         rsync_destination,
     ]
+    msg = f"rsync command to be run: {cmd}"
+    LOGGER.info(msg)
 
     try:
         subprocess.check_output(cmd)  # noqa: S603
