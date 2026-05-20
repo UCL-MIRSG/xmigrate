@@ -67,5 +67,5 @@ def migration(
         all_source_info=source_info,
         destination_connection=destination_connection,
         source_connection=source_connection,
-        sync_database_metadata_bool=True
+        sync_database_metadata_bool=True,
     )
