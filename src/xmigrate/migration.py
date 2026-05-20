@@ -788,7 +788,7 @@ class Migration:
             .assessors
         ):
             self.destination_connection.post(
-                f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors",
+                f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors/{assessor.id}",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
