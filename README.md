@@ -49,18 +49,40 @@ uv sync --group test
 First, configure `xmigrate` using `xmigrate.toml`. See `xmigrate.toml.sample`
 for an example.
 
-Then run the on the command line the migration for all projects on the source
-using:
+Then run the `migrate` command for the migration of all projects on the source
+(if source_projects argument is None) or a subset of projects from source to
+destination using:
 
 ```sh
-xmigrate migrate_all_projects
+xmigrate migrate
 ```
 
-You may only want to migrate a subset of projects on the source using:
+This command has two flags (default values based on the assumption that you are
+running the command on the source XNAT):
+
+- `include_rsync` with the default set to true with the assumption that you will
+  run this command in a location where you have local access to both
+  `source_rsync` and `destination_rsync` locations.
+
+- `sync_database_metadata_bool` with the default set to false with the
+  assumption that you will run this command in a location where you will not
+  have access to the destination database.
+
+If you want to perform rsync only then you can run the `rsync` command using:
 
 ```sh
-xmigrate migrate_project_list
+xmigrate rsync
 ```
+
+If you do not have destination database access where you are running the
+`migrate` command then you can separately sync the database metadata by running
+the `sync_database_metadata` command using:
+
+```sh
+xmigrate sync_database_metadata
+```
+
+### Running `xmigrate` for testing
 
 For testing, you may also want to set your environment variables using mise.
 
