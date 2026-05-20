@@ -63,6 +63,8 @@ class Migration:
     """The source projects information."""
     all_destination_info: list[ProjectInfo]
     """The destination projects information."""
+    sync_database_metadata_bool: bool
+    """True if destination database can be accessed."""
 
     def __post_init__(self) -> None:
         """Post-initialisation to set up mappers and initial project information."""
@@ -1138,11 +1140,14 @@ class Migration:
             self._refresh_catalogues()
 
             # Persist final ID maps and source metadata to the migration DB
-            self._save_resource_metadata_to_db(resource="subjects")
-            self._save_resource_metadata_to_db(resource="experiments")
+            if self.sync_database_metadata_bool:
+                # Persist final ID maps and source metadata to the migration DB
+                self._save_resource_metadata_to_db(resource="subjects")
+                self._save_resource_metadata_to_db(resource="experiments")
 
         self._apply_sharing()
-        self._sync_destination_metadata()
+        if self.sync_database_metadata_bool:
+            self._sync_destination_metadata()
 
     def run(self) -> None:
         """Migrate a project from source to destination XNAT instance."""
@@ -1162,3 +1167,41 @@ class Migration:
         end = time.time()
 
         LOGGER.info("Duration = %d", end - start)
+
+    def _sync_database_metadata(self) -> None:
+        """Run the migration process."""
+        for mapper, source_info, destination_info in zip(
+            self.mappers,
+            self.all_source_info,
+            self.all_destination_info,
+            strict=True,
+        ):
+            # Set current project context
+            self.mapper = mapper
+            self.source_info = source_info
+            self.destination_info = destination_info
+
+            LOGGER.info("Syncing database metadata for project: %s -> %s", source_info.id, destination_info.id)
+
+            # Persist final ID maps and source metadata to the migration DB
+            self._save_resource_metadata_to_db(resource="subjects")
+            self._save_resource_metadata_to_db(resource="experiments")
+
+        self._sync_destination_metadata()
+
+    def sync_database_metadata(self) -> None:
+        """Sync database metadata from source to destination XNAT instance."""
+        if self.sync_database_metadata_bool:
+            start = time.time()
+            with xdb.open_db() as self._xmigrate_connection:
+                self._xmigrate_ids = self._get_run_ids()
+                try:
+                    self._sync_database_metadata()
+                finally:
+                    xdb.complete_migration_run(self._xmigrate_connection, self._xmigrate_ids.migration_run)
+
+            end = time.time()
+
+            LOGGER.info("Duration = %d", end - start)
+
+        LOGGER.info("Database metadata sync was not attempted")
