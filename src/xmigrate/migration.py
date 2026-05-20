@@ -3,11 +3,13 @@
 import dataclasses
 import json
 import logging
+from pickle import GET
 import time
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
 import defusedxml.ElementTree as DefusedET
+from openneuro import login
 import pandas as pd
 
 import xnat
@@ -27,6 +29,9 @@ if TYPE_CHECKING:
 # packages importing this module can configure logging more specifically.
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
+
+_ROI_COLLECTION_NS = "http://icr.ac.uk/icr"
+_ROI_COLLECTION_TAG = f"{{{_ROI_COLLECTION_NS}}}RoiCollection"
 
 
 @dataclasses.dataclass
@@ -84,6 +89,7 @@ class Migration:
         self.subject_sharing: dict = {}
         self.experiment_sharing: dict = {}
         self.assessor_sharing: dict = {}
+        self._roi_collections_to_populate: dict[str, str] = {}
 
         self._destination_project_id: int = 0  # updated per-iteration in _create_project
         self.sitewide_roles: dict = {}
@@ -405,7 +411,7 @@ class Migration:
 
     def _export_id_map(
         self,
-        resource_type: str,
+        map_type: XnatType,
         source_xnat_id: str,
         destination_xnat_id: str,
     ) -> None:
@@ -414,9 +420,8 @@ class Migration:
 
         Parameters
         ----------
-        resource_type
-            The XNAT resource type string, e.g. ``"subject"``, ``"experiment"``,
-            ``"project"``, ``"scan"``, ``"assessor"``.
+        map_type
+            The XNAT resource type enum.
         source_xnat_id
             The source XNAT ID.
         destination_xnat_id
@@ -425,7 +430,7 @@ class Migration:
         """
         map_id = xdb.insert_map(
             self._xmigrate_connection,
-            resource_type=resource_type,
+            resource_type=self.mapper.ids_to_map[map_type],
             source_project_id=self._xmigrate_ids.source_project,
             destination_project_id=self._xmigrate_ids.destination_project,
             source_xnat_id=source_xnat_id,
@@ -473,7 +478,7 @@ class Migration:
             map_type=XnatType.project,
         )
         self._export_id_map(
-            resource_type="project",
+            map_type=XnatType.project,
             source_xnat_id=self.source_info.id,
             destination_xnat_id=self.destination_info.id,
         )
@@ -518,7 +523,7 @@ class Migration:
         self.subject_sharing[subject.label] = sharing_info
 
         # Check if the subject has already been migrated in a previous run
-        if subject.id in self.mapper.id_map[XnatType.subject]:
+        if subject.id in self.mapper.id_map[self.mapper.ids_to_map[XnatType.subject]]:
             msg = f"Skipping creation of subject {subject.id} as already exists on destination."
             LOGGER.info(msg)
             return
@@ -547,10 +552,10 @@ class Migration:
             self.subj_failed_count = self.subj_failed_count + 1
 
         self._create_custom_forms_data(subject)
-        dest_subject_id = self.mapper.id_map[XnatType.subject].get(subject.id)
+        dest_subject_id =self.mapper.id_map[self.mapper.ids_to_map[XnatType.subject]].get(subject.id)
         if dest_subject_id is not None:
             self._export_id_map(
-                resource_type="subject",
+                map_type=XnatType.subject,
                 source_xnat_id=subject.id,
                 destination_xnat_id=dest_subject_id,
             )
@@ -582,7 +587,7 @@ class Migration:
             msg = f"Datatype {datatype} not available on destination server for subject {subject.id}."
             raise RuntimeError(msg)
 
-        if experiment.id in self.mapper.id_map[XnatType.experiment]:
+        if experiment.id in self.mapper.id_map[self.mapper.ids_to_map[XnatType.experiment]]:
             msg = f"Skipping creation of experiment {experiment.id} as already exists on destination."
             LOGGER.info(msg)
             return
@@ -644,10 +649,10 @@ class Migration:
             )
 
         self._create_custom_forms_data(experiment)
-        dest_experiment_id = self.mapper.id_map[XnatType.experiment].get(experiment.id)
+        dest_experiment_id =self.mapper.id_map[self.mapper.ids_to_map[XnatType.experiment]].get(experiment.id)
         if dest_experiment_id is not None:
             self._export_id_map(
-                resource_type="experiment",
+                resource_type=XnatType.experiment,
                 source_xnat_id=experiment.id,
                 destination_xnat_id=dest_experiment_id,
             )
@@ -750,7 +755,7 @@ class Migration:
             The XNATListing object representing the assessor.
 
         """
-        if assessor.id in self.mapper.id_map[XnatType.assessor]:
+        if assessor.id in self.mapper.id_map[self.mapper.ids_to_map[XnatType.assessor]]:
             msg = f"Skipping creation of assessor {assessor.id} as already exists on destination."
             LOGGER.info(msg)
             return
@@ -775,6 +780,13 @@ class Migration:
         sharing_info["source_id"] = assessor.id  # Store the source ID
         self.assessor_sharing[assessor.label] = sharing_info
 
+        if root.tag == _ROI_COLLECTION_TAG:
+            collection_type = assessor.data.get("collectionType")
+            if collection_type:
+                self._roi_collections_to_populate[assessor.label] = collection_type
+            else:
+                LOGGER.warning("Cannot determine collection type for ROI assessor %s; OHIF tables will not be populated", assessor.label)
+
         root = self.mapper.map_xml(
             root,
             resource_type=XnatType.assessor,
@@ -788,7 +800,7 @@ class Migration:
             .assessors
         ):
             self.destination_connection.post(
-                f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors/{assessor.id}",
+                f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
@@ -821,10 +833,10 @@ class Migration:
             )
 
         self._create_custom_forms_data(assessor)
-        dest_assessor_id = self.mapper.id_map[XnatType.assessor].get(assessor.id)
+        dest_assessor_id =self.mapper.id_map[self.mapper.ids_to_map[XnatType.assessor]].get(assessor.id)
         if dest_assessor_id is not None:
             self._export_id_map(
-                resource_type="assessor",
+                map_type=XnatType.assessor,
                 source_xnat_id=assessor.id,
                 destination_xnat_id=dest_assessor_id,
             )
@@ -952,6 +964,51 @@ class Migration:
             populate_stats=True,
         )
 
+
+    def _populate_roi_collection(
+        self,
+        assessor: xnat.core.XNATListing,
+        experiment: xnat.core.XNATListing,
+    ) -> None:
+        """
+        Upload an ROI collection file via the OHIF ROI API to populate xhbm_roi.
+
+        This is necessary to trigger OHIF to populate the xhbm_roi and xhbm_dicom_spatial_data tables,
+        which are required for OHIF to display ROIs.
+        """
+        collection_type = self._roi_collections_to_populate[assessor.label]
+        resource = assessor.resources[collection_type]
+        data_files = [f for f in resource.files.values() if not f.name.endswith("_catalog.xml")]
+        if not data_files:
+            LOGGER.warning(
+                "No data file found in %s resource for ROI collection %s; skipping OHIF population",
+                collection_type,
+                assessor.label,
+            )
+            return
+        with data_files[0].open() as fh:
+            file_content = fh.read()
+        try:
+            self.destination_connection.put(
+                f"/xapi/roi/projects/{self.destination_info.id}/sessions/{experiment.id}"
+                f"/collections/{assessor.label}?overwrite=true&type={collection_type}",
+                data=file_content,
+                headers={"Content-Type": "application/octet-stream"},
+            )
+            LOGGER.info("Populated OHIF ROI data for %s (type=%s)", assessor.label, collection_type)
+        except XNATResponseError as e:
+            LOGGER.warning("Failed to populate OHIF ROI data for %s: %s", assessor.label, e)
+
+    def _refresh_ohif_sdcache(self, session_id: str) -> None:
+        """Trigger OHIF spatial data cache refresh to populate xhbm_dicom_spatial_data."""
+        try:
+            self.destination_connection.post(
+                f"/xapi/roi/projects/{self.destination_info.id}/sdcache/{session_id}?cmd=REFRESH",
+            )
+            LOGGER.info("Refreshed OHIF spatial data cache for session %s", session_id)
+        except XNATResponseError as e:
+            LOGGER.warning("Failed to refresh OHIF spatial data cache for session %s: %s", session_id, e)
+
     def _refresh_catalogues(self) -> None:
         """Refresh all catalogues for the destination XNAT project."""
         for subject in self.destination_connection.projects[self.destination_info.id].subjects:
@@ -964,21 +1021,34 @@ class Migration:
                     self._refresh_catalogue(resource_path)
 
                 for assessor in experiment.assessors:
+                    # Assessors are experiments in the XNAT DB, so refresh at both the
+                    # resource level and the experiment (assessor) level.
+                    for resource in assessor.resources:
+                        resource_path = (
+                            f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
+                            f"experiments/{experiment.label}/assessors/{assessor.label}/resources/{resource.id}"
+                        )
+                        self._refresh_catalogue(resource_path)
                     resource_path = (
                         f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
                         f"experiments/{experiment.label}/assessors/{assessor.label}"
                     )
                     self._refresh_catalogue(resource_path)
+                    resource_path = f"/archive/experiments/{assessor.id}/"
+                    self._refresh_catalogue(resource_path)
 
-                resource_path = (
-                    f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
-                    f"experiments/{experiment.label}"
-                )
-                self._refresh_catalogue(resource_path)
-                # Regenerate OHIF session data
-                self.destination_connection.post(
-                    f"/xapi/viewer/projects/{self.destination_info.id}/experiments/{experiment.id}",
-                )
+                    if assessor.label in self._roi_collections_to_populate:
+                        self._populate_roi_collection(assessor, experiment)
+
+                try:
+                    self.destination_connection.post(
+                        f"/xapi/viewer/projects/{self.destination_info.id}/experiments/{experiment.id}",
+                    )
+                except XNATResponseError as e:
+                    LOGGER.warning("Failed to regenerate OHIF session metadata for %s: %s", experiment.id, e)
+
+                if self._roi_collections_to_populate:
+                    self._refresh_ohif_sdcache(experiment)
 
             resource_path = f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}"
             self._refresh_catalogue(resource_path)
@@ -1133,6 +1203,7 @@ class Migration:
             self.destination_info = destination_info
 
             LOGGER.info("Migrating project: %s -> %s", source_info.id, destination_info.id)
+            self._roi_collections_to_populate = {}
             self._create_resources()
             self._set_project_configs()
             self._refresh_catalogues()
