@@ -3,13 +3,11 @@
 import dataclasses
 import json
 import logging
-from pickle import GET
 import time
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
 
 import defusedxml.ElementTree as DefusedET
-from openneuro import login
 import pandas as pd
 
 import xnat
@@ -552,7 +550,7 @@ class Migration:
             self.subj_failed_count = self.subj_failed_count + 1
 
         self._create_custom_forms_data(subject)
-        dest_subject_id =self.mapper.id_map[self.mapper.ids_to_map[XnatType.subject]].get(subject.id)
+        dest_subject_id = self.mapper.id_map[self.mapper.ids_to_map[XnatType.subject]].get(subject.id)
         if dest_subject_id is not None:
             self._export_id_map(
                 map_type=XnatType.subject,
@@ -649,10 +647,10 @@ class Migration:
             )
 
         self._create_custom_forms_data(experiment)
-        dest_experiment_id =self.mapper.id_map[self.mapper.ids_to_map[XnatType.experiment]].get(experiment.id)
+        dest_experiment_id = self.mapper.id_map[self.mapper.ids_to_map[XnatType.experiment]].get(experiment.id)
         if dest_experiment_id is not None:
             self._export_id_map(
-                resource_type=XnatType.experiment,
+                map_type=XnatType.experiment,
                 source_xnat_id=experiment.id,
                 destination_xnat_id=dest_experiment_id,
             )
@@ -785,7 +783,10 @@ class Migration:
             if collection_type:
                 self._roi_collections_to_populate[assessor.label] = collection_type
             else:
-                LOGGER.warning("Cannot determine collection type for ROI assessor %s; OHIF tables will not be populated", assessor.label)
+                LOGGER.warning(
+                    "Cannot determine collection type for ROI assessor %s; OHIF tables will not be populated",
+                    assessor.label,
+                )
 
         root = self.mapper.map_xml(
             root,
@@ -833,7 +834,7 @@ class Migration:
             )
 
         self._create_custom_forms_data(assessor)
-        dest_assessor_id =self.mapper.id_map[self.mapper.ids_to_map[XnatType.assessor]].get(assessor.id)
+        dest_assessor_id = self.mapper.id_map[self.mapper.ids_to_map[XnatType.assessor]].get(assessor.id)
         if dest_assessor_id is not None:
             self._export_id_map(
                 map_type=XnatType.assessor,
@@ -963,7 +964,6 @@ class Migration:
             append=True,
             populate_stats=True,
         )
-
 
     def _populate_roi_collection(
         self,
