@@ -28,9 +28,6 @@ if TYPE_CHECKING:
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
 
-_ROI_COLLECTION_NS = "http://icr.ac.uk/icr"
-_ROI_COLLECTION_TAG = f"{{{_ROI_COLLECTION_NS}}}RoiCollection"
-
 
 @dataclasses.dataclass
 class XMigrateIDs:
@@ -778,9 +775,9 @@ class Migration:
         sharing_info["source_id"] = assessor.id  # Store the source ID
         self.assessor_sharing[assessor.label] = sharing_info
 
-        if root.tag == _ROI_COLLECTION_TAG:
+        if assessor.xpath == "icr:roiCollectionData":
             collection_type = assessor.data.get("collectionType")
-            if collection_type:
+            if collection_type is not None:
                 self._roi_collections_to_populate[assessor.label] = collection_type
             else:
                 LOGGER.warning(
@@ -999,15 +996,15 @@ class Migration:
         except XNATResponseError as e:
             LOGGER.warning("Failed to populate OHIF ROI data for %s: %s", assessor.label, e)
 
-    def _refresh_ohif_sdcache(self, session_id: str) -> None:
+    def _refresh_ohif_sdcache(self, experiment: xnat.core.XNATListing) -> None:
         """Trigger OHIF spatial data cache refresh to populate xhbm_dicom_spatial_data."""
         try:
             self.destination_connection.post(
-                f"/xapi/roi/projects/{self.destination_info.id}/sdcache/{session_id}?cmd=REFRESH",
+                f"/xapi/roi/projects/{self.destination_info.id}/sdcache/{experiment.id}?cmd=REFRESH",
             )
-            LOGGER.info("Refreshed OHIF spatial data cache for session %s", session_id)
+            LOGGER.info("Refreshed OHIF spatial data cache for session %s", experiment.id)
         except XNATResponseError as e:
-            LOGGER.warning("Failed to refresh OHIF spatial data cache for session %s: %s", session_id, e)
+            LOGGER.warning("Failed to refresh OHIF spatial data cache for session %s: %s", experiment.id, e)
 
     def _refresh_catalogues(self) -> None:
         """Refresh all catalogues for the destination XNAT project."""
@@ -1021,8 +1018,6 @@ class Migration:
                     self._refresh_catalogue(resource_path)
 
                 for assessor in experiment.assessors:
-                    # Assessors are experiments in the XNAT DB, so refresh at both the
-                    # resource level and the experiment (assessor) level.
                     for resource in assessor.resources:
                         resource_path = (
                             f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
@@ -1034,6 +1029,8 @@ class Migration:
                         f"experiments/{experiment.label}/assessors/{assessor.label}"
                     )
                     self._refresh_catalogue(resource_path)
+
+                    # Assessors are experiments in the XNAT DB, so refresh at the experiment level too
                     resource_path = f"/archive/experiments/{assessor.id}/"
                     self._refresh_catalogue(resource_path)
 
