@@ -78,6 +78,24 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
 
     """
     destination = Secrets().destination_db_conn
+    ssl_parts = []
+
+    if destination.sslmode:
+        ssl_parts.append(f"SSLMODE '{destination.sslmode}'")
+
+    if destination.sslrootcert:
+        ssl_parts.append(f"SSLROOTCERT '{destination.sslrootcert}'")
+
+    if destination.sslcert:
+        ssl_parts.append(f"SSLCERT '{destination.sslcert}'")
+
+    if destination.sslkey:
+        ssl_parts.append(f"SSLKEY '{destination.sslkey}'")
+
+    ssl_config = ""
+    if ssl_parts:
+        ssl_config = ",\n    " + ",\n    ".join(ssl_parts)
+
     run_sql_template(
         conn,
         "create_destination_secret.sql",
@@ -87,6 +105,7 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
             "database": destination.database,
             "user": destination.user,
             "password": destination.password.get_secret_value(),
+            "ssl_config": ssl_config,
         },
     )
     run_sql_template(conn, "attach_destination_postgres.sql")
