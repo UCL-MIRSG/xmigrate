@@ -4,6 +4,5 @@ CREATE OR REPLACE SECRET destination_secret (
     PORT $port,
     DATABASE $database,
     USER $user,
-    PASSWORD $password
-    $ssl_config
+    PASSWORD $password{ssl_config}
 );

@@ -20,6 +20,7 @@ def run_sql_template(
     template_filename: str,
     *,
     bind_parameters: dict | None = None,
+    sql_format_parameters: dict | None = None,
 ) -> duckdb.DuckDBPyConnection:
     """
     Load and execute a packaged SQL template, returning the connection result.
@@ -45,6 +46,10 @@ def run_sql_template(
 
     """
     sql = load_sql_template(template_filename)
+
+    if sql_format_parameters:
+        sql = sql.format(**sql_format_parameters)
+
     if bind_parameters is None:
         return conn.execute(sql)
     return conn.execute(sql, bind_parameters)

@@ -105,6 +105,8 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
             "database": destination.database,
             "user": destination.user,
             "password": destination.password.get_secret_value(),
+        },
+        sql_format_parameters={
             "ssl_config": ssl_config,
         },
     )
