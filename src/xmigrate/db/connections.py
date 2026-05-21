@@ -78,36 +78,40 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
 
     """
     destination = Secrets().destination_db_conn
-    uri = (
-        f"postgresql://{destination.user}:"
-        f"{destination.password.get_secret_value()}"
-        f"@{destination.host}:{destination.port}"
-        f"/{destination.database}"
-    )
-
-    params = []
+    attach_options = []
 
     if destination.sslmode:
-        params.append(f"sslmode={destination.sslmode}")
+        attach_options.append(f"sslmode={destination.sslmode}")
 
     if destination.sslrootcert:
-        params.append(f"sslrootcert={destination.sslrootcert}")
+        attach_options.append(f"sslrootcert={destination.sslrootcert}")
 
     if destination.sslcert:
-        params.append(f"sslcert={destination.sslcert}")
+        attach_options.append(f"sslcert={destination.sslcert}")
 
     if destination.sslkey:
-        params.append(f"sslkey={destination.sslkey}")
+        attach_options.append(f"sslkey={destination.sslkey}")
 
-    if params:
-        uri += "?" + "&".join(params)
+    destination_conn_string = " ".join(attach_options)
 
     run_sql_template(
         conn,
         "create_destination_secret.sql",
-        bind_parameters={"uri": uri},
+        bind_parameters={
+            "host": destination.host,
+            "port": destination.port,
+            "database": destination.database,
+            "user": destination.user,
+            "password": destination.password.get_secret_value(),
+        },
     )
-    run_sql_template(conn, "attach_destination_postgres.sql")
+    run_sql_template(
+        conn,
+        "attach_destination_postgres.sql",
+        bind_parameters={
+            "destination_conn_string": destination_conn_string,
+        },
+        )
 
 
 def load_metadata_from_db(

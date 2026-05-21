@@ -1,4 +1,8 @@
 CREATE OR REPLACE SECRET destination_secret (
     TYPE postgres,
-    URI $uri
+    HOST $host,
+    PORT $port,
+    DATABASE $database,
+    USER $user,
+    PASSWORD $password
 );
