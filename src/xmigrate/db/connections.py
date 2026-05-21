@@ -6,7 +6,7 @@ from contextlib import contextmanager
 
 import duckdb
 
-from xmigrate.db.helpers import DB_PATH, run_sql_template
+from xmigrate.db.helpers import DB_PATH, load_sql_template, run_sql_template
 from xmigrate.settings import Secrets
 
 
@@ -105,13 +105,10 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
             "password": destination.password.get_secret_value(),
         },
     )
-    run_sql_template(
-        conn,
-        "attach_destination_postgres.sql",
-        bind_parameters={
-            "destination_conn_string": destination_conn_string,
-        },
-        )
+    sql = load_sql_template("attach_destination_postgres.sql").format(
+        destination_conn_string=destination_conn_string.replace("'", "''")
+    )
+    conn.execute(sql)
 
 
 def load_metadata_from_db(
