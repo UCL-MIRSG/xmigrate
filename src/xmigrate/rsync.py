@@ -2,6 +2,7 @@
 
 import logging
 import pathlib
+import shlex
 import subprocess
 
 # Main logger in cli.py
@@ -49,8 +50,7 @@ def run_rsync(
         rsync_source,
         rsync_destination,
     ]
-    msg = f"rsync command to be run: {cmd}"
-    LOGGER.info(msg)
+    LOGGER.info("rsync command to be run: %s", shlex.join(cmd))
 
     try:
         subprocess.check_output(cmd)  # noqa: S603

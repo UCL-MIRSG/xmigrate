@@ -208,7 +208,7 @@ def rsync(  # noqa: PLR0913
     source: str,
     source_rsync: str,
     destination_rsync: str,
-    logging_folder_path: pathlib.Path = pathlib.Path("."),
+    logging_folder_path: pathlib.Path = pathlib.Path("logs"),
     source_projects: list[str] | None = None,
     destination_projects: list[str] | None = None,
 ) -> None:
@@ -236,6 +236,7 @@ def rsync(  # noqa: PLR0913
         A list of destination project IDs.
 
     """
+    logging_folder_path.mkdir(parents=True, exist_ok=True)
     logging_file_path = logging_folder_path / "rsync.log"
     configure_logging(logging_file_path)
 
