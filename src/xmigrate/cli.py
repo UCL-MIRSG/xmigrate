@@ -77,114 +77,29 @@ def migrate(  # noqa: PLR0913
         Flag indicating whether to sync database metadata if there is access to destination database.
 
     """
-    if source_projects is not None and not source_projects:
-        msg = "source_projects cannot be an empty list. Use None to migrate all projects."
-        raise ValueError(msg)
+    migration, updated_source_projects, updated_destination_projects = create_migration_instance(
+        source,
+        source_rsync,
+        destination,
+        destination_rsync,
+        source_projects,
+        destination_projects,
+        destination_secondary_ids,
+        destination_project_names,
+        sync_database_metadata_bool=sync_database_metadata_bool,
+    )
 
-    if source_projects is None and any(
-        value is not None
-        for value in (
-            destination_projects,
-            destination_secondary_ids,
-            destination_project_names,
-        )
-    ):
-        msg = (
-            "destination_* arguments cannot be set when source_projects is None. "
-            "Use source_projects to explicitly define project mappings."
-        )
-        raise ValueError(msg)
-
-    with (
-        xnat.connect(source) as source_connection,
-        xnat.connect(destination) as destination_connection,
-    ):
-        if source_projects:
-            source_secondary_ids = source_projects
-            source_project_names = source_projects
-            destination_projects = destination_projects if destination_projects is not None else source_projects
-            destination_secondary_ids = (
-                destination_secondary_ids if destination_secondary_ids is not None else source_projects
-            )
-            destination_project_names = (
-                destination_project_names if destination_project_names is not None else source_projects
-            )
-        else:
-            rows = [(p.id, p.secondary_id, p.project) for p in source_connection.projects]
-            source_projects, source_secondary_ids, source_project_names = (
-                map(list, zip(*rows, strict=False)) if rows else ([], [], [])
+    if include_rsync:
+        for source_proj, destination_proj in zip(updated_source_projects, updated_destination_projects, strict=True):
+            run_rsync(
+                destination_rsync,
+                destination_proj,
+                source_rsync,
+                source_proj,
             )
 
-            destination_projects = destination_projects if destination_projects is not None else source_projects
-            destination_secondary_ids = source_secondary_ids
-            destination_project_names = source_project_names
-
-        if include_rsync:
-            for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
-                run_rsync(
-                    destination_rsync,
-                    destination_proj,
-                    source_rsync,
-                    source_proj,
-                )
-
-        try:
-            source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
-        except (requests.exceptions.RequestException, OSError) as e:
-            msg = f"Failed to fetch source archive path: {e}"
-            logger.warning(msg)
-            source_archive = None
-
-        try:
-            destination_archive = destination_connection.get("/xapi/siteConfig/archivePath").text
-        except (requests.exceptions.RequestException, OSError) as e:
-            msg = f"Failed to fetch destination archive path: {e}"
-            logger.warning(msg)
-            destination_archive = None
-
-        # Create a list of ProjectInfo objects, one for each project
-        all_source_info = [
-            ProjectInfo(
-                id=source_proj,
-                secondary_id=source_sec_id,
-                project_name=source_proj_name,
-                archive_path=source_archive,
-                rsync_path=source_rsync,
-            )
-            for source_proj, source_sec_id, source_proj_name in zip(
-                source_projects,
-                source_secondary_ids,
-                source_project_names,
-                strict=True,
-            )
-        ]
-
-        all_destination_info = [
-            ProjectInfo(
-                id=destination_proj,
-                secondary_id=destination_sec_id,
-                project_name=destination_proj_name,
-                archive_path=destination_archive,
-                rsync_path=destination_rsync,
-            )
-            for destination_proj, destination_sec_id, destination_proj_name in zip(
-                destination_projects,
-                destination_secondary_ids,
-                destination_project_names,
-                strict=True,
-            )
-        ]
-
-        migration = Migration(
-            source_connection=source_connection,
-            destination_connection=destination_connection,
-            all_source_info=all_source_info,
-            all_destination_info=all_destination_info,
-            sync_database_metadata_bool=sync_database_metadata_bool,
-        )
-
-        migration.run()
-        logger.info("Migration run finished.")
+    migration.run()
+    logger.info("Migration run finished.")
 
 
 @app.command
@@ -264,10 +179,10 @@ def sync_database_metadata(  # noqa: PLR0913
     sync_database_metadata_bool: bool = True,
 ) -> None:
     """
-    Migrate a project or projects from source to destination XNAT instance.
+    Sync metadata for a project or projects from source onto the destination database.
 
     Example:
-        xmigrate migrate
+        xmigrate sync_database_metadata
 
     Command can be run with the arguments within an xmigrate.toml config file.
 
@@ -295,8 +210,59 @@ def sync_database_metadata(  # noqa: PLR0913
         Flag indicating whether to sync database metadata if there is access to destination database.
 
     """
+    migration, _, _ = create_migration_instance(
+        source,
+        source_rsync,
+        destination,
+        destination_rsync,
+        source_projects,
+        destination_projects,
+        destination_secondary_ids,
+        destination_project_names,
+        sync_database_metadata_bool=sync_database_metadata_bool,
+    )
+
+    migration.sync_database_metadata()
+    logger.info("Database metadata sync finished.")
+
+
+@app.default
+def default_action() -> None:
+    """Docstring for default_action."""
+    logger.info("No input commands given.")
+
+
+def create_migration_instance(  # noqa: PLR0913
+    source: str,
+    source_rsync: str,
+    destination: str,
+    destination_rsync: str,
+    source_projects: list[str] | None = None,
+    destination_projects: list[str] | None = None,
+    destination_secondary_ids: list[str] | None = None,
+    destination_project_names: list[str] | None = None,
+    *,
+    sync_database_metadata_bool: bool = True,
+) -> tuple[Migration, list[str], list[str]]:
+    """
+    Create migration instance for Migration class and update source and destination projects if necessary.
+
+    Parameters
+    ----------
+    Same as sync_database_metadata cli command.
+
+    Returns
+    -------
+    migration
+        The migration instance.
+    source_projects
+        A list of source project IDs.
+    destination_projects
+        A list of destination project IDs.
+
+    """
     if source_projects is not None and not source_projects:
-        msg = "source_projects cannot be an empty list. Use None to migrate all projects."
+        msg = "source_projects cannot be an empty list. Use None for all projects."
         raise ValueError(msg)
 
     if source_projects is None and any(
@@ -392,14 +358,7 @@ def sync_database_metadata(  # noqa: PLR0913
             sync_database_metadata_bool=sync_database_metadata_bool,
         )
 
-        migration.sync_database_metadata()
-        logger.info("Database metadata sync finished.")
-
-
-@app.default
-def default_action() -> None:
-    """Docstring for default_action."""
-    logger.info("No input commands given.")
+        return migration, source_projects, destination_projects
 
 
 if __name__ == "__main__":
