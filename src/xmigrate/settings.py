@@ -1,6 +1,8 @@
 """xmigrate configuration via environment variables."""
 
-from pydantic import BaseModel, SecretStr
+from enum import StrEnum
+
+from pydantic import BaseModel, SecretStr, model_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -13,16 +15,44 @@ __all__ = [
 ]
 
 
+class SSLMode(StrEnum):
+    DISABLE = "disable"
+    ALLOW = "allow"
+    PREFER = "prefer"
+    REQUIRE = "require"
+    VERIFY_CA = "verify-ca"
+    VERIFY_FULL = "verify-full"
+
+
 class DestinationSecret(BaseModel):
     host: str
     port: int
     database: str
     user: str
     password: SecretStr
-    sslmode: str | None = None
+    sslmode: SSLMode | None = None
     sslrootcert: str | None = None
     sslcert: str | None = None
     sslkey: str | None = None
+
+    @model_validator(mode="after")
+    def validate_ssl_config(self) -> "DestinationSecret":
+        if self.sslmode is None:
+            return self
+
+        required_ssl_fields = {
+            "sslrootcert": self.sslrootcert,
+            "sslcert": self.sslcert,
+            "sslkey": self.sslkey,
+        }
+
+        missing = [name for name, value in required_ssl_fields.items() if not value]
+
+        if missing:
+            msg = f"{', '.join(missing)} required when sslmode is set"
+            raise ValueError(msg)
+
+        return self
 
 
 class Secrets(BaseSettings):
