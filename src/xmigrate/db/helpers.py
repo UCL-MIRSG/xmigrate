@@ -45,7 +45,6 @@ def run_sql_template(
 
     """
     sql = load_sql_template(template_filename)
-
     if bind_parameters is None:
         return conn.execute(sql)
     return conn.execute(sql, bind_parameters)
