@@ -208,7 +208,7 @@ def rsync(  # noqa: PLR0913
     source: str,
     source_rsync: str,
     destination_rsync: str,
-    logging_folder_path: pathlib.Path,
+    logging_folder_path: pathlib.Path = pathlib.Path("."),
     source_projects: list[str] | None = None,
     destination_projects: list[str] | None = None,
 ) -> None:
