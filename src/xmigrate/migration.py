@@ -63,7 +63,7 @@ class Migration:
     """The source projects information."""
     all_destination_info: list[ProjectInfo]
     """The destination projects information."""
-    sync_database_metadata_bool: bool
+    sync_database_metadata_bool: bool = False
     """True if destination database can be accessed."""
 
     def __post_init__(self) -> None:
@@ -1271,5 +1271,5 @@ class Migration:
             end = time.time()
 
             LOGGER.info("Duration = %d", end - start)
-
-        LOGGER.info("Database metadata sync was not attempted")
+        else:
+            LOGGER.info("Database metadata sync was not attempted")
