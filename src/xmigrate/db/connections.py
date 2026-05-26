@@ -65,6 +65,12 @@ def create_connection(
     return conn
 
 
+def quote_connstr_value(value: str) -> str:
+    """Quote a libpq connection string value."""
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+    return f"'{escaped}'"
+
+
 def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
     """
     Attach the destination Postgres database to *conn* as ``destination``.
@@ -81,16 +87,16 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
     attach_options = []
 
     if destination.sslmode:
-        attach_options.append(f"sslmode={destination.sslmode}")
+        attach_options.append(f"sslmode={quote_connstr_value(destination.sslmode)}")
 
     if destination.sslrootcert:
-        attach_options.append(f"sslrootcert={destination.sslrootcert}")
+        attach_options.append(f"sslrootcert={quote_connstr_value(destination.sslrootcert)}")
 
     if destination.sslcert:
-        attach_options.append(f"sslcert={destination.sslcert}")
+        attach_options.append(f"sslcert={quote_connstr_value(destination.sslcert)}")
 
     if destination.sslkey:
-        attach_options.append(f"sslkey={destination.sslkey}")
+        attach_options.append(f"sslkey={quote_connstr_value(destination.sslkey)}")
 
     destination_conn_string = " ".join(attach_options)
 

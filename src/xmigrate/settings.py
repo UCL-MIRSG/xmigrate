@@ -17,9 +17,6 @@ __all__ = [
 
 class SSLMode(StrEnum):
     DISABLE = "disable"
-    ALLOW = "allow"
-    PREFER = "prefer"
-    REQUIRE = "require"
     VERIFY_CA = "verify-ca"
     VERIFY_FULL = "verify-full"
 
@@ -37,19 +34,11 @@ class DestinationSecret(BaseModel):
 
     @model_validator(mode="after")
     def validate_ssl_config(self) -> "DestinationSecret":
-        if self.sslmode is None:
+        if self.sslmode in (None, SSLMode.DISABLE):
             return self
 
-        required_ssl_fields = {
-            "sslrootcert": self.sslrootcert,
-            "sslcert": self.sslcert,
-            "sslkey": self.sslkey,
-        }
-
-        missing = [name for name, value in required_ssl_fields.items() if not value]
-
-        if missing:
-            msg = f"{', '.join(missing)} required when sslmode is set"
+        if self.sslmode in {SSLMode.VERIFY_CA, SSLMode.VERIFY_FULL} and not self.sslrootcert:
+            msg = "sslrootcert required when sslmode is verify-ca or verify-full"
             raise ValueError(msg)
 
         return self
