@@ -51,7 +51,7 @@ def migrate(  # noqa: PLR0913
     source_rsync: str,
     destination: str,
     destination_rsync: str,
-    logging_folder_path: pathlib.Path = pathlib.Path("logs"),
+    log_dir: pathlib.Path = pathlib.Path("logs"),
     destination_projects: list[str] | None = None,
     destination_secondary_ids: list[str] | None = None,
     destination_project_names: list[str] | None = None,
@@ -91,7 +91,7 @@ def migrate(  # noqa: PLR0913
         Flag indicating whether to skip running rsync.
 
     """
-    logging_file_path = logging_folder_path / "migrate.log"
+    logging_file_path = log_dir / "migrate.log"
     configure_logging(logging_file_path)
 
     if source_projects is not None and not source_projects:
@@ -208,7 +208,7 @@ def rsync(  # noqa: PLR0913
     source: str,
     source_rsync: str,
     destination_rsync: str,
-    logging_folder_path: pathlib.Path = pathlib.Path("logs"),
+    log_dir: pathlib.Path = pathlib.Path("logs"),
     source_projects: list[str] | None = None,
     destination_projects: list[str] | None = None,
 ) -> None:
@@ -236,7 +236,7 @@ def rsync(  # noqa: PLR0913
         A list of destination project IDs.
 
     """
-    logging_file_path = logging_folder_path / "rsync.log"
+    logging_file_path = log_dir / "rsync.log"
     configure_logging(logging_file_path)
 
     if source_projects is not None and not source_projects:
