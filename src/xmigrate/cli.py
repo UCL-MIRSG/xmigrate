@@ -51,7 +51,7 @@ def migrate(  # noqa: PLR0913
     source_rsync: str,
     destination: str,
     destination_rsync: str,
-    logging_folder_path: pathlib.Path,
+    logging_folder_path: pathlib.Path = pathlib.Path("logs"),
     destination_projects: list[str] | None = None,
     destination_secondary_ids: list[str] | None = None,
     destination_project_names: list[str] | None = None,
@@ -236,7 +236,6 @@ def rsync(  # noqa: PLR0913
         A list of destination project IDs.
 
     """
-    logging_folder_path.mkdir(parents=True, exist_ok=True)
     logging_file_path = logging_folder_path / "rsync.log"
     configure_logging(logging_file_path)
 
