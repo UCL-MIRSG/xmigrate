@@ -49,6 +49,10 @@ uv sync --group test
 First, configure `xmigrate` using `xmigrate.toml`. See `xmigrate.toml.sample`
 for an example.
 
+Also, configure `secrets.toml` for destination database connection. See
+`secrets.toml.sample` (`sslcert` and `sslkey` are optional depending on your
+`sslmode`).
+
 Then run the `migrate` command to either migrate all projects (if
 `source_projects` argument is None) or migrate a subset of projects from source
 to destination (`include_rsync` can be set to true or false) using:
