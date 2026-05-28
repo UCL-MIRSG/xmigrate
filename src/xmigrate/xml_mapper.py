@@ -246,12 +246,12 @@ class XMLMapper:
             for child in element.findall(project_name_tag, self.namespaces):
                 child.text = self.destination.project_name
 
-        # Delete ID tags that should not be migrated, keeping IDs for projects, scans, and assessors
+        # Delete ID tags that should not be migrated, keeping IDs for projects and scans
         ATTRS_TO_DELETE = {"ID", "project"}  # noqa: N806
         for attr in ATTRS_TO_DELETE:
             # Don't delete ID for project or scan -
             # it's required to create those resources
-            if attr == "ID" and resource_type in (XnatType.project, XnatType.scan, XnatType.assessor):
+            if attr == "ID" and resource_type in (XnatType.project, XnatType.scan):
                 continue
             # Ensure project attribute points to the destination project ID
             if attr == "project":
