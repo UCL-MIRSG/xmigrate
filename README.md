@@ -50,15 +50,15 @@ First, configure `xmigrate` using `xmigrate.toml`. See `xmigrate.toml.sample`
 for an example.
 
 Then run the `migrate` command to either migrate all projects (if
-source_projects argument is None) or migrate a subset of projects from source to
-destination using:
+`source_projects` argument is None) or migrate a subset of projects from source
+to destination (`include_rsync` can be set to true or false) using:
 
 ```sh
 xmigrate migrate
 ```
 
 You can also separately run the `rsync` command to either rsync all projects (if
-source_projects argument is None) or rsync a subset of projects from source to
+`source_projects` argument is None) or rsync a subset of projects from source to
 destination using:
 
 ```sh
