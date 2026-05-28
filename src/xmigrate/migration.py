@@ -954,13 +954,22 @@ class Migration:
             The path to the resource to refresh.
 
         """
-        self.destination_connection.services.refresh_catalog(
-            resource_path,
-            checksum=True,
-            delete=True,
-            append=True,
-            populate_stats=True,
-        )
+        try:
+            self.destination_connection.services.refresh_catalog(
+                resource_path,
+                checksum=True,
+                delete=True,
+                append=True,
+                populate_stats=True,
+            )
+        except XNATResponseError as e:
+            if "status 504" in str(e):
+                LOGGER.warning(
+                    "Catalogue refresh timed out for %s; continuing.",
+                    resource_path,
+                )
+                return
+            raise
 
     def _populate_roi_collection(
         self,
