@@ -969,6 +969,9 @@ class Migration:
                     resource_path,
                 )
                 return
+            if "status 400" in str(e) and resource_path.startswith("/archive/experiments/"):
+                LOGGER.warning("Catalogue refresh not supported for %s; continuing.", resource_path)
+                return
             raise
 
     def _populate_roi_collection(
