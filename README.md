@@ -49,17 +49,24 @@ uv sync --group test
 First, configure `xmigrate` using `xmigrate.toml`. See `xmigrate.toml.sample`
 for an example.
 
-Then run the on the command line the migration for all projects on the source
-using:
+Also, configure `secrets.toml` for destination database connection. See
+`secrets.toml.sample` (`sslcert` and `sslkey` are optional depending on your
+`sslmode`).
+
+Then run the `migrate` command to either migrate all projects (if
+`source_projects` argument is None) or migrate a subset of projects from source
+to destination (`include_rsync` can be set to true or false) using:
 
 ```sh
-xmigrate migrate_all_projects
+xmigrate migrate
 ```
 
-You may only want to migrate a subset of projects on the source using:
+You can also separately run the `rsync` command to either rsync all projects (if
+`source_projects` argument is None) or rsync a subset of projects from source to
+destination using:
 
 ```sh
-xmigrate migrate_project_list
+xmigrate rsync
 ```
 
 For testing, you may also want to set your environment variables using mise.
@@ -94,7 +101,7 @@ To run the integration tests from the command line:
 
 ```sh
 cd xmigrate
-pytest
+pytest tests/integration
 ```
 
 N.B. Currently, the submission object of the custom forms PUT API call is

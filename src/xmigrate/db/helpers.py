@@ -5,7 +5,7 @@ from importlib import resources
 
 import duckdb
 
-BASE_OUTPUT_DIR = pathlib.Path(__file__).resolve().parent.parent / "output"
+BASE_OUTPUT_DIR = pathlib.Path().cwd().resolve()
 DB_PATH = BASE_OUTPUT_DIR / "xmigrate.duckdb"
 
 
