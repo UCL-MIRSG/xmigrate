@@ -87,16 +87,14 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
     attach_options = []
 
     if destination.sslmode:
-        attach_options.append(f"sslmode={quote_connstr_value(destination.sslmode)}")
-
-    if destination.sslrootcert:
-        attach_options.append(f"sslrootcert={quote_connstr_value(destination.sslrootcert)}")
-
-    if destination.sslcert:
-        attach_options.append(f"sslcert={quote_connstr_value(destination.sslcert)}")
-
-    if destination.sslkey:
-        attach_options.append(f"sslkey={quote_connstr_value(destination.sslkey)}")
+        attach_options.extend(
+            [
+                f"sslmode={quote_connstr_value(destination.sslmode)}",
+                f"sslrootcert={quote_connstr_value(destination.sslrootcert)}",
+                f"sslcert={quote_connstr_value(destination.sslcert)}",
+                f"sslkey={quote_connstr_value(destination.sslkey)}",
+            ]
+        )
 
     destination_conn_string = " ".join(attach_options)
 

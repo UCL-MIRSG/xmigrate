@@ -40,7 +40,7 @@ class DestinationSecret(BaseModel):
         if (self.sslmode in {SSLMode.VERIFY_CA, SSLMode.VERIFY_FULL}) and (
             not self.sslrootcert or not self.sslcert or not self.sslkey
         ):
-            msg = "sslrootcert, sslcert and sslkey required when sslmode is verify-ca or verify-full"
+            msg = "sslrootcert, sslcert and sslkey must all be set when sslmode is verify-ca or verify-full"
             raise ValueError(msg)
 
         return self
