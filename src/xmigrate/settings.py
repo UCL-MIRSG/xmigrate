@@ -27,7 +27,7 @@ class DestinationSecret(BaseModel):
     database: str
     user: str
     password: SecretStr
-    sslmode: SSLMode | None = None
+    sslmode: SSLMode
     sslrootcert: str | None = None
     sslcert: str | None = None
     sslkey: str | None = None
