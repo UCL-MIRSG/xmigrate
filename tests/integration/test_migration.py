@@ -47,11 +47,8 @@ class TestMigration:
         owner = source_connection.projects["dummydicomproject"]
         subject = owner.subjects[0]
         shared = source_connection.projects["OPENNEURO_T1W"]
-        already_shared = any(project["ID"] == shared.id for project in projects)
-
-        if not already_shared:
-            sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
-            source_connection.put(sharing_uri, data={"label": subject.label})
+        sharing_uri = f"/data/projects/{owner.id}/subjects/{subject.id}/projects/{shared.id}"
+        source_connection.put(sharing_uri, data={"label": subject.label})
 
         # Run the migration
         app(
