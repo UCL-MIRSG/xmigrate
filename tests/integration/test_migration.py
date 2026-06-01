@@ -216,7 +216,6 @@ class TestMigration:
         # Results are returned in an arbitrary order, so we compare them as sets of frozensets to ignore the ordering
         assert {frozenset(d.items()) for d in source_result} == {frozenset(d.items()) for d in destination_result}
 
-    @pytest.mark.usefixtures("setup")
     def test_log_files(self, setup: pathlib.Path) -> None:
         """Check migration log file is created and records completion."""
         log_file = setup / "logs" / "migrate.log"
