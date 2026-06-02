@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     import pathlib
 
 import xmigrate.db as xdb
+from xmigrate.settings import SSLMode
 
 
 class TestOpenDb:
@@ -47,16 +48,11 @@ class TestOpenDb:
 
     def test_ssl_destination_conn_string(self) -> None:
         """Check ssl parameters string is concatenated correctly."""
-        sslmode = "verify-full"
+        sslmode = SSLMode.VERIFY_FULL
         sslrootcert = "/path/to/server-ca.pem"
         sslcert = "/path/to/client-cert.pem"
         sslkey = "/path/to/client-key.pem"
-        destination_conn_string = xdb.concatenate_ssl_parameters(
-            sslmode,
-            sslrootcert,
-            sslcert,
-            sslkey
-        )
+        destination_conn_string = xdb.concatenate_ssl_parameters(sslmode, sslrootcert, sslcert, sslkey)
 
         assert destination_conn_string == (
             "sslmode='verify-full' "
