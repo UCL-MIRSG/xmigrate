@@ -2,14 +2,10 @@
 
 import pathlib
 import shutil
-import typing
 
 import pytest
 
-import xnat
-
 import xmigrate.db as xdb
-from xmigrate.cli import app
 
 
 @pytest.mark.usefixtures("destination_connection")
@@ -21,6 +17,7 @@ class TestPostgresAttachment:
         tmp_path: pathlib.Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        """Test connection with database with ssl client cert."""
         configs_path = pathlib.Path(__file__).parent / "configs"
 
         shutil.copy(
@@ -35,9 +32,7 @@ class TestPostgresAttachment:
         try:
             xdb.attach_destination_database(conn)
 
-            result = conn.execute(
-                "SELECT value FROM destination.public.test_table"
-            ).fetchone()
+            result = conn.execute("SELECT value FROM destination.public.test_table").fetchone()
 
             assert result == (1,)
         finally:

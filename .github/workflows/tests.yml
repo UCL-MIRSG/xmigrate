@@ -112,7 +112,7 @@ jobs:
             postgres:16 \
             /certs/start-postgres.sh
 
-          for i in {1..30}; do
+          for _ in {1..30}; do
             if docker exec xmigrate-postgres-ssl pg_isready -U xnat -d xnat; then
               break
             fi
@@ -126,8 +126,13 @@ jobs:
           done
 
           docker exec xmigrate-postgres-ssl psql \
-            "host=localhost port=5432 dbname=xnat user=xnat password=xnat sslmode=verify-full sslrootcert=/certs/root.crt sslcert=/certs/client.crt sslkey=/certs/client.key" \
-            -c "CREATE TABLE test_table (value integer); INSERT INTO test_table VALUES (1);"
+            "host=localhost port=5432 dbname=xnat user=xnat \
+            password=xnat sslmode=verify-full \
+            sslrootcert=/certs/root.crt \
+            sslcert=/certs/client.crt \
+            sslkey=/certs/client.key" \
+            -c "CREATE TABLE test_table (value integer);
+                INSERT INTO test_table VALUES (1);"
 
       - name: Test with nox
         run: uv run nox -s tests_integration

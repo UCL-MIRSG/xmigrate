@@ -49,10 +49,7 @@ class DestinationSecret(BaseModel):
             ]
 
             if missing:
-                msg = (
-                    "sslrootcert, sslcert and sslkey must all be set "
-                    "when sslmode is verify-ca or verify-full"
-                )
+                msg = "sslrootcert, sslcert and sslkey must all be set when sslmode is verify-ca or verify-full"
                 raise ValueError(msg)
 
         return self
