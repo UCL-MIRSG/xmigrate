@@ -7,7 +7,7 @@ from contextlib import contextmanager
 import duckdb
 
 from xmigrate.db.helpers import DB_PATH, load_sql_template, run_sql_template
-from xmigrate.settings import Secrets
+from xmigrate.settings import Secrets, SSLMode
 
 
 @contextmanager
@@ -86,7 +86,7 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
     destination = Secrets().destination_db_conn
     attach_options = []
 
-    if destination.sslmode:
+    if destination.sslmode != SSLMode.DISABLE:
         attach_options.extend(
             [
                 f"sslmode={quote_connstr_value(destination.sslmode)}",
