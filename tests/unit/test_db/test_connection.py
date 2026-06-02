@@ -69,7 +69,4 @@ class TestOpenDb:
         sslkey = None
         destination_conn_string = xdb.concatenate_ssl_parameters(sslmode, sslrootcert, sslcert, sslkey)
 
-        assert destination_conn_string == (
-            "sslmode='verify-full' "
-            "sslrootcert='/path/to/server-ca.pem'"
-        )
+        assert destination_conn_string == ("sslmode='verify-full' sslrootcert='/path/to/server-ca.pem'")
