@@ -78,8 +78,11 @@ jobs:
             -out /tmp/pgssl/client.crt
 
           cat > /tmp/pgssl/pg_hba.conf <<'EOF'
-          hostssl xnat xnat 0.0.0.0/0 md5 clientcert=verify-ca
-          hostssl xnat xnat ::/0 md5 clientcert=verify-ca
+          local   all   all                         trust
+          host    all   all   127.0.0.1/32          trust
+          host    all   all   ::1/128               trust
+          hostssl xnat  xnat  0.0.0.0/0             md5 clientcert=verify-ca
+          hostssl xnat  xnat  ::/0                  md5 clientcert=verify-ca
           EOF
 
           cat > /tmp/pgssl/start-postgres.sh <<'EOF'
@@ -122,7 +125,8 @@ jobs:
             sleep 1
           done
 
-          docker exec xmigrate-postgres-ssl psql -U xnat -d xnat \
+          docker exec xmigrate-postgres-ssl psql \
+            "host=localhost port=5432 dbname=xnat user=xnat password=xnat sslmode=verify-full sslrootcert=/certs/root.crt sslcert=/certs/client.crt sslkey=/certs/client.key" \
             -c "CREATE TABLE test_table (value integer); INSERT INTO test_table VALUES (1);"
 
       - name: Test with nox
