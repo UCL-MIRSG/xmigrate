@@ -71,6 +71,7 @@ def check_user(
     )
     return destination_profiles
 
+
 def check_user_roles(
     username: str,
     sitewide_roles: dict,
