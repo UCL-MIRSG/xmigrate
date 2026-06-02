@@ -15,7 +15,7 @@ def check_user(
     source_profiles: list,
     destination_profiles: list,
     destination_connection: xnat.BaseXNATSession,
-) -> list | None:
+) -> list:
     """
     Check user on the destination XNAT instance.
 
@@ -51,6 +51,7 @@ def check_user(
     if destination_profile:
         LOGGER.info("User already exists in destination: %s", username)
         return None
+        return destination_profiles
 
     LOGGER.info("Creating user: %s", username)
     destination_profile = {
@@ -66,47 +67,7 @@ def check_user(
     destination_profiles.append(
         {
             "username": destination_profile["username"],
-            "id": source_profile["id"],
+            "id": destination_profile["id"],
         },
     )
     return destination_profiles
-
-
-def check_user_roles(
-    username: str,
-    sitewide_roles: dict,
-    source_connection: xnat.BaseXNATSession,
-    destination_connection: xnat.BaseXNATSession,
-) -> dict:
-    """
-    Check user on the destination XNAT instance.
-
-    Parameters
-    ----------
-    username
-        String for the username on the source XNAT instance.
-    sitewide_roles
-        In-memory dictionary of sitewide roles already applied this session.
-    source_connection
-        The source XNAT connection.
-    destination_connection
-        The destination XNAT connection.
-
-    Returns
-    -------
-        An updated dictionary of sitewide roles applied this session.
-
-    """
-    # skip if we already have roles checkpointed in memory
-    if username in sitewide_roles:
-        LOGGER.info("User roles already exist in destination: %s", username)
-        return sitewide_roles
-
-    api_get_string = f"/xapi/users/{username}/roles"
-    roles = source_connection.get(api_get_string).json()
-
-    for role in roles:
-        destination_connection.put(f"/xapi/users/{username}/roles/{role}")
-
-    sitewide_roles[username] = roles
-    return sitewide_roles
