@@ -42,6 +42,64 @@ jobs:
       - name: Install only dev dependencies
         run: uv sync --only-dev
 
+      - name: Start SSL Postgres test database
+        run: |
+          mkdir -p /tmp/pgssl
+
+          openssl req -new -x509 -days 1 -nodes \
+            -out /tmp/pgssl/root.crt \
+            -keyout /tmp/pgssl/root.key \
+            -subj "/CN=test-ca"
+
+          openssl req -new -nodes \
+            -out /tmp/pgssl/server.csr \
+            -keyout /tmp/pgssl/server.key \
+            -subj "/CN=localhost"
+
+          openssl x509 -req -days 1 \
+            -in /tmp/pgssl/server.csr \
+            -CA /tmp/pgssl/root.crt \
+            -CAkey /tmp/pgssl/root.key \
+            -CAcreateserial \
+            -out /tmp/pgssl/server.crt
+
+          openssl req -new -nodes \
+            -out /tmp/pgssl/client.csr \
+            -keyout /tmp/pgssl/client.key \
+            -subj "/CN=xnat"
+
+          openssl x509 -req -days 1 \
+            -in /tmp/pgssl/client.csr \
+            -CA /tmp/pgssl/root.crt \
+            -CAkey /tmp/pgssl/root.key \
+            -CAcreateserial \
+            -out /tmp/pgssl/client.crt
+
+          chmod 600 /tmp/pgssl/server.key /tmp/pgssl/client.key
+
+          cat > /tmp/pgssl/pg_hba.conf <<'EOF'
+          hostssl xnat xnat 0.0.0.0/0 md5 clientcert=verify-ca
+          hostssl xnat xnat ::/0 md5 clientcert=verify-ca
+          EOF
+
+          docker run -d --name xmigrate-postgres-ssl \
+            -e POSTGRES_DB=xnat \
+            -e POSTGRES_USER=xnat \
+            -e POSTGRES_PASSWORD=xnat \
+            -p 15432:5432 \
+            -v /tmp/pgssl:/certs:ro \
+            postgres:16 \
+            -c ssl=on \
+            -c ssl_ca_file=/certs/root.crt \
+            -c ssl_cert_file=/certs/server.crt \
+            -c ssl_key_file=/certs/server.key \
+            -c hba_file=/certs/pg_hba.conf
+
+          until docker exec xmigrate-postgres-ssl pg_isready -U xnat -d xnat; do sleep 1; done
+
+          docker exec xmigrate-postgres-ssl psql -U xnat -d xnat \
+          -c "CREATE TABLE test_table (value integer); INSERT INTO test_table VALUES (1);"
+
       - name: Test with nox
         run: uv run nox -s tests_integration
         env:
