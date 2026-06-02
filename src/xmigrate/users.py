@@ -50,7 +50,6 @@ def check_user(
 
     if destination_profile:
         LOGGER.info("User already exists in destination: %s", username)
-        return None
         return destination_profiles
 
     LOGGER.info("Creating user: %s", username)
