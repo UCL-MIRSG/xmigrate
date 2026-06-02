@@ -71,16 +71,21 @@ def quote_connstr_value(value: str) -> str:
     return f"'{escaped}'"
 
 
-def concatenate_ssl_parameters(sslmode: SSLMode, sslrootcert: str, sslcert: str, sslkey: str) -> str:
+def concatenate_ssl_parameters(
+    sslmode: str | None,
+    sslrootcert: str | None,
+    sslcert: str | None,
+    sslkey: str | None,
+) -> str:
     """Concatenate ssl parameters into a single string."""
-    return " ".join(
-        [
-            f"sslmode={quote_connstr_value(sslmode.value)}",
-            f"sslrootcert={quote_connstr_value(sslrootcert)}",
-            f"sslcert={quote_connstr_value(sslcert)}",
-            f"sslkey={quote_connstr_value(sslkey)}",
-        ]
-    )
+    options = {
+        "sslmode": sslmode,
+        "sslrootcert": sslrootcert,
+        "sslcert": sslcert,
+        "sslkey": sslkey,
+    }
+
+    return " ".join(f"{key}={quote_connstr_value(str(value))}" for key, value in options.items() if value is not None)
 
 
 def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
