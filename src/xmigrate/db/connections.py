@@ -70,6 +70,17 @@ def quote_connstr_value(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace("'", "\\'")
     return f"'{escaped}'"
 
+def concatenate_ssl_parameters(
+    sslmode: SSLMode, sslrootcert: str, sslcert: str, sslkey: str) -> str:
+    """Concatenate ssl parameters into a single string."""
+    return " ".join(
+        [
+            f"sslmode={quote_connstr_value(sslmode.value)}",
+            f"sslrootcert={quote_connstr_value(sslrootcert)}",
+            f"sslcert={quote_connstr_value(sslcert)}",
+            f"sslkey={quote_connstr_value(sslkey)}",
+        ]
+    )
 
 def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
     """
@@ -84,19 +95,16 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
 
     """
     destination = Secrets().destination_db_conn
-    attach_options = []
 
     if destination.sslmode != SSLMode.DISABLE:
-        attach_options.extend(
-            [
-                f"sslmode={quote_connstr_value(destination.sslmode)}",
-                f"sslrootcert={quote_connstr_value(destination.sslrootcert)}",
-                f"sslcert={quote_connstr_value(destination.sslcert)}",
-                f"sslkey={quote_connstr_value(destination.sslkey)}",
-            ]
+        destination_conn_string = concatenate_ssl_parameters(
+            destination.sslmode,
+            destination.sslrootcert,
+            destination.sslcert,
+            destination.sslkey,
         )
-
-    destination_conn_string = " ".join(attach_options)
+    else:
+        destination_conn_string=""
 
     run_sql_template(
         conn,

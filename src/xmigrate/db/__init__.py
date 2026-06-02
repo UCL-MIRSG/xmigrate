@@ -2,9 +2,11 @@
 
 from xmigrate.db.connections import (
     attach_destination_database,
+    concatenate_ssl_parameters,
     create_connection,
     load_metadata_from_db,
     open_db,
+    quote_connstr_value,
 )
 from xmigrate.db.experiment import upsert_experiment
 from xmigrate.db.helpers import BASE_OUTPUT_DIR, DB_PATH, load_sql_template, run_sql_template
@@ -26,6 +28,7 @@ __all__ = [
     "DB_PATH",
     "attach_destination_database",
     "complete_migration_run",
+    "concatenate_ssl_parameters",
     "create_connection",
     "create_migration_run",
     "get_id_map",
@@ -36,6 +39,7 @@ __all__ = [
     "load_metadata_from_db",
     "load_sql_template",
     "open_db",
+    "quote_connstr_value",
     "record_migration_run_item",
     "record_migration_run_items",
     "run_sql_template",
