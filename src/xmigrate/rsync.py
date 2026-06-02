@@ -2,11 +2,10 @@
 
 import logging
 import pathlib
+import shlex
 import subprocess
 
-# Configure a module-level logger. Keep basicConfig here for simple CLI runs;
-# packages importing this module can configure logging more specifically.
-logging.basicConfig(level=logging.INFO)
+# Main logger in cli.py
 LOGGER = logging.getLogger(__name__)
 
 
@@ -51,6 +50,7 @@ def run_rsync(
         rsync_source,
         rsync_destination,
     ]
+    LOGGER.info("rsync command to be run: %s", shlex.join(cmd))
 
     try:
         subprocess.check_output(cmd)  # noqa: S603
