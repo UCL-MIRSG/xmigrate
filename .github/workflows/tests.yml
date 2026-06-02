@@ -47,8 +47,35 @@ jobs:
           set -euxo pipefail
 
           mkdir -p /tmp/pgssl
+          openssl req -new -x509 -days 1 -nodes \
+            -out /tmp/pgssl/root.crt \
+            -keyout /tmp/pgssl/root.key \
+            -subj "/CN=test-ca"
 
-          # generate certs as before ...
+          openssl req -new -nodes \
+            -out /tmp/pgssl/server.csr \
+            -keyout /tmp/pgssl/server.key \
+            -subj "/CN=localhost"
+
+          openssl x509 -req -days 1 \
+            -in /tmp/pgssl/server.csr \
+            -CA /tmp/pgssl/root.crt \
+            -CAkey /tmp/pgssl/root.key \
+            -CAcreateserial \
+            -out /tmp/pgssl/server.crt"
+
+          openssl req -new -nodes \
+            -out /tmp/pgssl/client.csr \
+            -keyout /tmp/pgssl/client.key \
+            -subj "/CN=xnatadmin"
+
+          openssl x509 -req -days 1 \
+            -in /tmp/pgssl/client.csr \
+            -CA /tmp/pgssl/root.crt \
+            -CAkey /tmp/pgssl/root.key \
+            -CAcreateserial \
+            -out /tmp/pgssl/client.crt
+
 
           chmod 600 /tmp/pgssl/server.key /tmp/pgssl/client.key
 
