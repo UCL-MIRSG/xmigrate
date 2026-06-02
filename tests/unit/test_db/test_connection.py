@@ -60,3 +60,16 @@ class TestOpenDb:
             "sslcert='/path/to/client-cert.pem' "
             "sslkey='/path/to/client-key.pem'"
         )
+
+    def test_ssl_destination_conn_string_with_none(self) -> None:
+        """Check ssl parameters string is concatenated correctly."""
+        sslmode = SSLMode.VERIFY_FULL
+        sslrootcert = "/path/to/server-ca.pem"
+        sslcert = None
+        sslkey = None
+        destination_conn_string = xdb.concatenate_ssl_parameters(sslmode, sslrootcert, sslcert, sslkey)
+
+        assert destination_conn_string == (
+            "sslmode='verify-full' "
+            "sslrootcert='/path/to/server-ca.pem'"
+        )
