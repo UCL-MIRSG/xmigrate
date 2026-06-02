@@ -107,7 +107,7 @@ jobs:
             -e POSTGRES_DB=xnat \
             -e POSTGRES_USER=xnat \
             -e POSTGRES_PASSWORD=xnat \
-            -p 15432:5432 \
+            -p 15433:5432 \
             -v /tmp/pgssl:/certs \
             postgres:16 \
             /certs/start-postgres.sh
