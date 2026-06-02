@@ -37,12 +37,24 @@ class DestinationSecret(BaseModel):
         if self.sslmode in (None, SSLMode.DISABLE):
             return self
 
-        if self.sslmode in {SSLMode.VERIFY_CA, SSLMode.VERIFY_FULL} and not self.sslrootcert:
-            msg = "sslrootcert must be set when sslmode is verify-ca or verify-full"
-            raise ValueError(msg)
+        if self.sslmode in {SSLMode.VERIFY_CA, SSLMode.VERIFY_FULL}:
+            missing = [
+                name
+                for name, value in {
+                    "sslrootcert": self.sslrootcert,
+                    "sslcert": self.sslcert,
+                    "sslkey": self.sslkey,
+                }.items()
+                if not value
+            ]
 
-        if bool(self.sslcert) != bool(self.sslkey):
-            msg = "sslcert and sslkey must be set together"
+            if missing:
+                msg = (
+                    "sslrootcert, sslcert and sslkey must all be set "
+                    "when sslmode is verify-ca or verify-full"
+                )
+                raise ValueError(msg)
+
         return self
 
 
