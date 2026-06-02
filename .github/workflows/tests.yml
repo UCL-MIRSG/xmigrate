@@ -47,6 +47,7 @@ jobs:
           set -euxo pipefail
 
           mkdir -p /tmp/pgssl
+
           openssl req -new -x509 -days 1 -nodes \
             -out /tmp/pgssl/root.crt \
             -keyout /tmp/pgssl/root.key \
@@ -62,12 +63,12 @@ jobs:
             -CA /tmp/pgssl/root.crt \
             -CAkey /tmp/pgssl/root.key \
             -CAcreateserial \
-            -out /tmp/pgssl/server.crt"
+            -out /tmp/pgssl/server.crt
 
           openssl req -new -nodes \
             -out /tmp/pgssl/client.csr \
             -keyout /tmp/pgssl/client.key \
-            -subj "/CN=xnatadmin"
+            -subj "/CN=xnat"
 
           openssl x509 -req -days 1 \
             -in /tmp/pgssl/client.csr \
@@ -76,35 +77,40 @@ jobs:
             -CAcreateserial \
             -out /tmp/pgssl/client.crt
 
-
-          chmod 600 /tmp/pgssl/server.key /tmp/pgssl/client.key
-
           cat > /tmp/pgssl/pg_hba.conf <<'EOF'
-          hostssl xnat xnatadmin 0.0.0.0/0 md5 clientcert=verify-ca
-          hostssl xnat xnatadmin ::/0 md5 clientcert=verify-ca
+          hostssl xnat xnat 0.0.0.0/0 md5 clientcert=verify-ca
+          hostssl xnat xnat ::/0 md5 clientcert=verify-ca
           EOF
+
+          cat > /tmp/pgssl/start-postgres.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          chown postgres:postgres /certs/server.key /certs/server.crt /certs/root.crt /certs/pg_hba.conf
+          chmod 600 /certs/server.key
+
+          exec docker-entrypoint.sh postgres \
+            -c ssl=on \
+            -c ssl_ca_file=/certs/root.crt \
+            -c ssl_cert_file=/certs/server.crt \
+            -c ssl_key_file=/certs/server.key \
+            -c hba_file=/certs/pg_hba.conf
+          EOF
+
+          chmod +x /tmp/pgssl/start-postgres.sh
 
           docker run -d --name xmigrate-postgres-ssl \
             --user root \
             -e POSTGRES_DB=xnat \
-            -e POSTGRES_USER=xnatadmin \
-            -e POSTGRES_PASSWORD=xnatadmin \
+            -e POSTGRES_USER=xnat \
+            -e POSTGRES_PASSWORD=xnat \
             -p 15432:5432 \
             -v /tmp/pgssl:/certs \
             postgres:16 \
-            bash -lc '
-              chown postgres:postgres /certs/server.key /certs/server.crt /certs/root.crt /certs/pg_hba.conf
-              chmod 600 /certs/server.key
-              exec docker-entrypoint.sh postgres \
-                -c ssl=on \
-                -c ssl_ca_file=/certs/root.crt \
-                -c ssl_cert_file=/certs/server.crt \
-                -c ssl_key_file=/certs/server.key \
-                -c hba_file=/certs/pg_hba.conf
-            '
+            /certs/start-postgres.sh
 
           for i in {1..30}; do
-            if docker exec xmigrate-postgres-ssl pg_isready -U xnatadmin -d xnat; then
+            if docker exec xmigrate-postgres-ssl pg_isready -U xnat -d xnat; then
               break
             fi
 
@@ -116,7 +122,7 @@ jobs:
             sleep 1
           done
 
-          docker exec xmigrate-postgres-ssl psql -U xnatadmin -d xnat \
+          docker exec xmigrate-postgres-ssl psql -U xnat -d xnat \
             -c "CREATE TABLE test_table (value integer); INSERT INTO test_table VALUES (1);"
 
       - name: Test with nox
