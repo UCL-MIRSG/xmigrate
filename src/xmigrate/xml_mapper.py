@@ -251,7 +251,7 @@ class XMLMapper:
         for attr in ATTRS_TO_DELETE:
             # Don't delete ID for project or scan -
             # it's required to create those resources
-            if attr == "ID" and resource_type in (XnatType.project, XnatType.scan):
+            if attr == "ID" and resource_type in (XnatType.project, XnatType.scan, XnatType.assessor):
                 continue
             # Ensure project attribute points to the destination project ID
             if attr == "project":
