@@ -30,6 +30,12 @@ if typing.TYPE_CHECKING:
 
 
 @pytest.fixture(scope="session")
+def postgres_ssl_cert_dir(tmp_path_factory: pytest.TempPathFactory) -> pathlib.Path:
+    """Directory where Postgres SSL client certs are copied for tests."""
+    return tmp_path_factory.mktemp("pgssl")
+
+
+@pytest.fixture(scope="session")
 def source_connection(
     xnat_root_dirs: dict[str, pathlib.Path],
 ) -> Iterator[xnat.BaseXNATSession]:
@@ -80,7 +86,7 @@ def source_connection(
 @pytest.fixture(scope="session")
 def destination_connection(
     xnat_root_dirs: dict[str, pathlib.Path],
-    tmp_path_factory: pytest.TempdirFactory,
+    postgres_ssl_cert_dir: pathlib.Path,
 ) -> Iterator[xnat.BaseXNATSession]:
     """
     Provide a connection to the destination XNAT instance.
@@ -123,8 +129,7 @@ def destination_connection(
     finally:
         monkeypatch.undo()
 
-    cert_dir = tmp_path_factory.mktemp("pgssl")
-    cert_dir.mkdir(parents=True, exist_ok=True)
+    cert_dir = postgres_ssl_cert_dir
 
     client = docker.from_env()
     container = client.containers.get(config.docker_container)

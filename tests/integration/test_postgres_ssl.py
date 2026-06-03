@@ -16,11 +16,12 @@ class TestPostgresAttachment:
         self,
         tmp_path: pathlib.Path,
         monkeypatch: pytest.MonkeyPatch,
+        postgres_ssl_cert_dir: pathlib.Path,
     ) -> None:
         """Test connection to Postgres with SSL client cert."""
         (tmp_path / "secrets.toml").write_text(
             textwrap.dedent(
-                """
+                f"""
                 [destination_db_conn]
                 host = "localhost"
                 port = 15432
@@ -29,9 +30,9 @@ class TestPostgresAttachment:
                 password = "xnat"
 
                 sslmode = "verify-full"
-                sslrootcert = "/tmp/pgssl/root.crt"
-                sslcert = "/tmp/pgssl/client.crt"
-                sslkey = "/tmp/pgssl/client.key"
+                sslrootcert = "{postgres_ssl_cert_dir / "root.crt"}"
+                sslcert = "{postgres_ssl_cert_dir / "client.crt"}"
+                sslkey = "{postgres_ssl_cert_dir / "client.key"}"
                 """
             )
         )
