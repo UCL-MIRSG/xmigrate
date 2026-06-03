@@ -134,28 +134,18 @@ def destination_connection(
     client = docker.from_env()
     container = client.containers.get(config.docker_container)
 
-    for filename in ["root.crt", "client.crt", "client.key"]:
-        bits, _ = container.get_archive(f"/var/lib/postgresql/certs/{filename}")
-        archive_path = cert_dir / f"{filename}.tar"
+    bits, _ = container.get_archive("/var/lib/postgresql/client-certs")
+    tar_bytes = b"".join(bits)
 
-        with archive_path.open("wb") as f:
-            for chunk in bits:
-                f.write(chunk)
-
-        bits, _ = container.get_archive(f"/var/lib/postgresql/certs/{filename}")
-        tar_bytes = b"".join(bits)
-
-        with tarfile.open(fileobj=io.BytesIO(tar_bytes)) as tar:
-            member = tar.getmember(filename)
+    with tarfile.open(fileobj=io.BytesIO(tar_bytes)) as tar:
+        for filename in ["root.crt", "client.crt", "client.key"]:
+            member = tar.getmember(f"client-certs/{filename}")
             extracted = tar.extractfile(member)
             if extracted is None:
                 msg = f"Could not extract {filename}"
                 raise ValueError(msg)
 
-            target = cert_dir / filename
-            target.write_bytes(extracted.read())
-
-        archive_path.unlink()
+            (cert_dir / filename).write_bytes(extracted.read())
 
     (cert_dir / "client.key").chmod(0o600)
 
