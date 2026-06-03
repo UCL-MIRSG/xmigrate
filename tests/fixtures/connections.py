@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import os
+import tarfile
 import typing
 import urllib.request
 
@@ -78,6 +80,7 @@ def source_connection(
 @pytest.fixture(scope="session")
 def destination_connection(
     xnat_root_dirs: dict[str, pathlib.Path],
+    tmp_path_factory: pytest.TempdirFactory,
 ) -> Iterator[xnat.BaseXNATSession]:
     """
     Provide a connection to the destination XNAT instance.
@@ -119,6 +122,37 @@ def destination_connection(
         xnat4tests.start_xnat(config, rebuild=False, relaunch=True)
     finally:
         monkeypatch.undo()
+
+    cert_dir = tmp_path_factory.mktemp("pgssl")
+    cert_dir.mkdir(parents=True, exist_ok=True)
+
+    client = docker.from_env()
+    container = client.containers.get(config.docker_container)
+
+    for filename in ["root.crt", "client.crt", "client.key"]:
+        bits, _ = container.get_archive(f"/var/lib/postgresql/certs/{filename}")
+        archive_path = cert_dir / f"{filename}.tar"
+
+        with archive_path.open("wb") as f:
+            for chunk in bits:
+                f.write(chunk)
+
+        bits, _ = container.get_archive(f"/var/lib/postgresql/certs/{filename}")
+        tar_bytes = b"".join(bits)
+
+        with tarfile.open(fileobj=io.BytesIO(tar_bytes)) as tar:
+            member = tar.getmember(filename)
+            extracted = tar.extractfile(member)
+            if extracted is None:
+                msg = f"Could not extract {filename}"
+                raise ValueError(msg)
+
+            target = cert_dir / filename
+            target.write_bytes(extracted.read())
+
+        archive_path.unlink()
+
+    (cert_dir / "client.key").chmod(0o600)
 
     conn = wait_for_connection(config)
     yield wait_for_datatypes(conn)

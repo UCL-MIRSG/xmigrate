@@ -24,6 +24,7 @@ ENV XNAT_HOME=${XNAT_HOME} \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     docker.io \
+    openssl \
     postgresql-16 \
     postgresql-client-16 \
     supervisor \
@@ -57,10 +58,38 @@ RUN curl -fSL -o xnat.war \
 USER postgres
 RUN /usr/lib/postgresql/16/bin/initdb \
     --pgdata=/var/lib/postgresql/data \
-    && printf "\ndatasource.driver = '/tmp'\nlisten_addresses = '*'\n" >> \
-    /var/lib/postgresql/data/postgresql.conf \
+    && mkdir -p /var/lib/postgresql/certs \
+    && openssl req -new -x509 -days 365 -nodes \
+        -out /var/lib/postgresql/certs/root.crt \
+        -keyout /var/lib/postgresql/certs/root.key \
+        -subj "/CN=test-ca" \
+    && openssl req -new -nodes \
+        -out /var/lib/postgresql/certs/server.csr \
+        -keyout /var/lib/postgresql/certs/server.key \
+        -subj "/CN=localhost" \
+    && openssl x509 -req -days 365 \
+        -in /var/lib/postgresql/certs/server.csr \
+        -CA /var/lib/postgresql/certs/root.crt \
+        -CAkey /var/lib/postgresql/certs/root.key \
+        -CAcreateserial \
+        -out /var/lib/postgresql/certs/server.crt \
+    && openssl req -new -nodes \
+        -out /var/lib/postgresql/certs/client.csr \
+        -keyout /var/lib/postgresql/certs/client.key \
+        -subj "/CN=xnat" \
+    && openssl x509 -req -days 365 \
+        -in /var/lib/postgresql/certs/client.csr \
+        -CA /var/lib/postgresql/certs/root.crt \
+        -CAkey /var/lib/postgresql/certs/root.key \
+        -CAcreateserial \
+        -out /var/lib/postgresql/certs/client.crt \
+    && chmod 600 /var/lib/postgresql/certs/server.key /var/lib/postgresql/certs/client.key \
+    && printf "\ndatasource.driver = '/tmp'\nlisten_addresses = '*'\nssl = on\nssl_ca_file = '/var/lib/postgresql/certs/root.crt'\nssl_cert_file = '/var/lib/postgresql/certs/server.crt'\nssl_key_file = '/var/lib/postgresql/certs/server.key'\n" >> \
+        /var/lib/postgresql/data/postgresql.conf \
+    && printf "hostssl all all all scram-sha-256 clientcert=verify-ca\n" >> \
+        /var/lib/postgresql/data/pg_hba.conf \
     && printf "host all all all scram-sha-256\n" >> \
-    /var/lib/postgresql/data/pg_hba.conf
+        /var/lib/postgresql/data/pg_hba.conf
 # hadolint ignore=DL3002
 USER root
 

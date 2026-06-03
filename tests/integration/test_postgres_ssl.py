@@ -1,7 +1,7 @@
-"""Tests for the xmigrate CLI."""
+"""Tests for attaching DuckDB to Postgres."""
 
 import pathlib
-import shutil
+import textwrap
 
 import pytest
 
@@ -10,30 +10,39 @@ import xmigrate.db as xdb
 
 @pytest.mark.usefixtures("destination_connection")
 class TestPostgresAttachment:
-    """Test the migration of projects from source to destination XNAT."""
+    """Test attaching to destination Postgres."""
 
     def test_attach_destination_database_with_ssl_client_cert(
         self,
         tmp_path: pathlib.Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test connection with database with ssl client cert."""
-        configs_path = pathlib.Path(__file__).parent / "configs"
+        """Test connection to Postgres with SSL client cert."""
+        (tmp_path / "secrets.toml").write_text(
+            textwrap.dedent(
+                """
+                [destination_db_conn]
+                host = "localhost"
+                port = 15432
+                database = "xnat"
+                user = "xnat"
+                password = "xnat"
 
-        shutil.copy(
-            configs_path / "test_migrate_secrets_ssl.toml",
-            tmp_path / "secrets.toml",
+                sslmode = "verify-full"
+                sslrootcert = "/tmp/pgssl/root.crt"
+                sslcert = "/tmp/pgssl/client.crt"
+                sslkey = "/tmp/pgssl/client.key"
+                """
+            )
         )
 
         monkeypatch.chdir(tmp_path)
 
         conn = xdb.create_connection(":memory:")
-
         try:
             xdb.attach_destination_database(conn)
-
+            conn.execute("CREATE TABLE destination.public.test_table AS SELECT 1 AS value")
             result = conn.execute("SELECT value FROM destination.public.test_table").fetchone()
-
             assert result == (1,)
         finally:
             conn.close()
