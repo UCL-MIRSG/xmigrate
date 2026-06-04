@@ -23,7 +23,7 @@ class TestPostgresAttachment:
             textwrap.dedent(
                 f"""
                 [destination_db_conn]
-                host = "localhost"
+                host = "127.0.0.1"
                 port = 15432
                 database = "xnat"
                 user = "xnat"
