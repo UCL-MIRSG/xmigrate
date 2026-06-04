@@ -44,7 +44,7 @@ def test_check_users_source_longer(
             destination_connection,
         )
     assert any(record.message == f"User already exists in destination: {unique_username}" for record in caplog.records)
-    assert returned_profiles is None
+    assert any(p["username"] == unique_username for p in returned_profiles)
     assert second_username not in get_usernames(destination_connection)
 
     with caplog.at_level(logging.INFO):
@@ -148,7 +148,7 @@ def test_existing_users_not_duplicated(
             unique_username, [source_profiles], [destination_profiles], destination_connection
         )
     assert any(record.message == f"User already exists in destination: {unique_username}" for record in caplog.records)
-    assert returned_profiles is None
+    assert any(p["username"] == unique_username for p in returned_profiles)
     user_count = sum(u == unique_username for u in get_usernames(destination_connection))
     assert user_count == 1
 

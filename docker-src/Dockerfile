@@ -24,6 +24,7 @@ ENV XNAT_HOME=${XNAT_HOME} \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     docker.io \
+    openssl \
     postgresql-16 \
     postgresql-client-16 \
     supervisor \
@@ -36,31 +37,82 @@ RUN mkdir -p \
     "${XNAT_HOME}/plugins" "${XNAT_HOME}/work" "${XNAT_ROOT}/archive" \
     "${XNAT_ROOT}/build" "${XNAT_ROOT}/cache" "${XNAT_ROOT}/ftp" \
     "${XNAT_ROOT}/pipeline" "${XNAT_ROOT}/prearchive" \
-    /run/postgresql /var/lib/postgresql/data /var/log/tomcat \
-    && chown -R postgres:postgres /var/lib/postgresql/data /run/postgresql \
+    /run/postgresql /var/lib/postgresql/data /var/lib/postgresql/certs \
+    /client-certs /var/log/tomcat \
+    && chown -R postgres:postgres \
+        /var/lib/postgresql/data \
+        /var/lib/postgresql/certs \
+        /run/postgresql \
+        /client-certs \
     && rm -rf "${CATALINA_HOME}/webapps/"*
 
 ## XNAT and plugins
 WORKDIR /tmp
 RUN curl -fSL -o xnat.war \
-    "https://api.bitbucket.org/2.0/repositories/xnatdev/xnat-web/downloads/xnat-web-${XNAT_VERSION}.war" \
-    && unzip -o xnat.war -d ${TOMCAT_XNAT_FOLDER_PATH} \
-    && curl -fSL -o ${XNAT_HOME}/plugins/container-service.jar \
-    "https://api.bitbucket.org/2.0/repositories/xnatdev/container-service/downloads/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar" \
-    && curl -fSL -o ${XNAT_HOME}/plugins/batch-launch.jar \
-    "https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}-xpl.jar" \
-    && curl -fSL -o ${XNAT_HOME}/plugins/ohif-viewer.jar \
-    "https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-${XNAT_OHIF_VIEWER_VERSION}.jar" \
+        "https://api.bitbucket.org/2.0/repositories/xnatdev/xnat-web/downloads/xnat-web-${XNAT_VERSION}.war" \
+    && unzip -o xnat.war -d "${TOMCAT_XNAT_FOLDER_PATH}" \
+    && curl -fSL -o "${XNAT_HOME}/plugins/container-service.jar" \
+        "https://api.bitbucket.org/2.0/repositories/xnatdev/container-service/downloads/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar" \
+    && curl -fSL -o "${XNAT_HOME}/plugins/batch-launch.jar" \
+        "https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}-xpl.jar" \
+    && curl -fSL -o "${XNAT_HOME}/plugins/ohif-viewer.jar" \
+        "https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-${XNAT_OHIF_VIEWER_VERSION}.jar" \
     && rm -rf /tmp/*
 
 ## Database initialisation
 USER postgres
-RUN /usr/lib/postgresql/16/bin/initdb \
-    --pgdata=/var/lib/postgresql/data \
-    && printf "\ndatasource.driver = '/tmp'\nlisten_addresses = '*'\n" >> \
-    /var/lib/postgresql/data/postgresql.conf \
-    && printf "host all all all scram-sha-256\n" >> \
-    /var/lib/postgresql/data/pg_hba.conf
+
+# Generate self-signed certificates for PostgreSQL and client authentication
+RUN /usr/lib/postgresql/16/bin/initdb --pgdata=/var/lib/postgresql/data \
+    && openssl req -new -x509 -days 365 -nodes \
+        -out /var/lib/postgresql/certs/root.crt \
+        -keyout /var/lib/postgresql/certs/root.key \
+        -subj "/CN=test-ca" \
+    && openssl req -new -nodes \
+        -out /var/lib/postgresql/certs/server.csr \
+        -keyout /var/lib/postgresql/certs/server.key \
+        -subj "/CN=localhost" \
+    && openssl x509 -req -days 365 \
+        -in /var/lib/postgresql/certs/server.csr \
+        -CA /var/lib/postgresql/certs/root.crt \
+        -CAkey /var/lib/postgresql/certs/root.key \
+        -CAcreateserial \
+        -out /var/lib/postgresql/certs/server.crt \
+    && openssl req -new -nodes \
+        -out /var/lib/postgresql/certs/client.csr \
+        -keyout /var/lib/postgresql/certs/client.key \
+        -subj "/CN=xnat" \
+    && openssl x509 -req -days 365 \
+        -in /var/lib/postgresql/certs/client.csr \
+        -CA /var/lib/postgresql/certs/root.crt \
+        -CAkey /var/lib/postgresql/certs/root.key \
+        -CAcreateserial \
+        -out /var/lib/postgresql/certs/client.crt \
+    && cp /var/lib/postgresql/certs/root.crt /client-certs/root.crt \
+    && cp /var/lib/postgresql/certs/client.crt /client-certs/client.crt \
+    && cp /var/lib/postgresql/certs/client.key /client-certs/client.key \
+    && chmod 600 \
+        /var/lib/postgresql/certs/server.key \
+        /var/lib/postgresql/certs/client.key \
+        /client-certs/client.key
+
+# Configure PostgreSQL for SSL and client certificate authentication
+RUN printf "listen_addresses = '*'\n" >> /var/lib/postgresql/data/postgresql.conf \
+    && printf "ssl = on\n" >> /var/lib/postgresql/data/postgresql.conf \
+    && printf "ssl_ca_file = '/var/lib/postgresql/certs/root.crt'\n" >> /var/lib/postgresql/data/postgresql.conf \
+    && printf "ssl_cert_file = '/var/lib/postgresql/certs/server.crt'\n" >> /var/lib/postgresql/data/postgresql.conf \
+    && printf "ssl_key_file = '/var/lib/postgresql/certs/server.key'\n" >> /var/lib/postgresql/data/postgresql.conf
+
+# Configure pg_hba.conf for SCRAM authentication and client certificate verification
+RUN printf "local all all trust\n" > /var/lib/postgresql/data/pg_hba.conf \
+    && printf "host all all 127.0.0.1/32 scram-sha-256\n" >> /var/lib/postgresql/data/pg_hba.conf \
+    && printf "host all all ::1/128 scram-sha-256\n" >> /var/lib/postgresql/data/pg_hba.conf \
+    && printf "hostssl all all all scram-sha-256 clientcert=verify-ca\n" >> /var/lib/postgresql/data/pg_hba.conf \
+    && chown -R postgres:postgres \
+        /var/lib/postgresql/data \
+        /var/lib/postgresql/certs \
+        /client-certs
+
 # hadolint ignore=DL3002
 USER root
 
@@ -69,7 +121,7 @@ COPY make-xnat-config.sh /usr/local/bin/
 RUN /usr/local/bin/make-xnat-config.sh && rm /usr/local/bin/make-xnat-config.sh
 
 COPY launch-xnat.sh XNAT.sql /
-COPY xnat-prefs-init.ini ${XNAT_HOME}/config/prefs-init.ini
+COPY xnat-prefs-init.ini "${XNAT_HOME}/config/prefs-init.ini"
 COPY supervisord.conf /etc/supervisord.conf
 
 EXPOSE 8080

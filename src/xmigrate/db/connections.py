@@ -6,8 +6,8 @@ from contextlib import contextmanager
 
 import duckdb
 
-from xmigrate.db.helpers import DB_PATH, run_sql_template
-from xmigrate.settings import Secrets
+from xmigrate.db.helpers import DB_PATH, load_sql_template, run_sql_template
+from xmigrate.settings import Secrets, SSLMode
 
 
 @contextmanager
@@ -65,6 +65,29 @@ def create_connection(
     return conn
 
 
+def quote_connstr_value(value: str) -> str:
+    """Quote a libpq connection string value."""
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+    return f"'{escaped}'"
+
+
+def concatenate_ssl_parameters(
+    sslmode: str | None,
+    sslrootcert: str | None,
+    sslcert: str | None,
+    sslkey: str | None,
+) -> str:
+    """Concatenate ssl parameters into a single string."""
+    options = {
+        "sslmode": sslmode,
+        "sslrootcert": sslrootcert,
+        "sslcert": sslcert,
+        "sslkey": sslkey,
+    }
+
+    return " ".join(f"{key}={quote_connstr_value(str(value))}" for key, value in options.items() if value is not None)
+
+
 def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
     """
     Attach the destination Postgres database to *conn* as ``destination``.
@@ -78,6 +101,17 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
 
     """
     destination = Secrets().destination_db_conn
+
+    if destination.sslmode != SSLMode.DISABLE:
+        destination_conn_string = concatenate_ssl_parameters(
+            destination.sslmode,
+            destination.sslrootcert,
+            destination.sslcert,
+            destination.sslkey,
+        )
+    else:
+        destination_conn_string = ""
+
     run_sql_template(
         conn,
         "create_destination_secret.sql",
@@ -89,7 +123,10 @@ def attach_destination_database(conn: duckdb.DuckDBPyConnection) -> None:
             "password": destination.password.get_secret_value(),
         },
     )
-    run_sql_template(conn, "attach_destination_postgres.sql")
+    sql = load_sql_template("attach_destination_postgres.sql").format(
+        destination_conn_string=destination_conn_string.replace("'", "''")
+    )
+    conn.execute(sql)
 
 
 def load_metadata_from_db(

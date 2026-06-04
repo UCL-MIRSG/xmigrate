@@ -13,7 +13,7 @@ def check_user(
     source_profiles: list,
     destination_profiles: list,
     destination_connection: xnat.BaseXNATSession,
-) -> list | None:
+) -> list:
     """
     Check user on the destination XNAT instance.
 
@@ -48,7 +48,7 @@ def check_user(
 
     if destination_profile:
         LOGGER.info("User already exists in destination: %s", username)
-        return None
+        return destination_profiles
 
     LOGGER.info("Creating user: %s", username)
     destination_profile = {
@@ -64,7 +64,7 @@ def check_user(
     destination_profiles.append(
         {
             "username": destination_profile["username"],
-            "id": source_profile["id"],
+            "id": destination_profile["id"],
         },
     )
     return destination_profiles

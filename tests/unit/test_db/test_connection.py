@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     import pathlib
 
 import xmigrate.db as xdb
+from xmigrate.settings import SSLMode
 
 
 class TestOpenDb:
@@ -44,3 +45,28 @@ class TestOpenDb:
         """load_sql_template raises when the template does not exist."""
         with pytest.raises(FileNotFoundError, match=r"nonexistent_file\.sql"):
             xdb.load_sql_template("nonexistent_file.sql")
+
+    def test_ssl_destination_conn_string(self) -> None:
+        """Check ssl parameters string is concatenated correctly."""
+        sslmode = SSLMode.VERIFY_FULL
+        sslrootcert = "/path/to/server-ca.pem"
+        sslcert = "/path/to/client-cert.pem"
+        sslkey = "/path/to/client-key.pem"
+        destination_conn_string = xdb.concatenate_ssl_parameters(sslmode, sslrootcert, sslcert, sslkey)
+
+        assert destination_conn_string == (
+            "sslmode='verify-full' "
+            "sslrootcert='/path/to/server-ca.pem' "
+            "sslcert='/path/to/client-cert.pem' "
+            "sslkey='/path/to/client-key.pem'"
+        )
+
+    def test_ssl_destination_conn_string_with_none(self) -> None:
+        """Check ssl parameters string is concatenated correctly."""
+        sslmode = SSLMode.VERIFY_FULL
+        sslrootcert = "/path/to/server-ca.pem"
+        sslcert = None
+        sslkey = None
+        destination_conn_string = xdb.concatenate_ssl_parameters(sslmode, sslrootcert, sslcert, sslkey)
+
+        assert destination_conn_string == ("sslmode='verify-full' sslrootcert='/path/to/server-ca.pem'")

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import os
+import pathlib
+import tarfile
 import typing
 import urllib.request
 
@@ -21,7 +24,6 @@ from tests._helper_functions import (
 )
 
 if typing.TYPE_CHECKING:
-    import pathlib
     from collections.abc import Iterator
 
     import xnat
@@ -119,6 +121,27 @@ def destination_connection(
         xnat4tests.start_xnat(config, rebuild=False, relaunch=True)
     finally:
         monkeypatch.undo()
+
+    cert_dir = pathlib.Path("/tmp/pgssl")  # noqa: S108
+    cert_dir.mkdir(parents=True, exist_ok=True)
+
+    client = docker.from_env()
+    container = client.containers.get(config.docker_container)
+
+    bits, _ = container.get_archive("/client-certs")
+    tar_bytes = b"".join(bits)
+
+    with tarfile.open(fileobj=io.BytesIO(tar_bytes)) as tar:
+        for filename in ["root.crt", "client.crt", "client.key"]:
+            member = tar.getmember(f"client-certs/{filename}")
+            extracted = tar.extractfile(member)
+            if extracted is None:
+                msg = f"Could not extract {filename}"
+                raise ValueError(msg)
+
+            (cert_dir / filename).write_bytes(extracted.read())
+
+    (cert_dir / "client.key").chmod(0o600)
 
     conn = wait_for_connection(config)
     yield wait_for_datatypes(conn)

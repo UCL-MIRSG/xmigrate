@@ -5,4 +5,4 @@ CREATE OR REPLACE SECRET destination_secret (
     DATABASE $database,
     USER $user,
     PASSWORD $password
-)
+);
