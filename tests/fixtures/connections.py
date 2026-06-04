@@ -134,7 +134,7 @@ def destination_connection(
     client = docker.from_env()
     container = client.containers.get(config.docker_container)
 
-    bits, _ = container.get_archive("/var/lib/postgresql/client-certs")
+    bits, _ = container.get_archive("/client-certs")
     tar_bytes = b"".join(bits)
 
     with tarfile.open(fileobj=io.BytesIO(tar_bytes)) as tar:
