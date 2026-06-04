@@ -8,6 +8,7 @@ import pytest
 
 import xnat
 
+from xmigrate import db as xdb
 from xmigrate.cli import app
 
 
@@ -212,3 +213,20 @@ class TestMigration:
 
         # Results are returned in an arbitrary order, so we compare them as sets of frozensets to ignore the ordering
         assert {frozenset(d.items()) for d in source_result} == {frozenset(d.items()) for d in destination_result}
+
+    @pytest.mark.usefixtures("setup")
+    def test_destination_postgres_attached_with_ssl(
+        self,
+        setup: pathlib.Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Test that DuckDB can attach to the destination Postgres DB over SSL."""
+        monkeypatch.chdir(setup)
+
+        conn = xdb.create_connection(":memory:")
+        try:
+            xdb.attach_destination_database(conn)
+            result = conn.execute("SELECT COUNT(*) FROM destination.public.xnat_projectdata").fetchone()
+            assert result[0] > 0
+        finally:
+            conn.close()
