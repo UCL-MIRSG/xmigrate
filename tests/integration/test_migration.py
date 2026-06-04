@@ -230,3 +230,12 @@ class TestMigration:
             assert result[0] > 0
         finally:
             conn.close()
+
+    def test_log_files(self, setup: pathlib.Path) -> None:
+        """Check migration log file is created and records completion."""
+        log_file = setup / "logs" / "migrate.log"
+
+        assert log_file.is_file()
+
+        log_text = log_file.read_text()
+        assert "Migration run finished." in log_text
