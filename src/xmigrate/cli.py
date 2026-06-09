@@ -52,9 +52,6 @@ def migrate(  # noqa: PLR0913
     destination: str,
     destination_rsync: str,
     log_dir: pathlib.Path = pathlib.Path("logs"),
-    destination_projects: list[str] | None = None,
-    destination_secondary_ids: list[str] | None = None,
-    destination_project_names: list[str] | None = None,
     source_projects: list[str] | None = None,
     *,
     include_rsync: bool = True,
@@ -79,12 +76,6 @@ def migrate(  # noqa: PLR0913
         The destination XNAT instance URL.
     destination_rsync
         The path to the destination rsync directory.
-    destination_projects
-        A list of destination project IDs.
-    destination_secondary_ids
-        A list of secondary IDs for the destination projects.
-    destination_project_names
-        A list of names for the destination projects.
     source_projects
         A list of source project IDs.
     include_rsync
@@ -98,20 +89,6 @@ def migrate(  # noqa: PLR0913
         msg = "source_projects cannot be an empty list. Use None to migrate all projects."
         raise ValueError(msg)
 
-    if source_projects is None and any(
-        value is not None
-        for value in (
-            destination_projects,
-            destination_secondary_ids,
-            destination_project_names,
-        )
-    ):
-        msg = (
-            "destination_* arguments cannot be set when source_projects is None. "
-            "Use source_projects to explicitly define project mappings."
-        )
-        raise ValueError(msg)
-
     with (
         xnat.connect(source) as source_connection,
         xnat.connect(destination) as destination_connection,
@@ -119,20 +96,16 @@ def migrate(  # noqa: PLR0913
         if source_projects:
             source_secondary_ids = source_projects
             source_project_names = source_projects
-            destination_projects = destination_projects if destination_projects is not None else source_projects
-            destination_secondary_ids = (
-                destination_secondary_ids if destination_secondary_ids is not None else source_projects
-            )
-            destination_project_names = (
-                destination_project_names if destination_project_names is not None else source_projects
-            )
+            destination_projects = source_projects
+            destination_secondary_ids = source_projects
+            destination_project_names = source_projects
         else:
             rows = [(p.id, p.secondary_id, p.project) for p in source_connection.projects]
             source_projects, source_secondary_ids, source_project_names = (
                 map(list, zip(*rows, strict=False)) if rows else ([], [], [])
             )
 
-            destination_projects = destination_projects if destination_projects is not None else source_projects
+            destination_projects = source_projects
             destination_secondary_ids = source_secondary_ids
             destination_project_names = source_project_names
 
@@ -204,13 +177,12 @@ def migrate(  # noqa: PLR0913
 
 
 @app.command
-def rsync(  # noqa: PLR0913
+def rsync(
     source: str,
     source_rsync: str,
     destination_rsync: str,
     log_dir: pathlib.Path = pathlib.Path("logs"),
     source_projects: list[str] | None = None,
-    destination_projects: list[str] | None = None,
 ) -> None:
     """
     Migrating data from source to destination project archive or archives using rsync.
@@ -243,23 +215,11 @@ def rsync(  # noqa: PLR0913
         msg = "source_projects cannot be an empty list. Use None to rsync all projects."
         raise ValueError(msg)
 
-    if destination_projects is not None and not destination_projects:
-        msg = "destination_projects cannot be an empty list."
-        raise ValueError(msg)
-
-    if source_projects is None and destination_projects is not None:
-        msg = "destination_projects cannot be set when source_projects is None."
-        raise ValueError(msg)
-
     if source_projects is None:
         with xnat.connect(source) as source_connection:
             source_projects = [p.id for p in source_connection.projects]
-    if destination_projects is None:
-        destination_projects = source_projects
 
-    if len(source_projects) != len(destination_projects):
-        msg = "source_projects and destination_projects must have the same length"
-        raise ValueError(msg)
+    destination_projects = source_projects
 
     for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
         run_rsync(
