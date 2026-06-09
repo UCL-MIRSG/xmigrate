@@ -218,6 +218,7 @@ def rsync(
     if source_projects is None:
         with xnat.connect(source) as source_connection:
             source_projects = [p.id for p in source_connection.projects]
+
     destination_projects = source_projects
 
     for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
