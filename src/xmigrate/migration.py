@@ -3,6 +3,7 @@
 import dataclasses
 import json
 import logging
+import shutil
 import time
 import xml.etree.ElementTree as ET
 from typing import TYPE_CHECKING
@@ -1219,13 +1220,29 @@ class Migration:
         check_datatypes_matching(self.source_connection, self.destination_connection)
         create_custom_forms_json(self.source_connection, self.destination_connection)
 
-        with xdb.open_db() as self._xmigrate_connection:
-            self._xmigrate_ids = self._get_run_ids()
-            try:
-                self._run()
-            finally:
-                xdb.complete_migration_run(self._xmigrate_connection, self._xmigrate_ids.migration_run)
+        db_path = xdb.DB_PATH
+
+        try:
+            with xdb.open_db() as self._xmigrate_connection:
+                self._xmigrate_ids = self._get_run_ids()
+                try:
+                    self._run()
+                finally:
+                    xdb.complete_migration_run(
+                        self._xmigrate_connection,
+                        self._xmigrate_ids.migration_run,
+                    )
+
+        except Exception:
+            if db_path.exists():
+                failed_dir = db_path.parent / "logs" / "failed-duckdb"
+                failed_dir.mkdir(parents=True, exist_ok=True)
+
+                failed_path = failed_dir / f"xmigrate.duckdb.failed.{time.strftime('%Y%m%d_%H%M%S')}"
+                shutil.move(str(db_path), str(failed_path))
+
+                LOGGER.exception("Migration failed; moved xmigrate DuckDB state to %s", failed_path)
+            raise
 
         end = time.time()
-
         LOGGER.info("Duration = %d", end - start)
