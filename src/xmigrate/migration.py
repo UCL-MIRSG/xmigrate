@@ -500,15 +500,26 @@ class Migration:
         if owner_project != self.source_info.id:
             requested_projects = {info.id for info in self.all_source_info}
 
-            if owner_project not in requested_projects:
-                msg = f"Cannot migrate subject {subject.label!r} in project {self.source_info.id!r}: "
-                f"it is owned by project {owner_project!r}, which is not included in this migration. "
-                f"Migrate {owner_project!r} first, include it in the same migration run, or rerun with."
+            owner_in_current_run = owner_project in requested_projects
+            owner_exists_on_destination = (
+                owner_project in self.destination_connection.projects
+                and subject.label in self.destination_connection.projects[owner_project].subjects
+            )
+
+            if not owner_in_current_run and not owner_exists_on_destination:
+                msg = (
+                    f"Cannot migrate subject {subject.label!r} in project {self.source_info.id!r}: "
+                    f"it is owned by project {owner_project!r}, which is not included in this migration. "
+                    f"and does not already exist on the destination. "
+                    f"Migrate {owner_project!r} first, include it in the same migration run, or rerun with the owner project included."
+                )
                 raise RuntimeError(msg)
 
             # this project is not the owner of the resource, no need to create it on the destination
             sharing_info["projects"].append(self.destination_info.id)
             sharing_info["source_id"] = subject.id  # Store the source ID
+            sharing_info["owner"] = owner_project
+            sharing_info["label"] = subject.label
             self.subject_sharing[subject.label] = sharing_info
             return
         # otherwise, this project is the owner
