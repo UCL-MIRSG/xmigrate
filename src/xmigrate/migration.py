@@ -1234,6 +1234,7 @@ class Migration:
         db_path = xdb.DB_PATH
 
         try:
+            LOGGER.info("Using xmigrate DuckDB state file: %s", db_path)
             with xdb.open_db() as self._xmigrate_connection:
                 self._xmigrate_ids = self._get_run_ids()
                 try:
@@ -1245,14 +1246,19 @@ class Migration:
                     )
 
         except Exception:
-            if db_path.exists():
-                failed_dir = db_path.parent / "logs" / "failed-duckdb"
-                failed_dir.mkdir(parents=True, exist_ok=True)
+            LOGGER.exception("Migration failed")
 
-                failed_path = failed_dir / f"xmigrate.duckdb.failed.{time.strftime('%Y%m%d_%H%M%S')}"
+            if db_path.exists():
+                logs_dir = db_path.parent / "logs"
+                logs_dir.mkdir(exist_ok=True)
+
+                failed_path = logs_dir / f"xmigrate.duckdb.failed.{time.strftime('%Y%m%d_%H%M%S')}"
                 shutil.move(str(db_path), str(failed_path))
 
-                LOGGER.exception("Migration failed; moved xmigrate DuckDB state to %s", failed_path)
+                LOGGER.info("Moved xmigrate DuckDB state to %s", failed_path)
+            else:
+                LOGGER.warning("Expected DuckDB state file does not exist: %s", db_path)
+
             raise
 
         end = time.time()
