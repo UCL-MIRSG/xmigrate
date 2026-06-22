@@ -1106,22 +1106,41 @@ class Migration:
                 except XNATResponseError as e:
                     LOGGER.warning("Failed to share subject %s with project %s: %s", label, project_id, e)
 
-        # Share experiments
+                # Share experiments
         for label, sharing_info in self.experiment_sharing.items():
             if not sharing_info["projects"]:
                 continue
 
             # Get the correct mapper based on the owner of the experiment
             owner = sharing_info["owner"]
-            for mapper in self.mappers:
-                if mapper.destination.id == owner:
+            mapper = None
+            for candidate in self.mappers:
+                if candidate.destination.id == owner:
+                    mapper = candidate
                     break
-            else:
-                msg = f"Could not find mapper for owner {owner} of experiment {label}"
-                LOGGER.warning(msg)
-                continue
 
-            destination_experiment_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.experiment)
+            if mapper is not None:
+                destination_experiment_id = mapper.get_destination_id(
+                    sharing_info["source_id"],
+                    XnatType.experiment,
+                )
+            else:
+                # The owner project may have been migrated in a previous run.
+                # In that case, there is no mapper for it in this run, so look up
+                # the existing destination experiment directly by label.
+                destination_experiment_id = None
+
+                if owner not in self.destination_connection.projects:
+                    msg = f"Could not find owner project {owner} for experiment {label}"
+                    LOGGER.warning(msg)
+                    continue
+
+                owner_project = self.destination_connection.projects[owner]
+                for subject in owner_project.subjects:
+                    if label in subject.experiments:
+                        destination_experiment_id = subject.experiments[label].id
+                        break
+
             if destination_experiment_id is None:
                 msg = f"Could not find destination ID for experiment {label}"
                 LOGGER.warning(msg)
@@ -1146,15 +1165,37 @@ class Migration:
 
             # Get the correct mapper based on the owner of the assessor
             owner = sharing_info["owner"]
-            for mapper in self.mappers:
-                if mapper.destination.id == owner:
+            mapper = None
+            for candidate in self.mappers:
+                if candidate.destination.id == owner:
+                    mapper = candidate
                     break
-            else:
-                msg = f"Could not find mapper for owner {owner} of assessor {label}"
-                LOGGER.warning(msg)
-                continue
 
-            destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
+            if mapper is not None:
+                destination_assessor_id = mapper.get_destination_id(
+                    sharing_info["source_id"],
+                    XnatType.assessor,
+                )
+            else:
+                # The owner project may have been migrated in a previous run.
+                # In that case, there is no mapper for it in this run, so look up
+                # the existing destination assessor directly by label.
+                destination_assessor_id = None
+
+                if owner not in self.destination_connection.projects:
+                    msg = f"Could not find owner project {owner} for assessor {label}"
+                    LOGGER.warning(msg)
+                    continue
+
+                owner_project = self.destination_connection.projects[owner]
+                for subject in owner_project.subjects:
+                    for experiment in subject.experiments:
+                        if label in experiment.assessors:
+                            destination_assessor_id = experiment.assessors[label].id
+                            break
+                    if destination_assessor_id is not None:
+                        break
+
             if destination_assessor_id is None:
                 msg = f"Could not find destination ID for assessor {label}"
                 LOGGER.warning(msg)
