@@ -1030,7 +1030,7 @@ class Migration:
                     self._refresh_catalogue(resource_path)
 
                     # Assessors are experiments in the XNAT DB, so refresh at the experiment level too
-                    resource_path = f"/archive/experiments/{assessor.id}/"
+                    resource_path = f"/archive/experiments/{assessor.id}"
                     self._refresh_catalogue(resource_path)
 
                     if assessor.label in self._roi_collections_to_populate:
