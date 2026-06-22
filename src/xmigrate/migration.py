@@ -955,10 +955,10 @@ class Migration:
         """
         self.destination_connection.services.refresh_catalog(
             resource_path,
-            checksum=True,
-            delete=True,
+            checksum=False,
+            delete=False,
             append=True,
-            populate_stats=True,
+            populate_stats=False,
         )
 
     def _populate_roi_collection(
