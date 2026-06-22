@@ -1009,6 +1009,14 @@ class Migration:
         """Refresh all catalogues for the destination XNAT project."""
         for subject in self.destination_connection.projects[self.destination_info.id].subjects:
             for experiment in subject.experiments:
+                if experiment.project != self.destination_info.id:
+                    LOGGER.info(
+                        "Skipping catalogue refresh for shared experiment %s in project %s; owner is %s",
+                        experiment.label,
+                        self.destination_info.id,
+                        experiment.project,
+                    )
+                    continue
                 for scan in experiment.scans:
                     resource_path = (
                         f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
