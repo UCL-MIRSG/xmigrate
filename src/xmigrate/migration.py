@@ -750,7 +750,7 @@ class Migration:
 
         self._create_custom_forms_data(scan)
 
-    def _create_assessor(self, assessor: xnat.core.XNATListing) -> None:
+    def _create_assessor(self, assessor: xnat.core.XNATListing) -> None:  # noqa: PLR0915
         """
         Create an assessor on the destination XNAT instance.
 
@@ -774,13 +774,20 @@ class Migration:
         )
 
         # _collect_sharing_info
-        sharing_info = self.assessor_sharing.get(assessor.id, {"owner": None, "projects": []})
+        sharing_info = self.assessor_sharing.get(assessor.label, {"owner": None, "projects": []})
         if root.attrib["project"] != self.source_info.id:
             # this project is not the owner of the resource, no need to create it on the destination
-            sharing_info["projects"].append(self.destination_info.id)
+            owner_project = root.attrib["project"]
+            sharing_info["owner"] = owner_project
+            sharing_info["label"] = assessor.label
             sharing_info["source_id"] = assessor.id  # Store the source ID
+
+            if self.destination_info.id not in sharing_info["projects"]:
+                sharing_info["projects"].append(self.destination_info.id)
+
             self.assessor_sharing[assessor.label] = sharing_info
             return
+
         # otherwise, this project is the owner
         sharing_info["owner"] = self.destination_info.id
         sharing_info["label"] = assessor.label
@@ -802,43 +809,50 @@ class Migration:
             resource_type=XnatType.assessor,
         )
         xml_bytes = ET.tostring(root, encoding="utf-8")
-        if (
-            assessor.label
-            not in self.destination_connection.projects[self.destination_info.id]
+
+        destination_experiment = (
+            self.destination_connection.projects[self.destination_info.id]
             .subjects[subject.label]
             .experiments[experiment.label]
-            .assessors
-        ):
+        )
+
+        existing_assessors = self.destination_connection.get(
+            f"/data/experiments/{destination_experiment.id}/assessors",
+            query={"format": "json"},
+        ).json()["ResultSet"]["Result"]
+
+        existing_by_label = {existing_assessor["label"]: existing_assessor["ID"] for existing_assessor in existing_assessors}
+
+        if assessor.label not in existing_by_label:
             self.destination_connection.post(
                 f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments[
-            experiment.label
-        ].assessors.clearcache()
+        else:
+            msg = f"Skipping creation of assessor {assessor.label} as already exists on destination."
+            LOGGER.info(msg)
+
+        destination_experiment.assessors.clearcache()
+
         try:
+            destination_assessor_id = existing_by_label.get(assessor.label)
+            if destination_assessor_id is None:
+                destination_assessor_id = destination_experiment.assessors[assessor.label].id
+
             self.mapper.update_id_map(
                 source=assessor.id,
-                destination=self.destination_connection.projects[self.destination_info.id]
-                .subjects[subject.label]
-                .experiments[experiment.label]
-                .assessors[assessor.label]
-                .id,
+                destination=destination_assessor_id,
                 map_type=XnatType.assessor,
             )
         except (KeyError, AttributeError):
             self.assess_failed_count = self.assess_failed_count + 1
-            self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments[
-                experiment.label
-            ].assessors.clearcache()
+            destination_experiment.assessors.clearcache()
+
+            destination_assessor_id = destination_experiment.assessors[assessor.label].id
             self.mapper.update_id_map(
                 source=assessor.id,
-                destination=self.destination_connection.projects[self.destination_info.id]
-                .subjects[subject.label]
-                .experiments[experiment.label]
-                .assessors[assessor.label]
-                .id,
+                destination=destination_assessor_id,
                 map_type=XnatType.assessor,
             )
 
@@ -1114,7 +1128,7 @@ class Migration:
                 except XNATResponseError as e:
                     LOGGER.warning("Failed to share subject %s with project %s: %s", label, project_id, e)
 
-                # Share experiments
+        # Share experiments
         for label, sharing_info in self.experiment_sharing.items():
             if not sharing_info["projects"]:
                 continue
@@ -1156,6 +1170,13 @@ class Migration:
 
             for project_id in sharing_info["projects"]:
                 try:
+                    LOGGER.info(
+                        "Sharing experiment owner=%s id=%s label=%s into project=%s",
+                        owner,
+                        destination_experiment_id,
+                        label,
+                        project_id,
+                    )
                     # Use experiment ID in the URL and add label parameter
                     self.destination_connection.put(
                         f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}",
