@@ -938,13 +938,13 @@ class Migration:
         for subject in source_project.subjects:
             self._create_subject(subject)
 
-            # Skip resource creation for this subject if it is shared and this project is not the owner
-            sharing_info = self.subject_sharing[subject.label]
-            if sharing_info["owner"] != self.destination_info.id:
-                continue
+            subject_sharing_info = self.subject_sharing[subject.label]
+            subject_is_shared = subject_sharing_info["owner"] != self.destination_info.id
 
             for experiment in subject.experiments:
                 self._create_experiment(experiment, destination_datatypes)
+                if subject_is_shared:
+                    continue
                 for scan in experiment.scans:
                     self._create_scan(scan)
                 for assessor in experiment.assessors:
