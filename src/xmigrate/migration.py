@@ -774,7 +774,7 @@ class Migration:
         )
 
         # _collect_sharing_info
-        sharing_info = self.assessor_sharing.get(assessor.label, {"owner": None, "projects": []})
+        sharing_info = self.assessor_sharing.get(assessor.id, {"owner": None, "projects": []})
         if root.attrib["project"] != self.source_info.id:
             # this project is not the owner of the resource, no need to create it on the destination
             owner_project = root.attrib["project"]
