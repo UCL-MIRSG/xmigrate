@@ -1073,32 +1073,37 @@ class Migration:
             if not sharing_info["projects"]:
                 continue
 
-            # Get the correct mapper based on the owner of the subject
             owner = sharing_info["owner"]
-            for mapper in self.mappers:
-                if mapper.destination.id == owner:
-                    break
-            else:
-                msg = f"Could not find mapper for owner {owner} of subject {label}"
-                LOGGER.warning(msg)
-                continue
 
-            destination_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
-            if destination_subject_id is None:
-                msg = f"Could not find destination ID for subject {label}"
-                LOGGER.warning(msg)
-                continue
+            mapper = None
+            for candidate in self.mappers:
+                if candidate.destination.id == owner:
+                    mapper = candidate
+                    break
+
+            if mapper is not None:
+                destination_subject_id = mapper.get_destination_id(
+                    sharing_info["source_id"],
+                    XnatType.subject,
+                )
+            else:
+                if (
+                    owner not in self.destination_connection.projects
+                    or label not in self.destination_connection.projects[owner].subjects
+                ):
+                    LOGGER.warning("Could not find destination subject %s in owner project %s", label, owner)
+                    continue
+
+                destination_subject_id = self.destination_connection.projects[owner].subjects[label].id
 
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_connection.put(
                         f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}",
                     )
-                    msg = f"Shared subject {label} with project {project_id}"
-                    LOGGER.info(msg)
+                    LOGGER.info("Shared subject %s with project %s", label, project_id)
                 except XNATResponseError as e:
-                    msg = f"Failed to share subject {label} with project {project_id}: {e}"
-                    LOGGER.warning(msg)
+                    LOGGER.warning("Failed to share subject %s with project %s: %s", label, project_id, e)
 
         # Share experiments
         for label, sharing_info in self.experiment_sharing.items():
