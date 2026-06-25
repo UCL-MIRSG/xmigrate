@@ -123,28 +123,29 @@ class Migration:
             If the destination XNAT returns an invalid response.
 
         """
-        # If a project has no custom configuration, XNAT raises an error
         try:
-            custom_configs = self.source_connection.get(f"/data/projects/{self.source_info.id}/config").json()[
-                "ResultSet"
-            ]["Result"]
+            custom_configs = self.source_connection.get(
+                f"/data/projects/{self.source_info.id}/config",
+            ).json()["ResultSet"]["Result"]
         except XNATResponseError as e:
             if "Couldn't find config for" in e.text:
-                msg = f"No custom project configuration found for project {self.source_info.id}."
-                LOGGER.info(msg)
+                LOGGER.info("No custom project configuration found for project %s.", self.source_info.id)
                 return
             msg = f"Invalid response from XNAT\n: {e.text}"
             raise RuntimeError(msg) from e
 
         tools = [config["tool"] for config in custom_configs]
+
         for tool in tools:
-            tool_configs = self.source_connection.get(f"/data/projects/{self.source_info.id}/config/{tool}").json()[
-                "ResultSet"
-            ]["Result"]
-            # There is one result per setting in the config
+            tool_configs = self.source_connection.get(
+                f"/data/projects/{self.source_info.id}/config/{tool}",
+            ).json()["ResultSet"]["Result"]
+
             for tool_config_result in tool_configs:
-                path = tool_config_result["path"]  # name of the setting
+                path = tool_config_result["path"].lstrip("/")
+                path = path.replace(self.source_info.id, self.destination_info.id)
                 contents = tool_config_result["contents"]
+
                 try:
                     self.destination_connection.put(
                         f"/data/projects/{self.destination_info.id}/config/{tool}/{path}",
