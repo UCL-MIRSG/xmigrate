@@ -504,8 +504,7 @@ class Migration:
 
             owner_exists_on_destination = (
                 owner_project in self.destination_connection.projects
-                and subject.label
-                in self.destination_connection.projects[owner_project].subjects
+                and subject.label in self.destination_connection.projects[owner_project].subjects
             )
 
             if not owner_in_current_run and not owner_exists_on_destination:
@@ -821,7 +820,9 @@ class Migration:
             query={"format": "json"},
         ).json()["ResultSet"]["Result"]
 
-        existing_by_label = {existing_assessor["label"]: existing_assessor["ID"] for existing_assessor in existing_assessors}
+        existing_by_label = {
+            existing_assessor["label"]: existing_assessor["ID"] for existing_assessor in existing_assessors
+        }
 
         if assessor.label not in existing_by_label:
             self.destination_connection.post(
