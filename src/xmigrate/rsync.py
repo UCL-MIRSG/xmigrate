@@ -43,9 +43,11 @@ def run_rsync(
 
     cmd = [
         "fpsync",
-        "-n", "8",
+        "-n",
+        "8",
         "-v",
-        "-o", "--checksum --ignore-existing --exclude=*.log --exclude=.*",
+        "-o",
+        "--checksum --ignore-existing --exclude=*.log --exclude=.*",
         rsync_source + "/",
         rsync_destination,
     ]
