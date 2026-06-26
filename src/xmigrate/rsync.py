@@ -42,13 +42,10 @@ def run_rsync(
     pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
     cmd = [
-        "rsync",
-        "-azP",
-        "--ignore-existing",
-        "--exclude=*.log",
-        "--exclude=.*",
-        "--stats",
-        "--checksum",
+        "fpsync",
+        "-n", "8",
+        "-v",
+        "-o", "--checksum --ignore-existing --exclude=*.log --exclude=.*",
         rsync_source + "/",
         rsync_destination,
     ]
