@@ -955,10 +955,10 @@ class Migration:
         """
         self.destination_connection.services.refresh_catalog(
             resource_path,
-            checksum=True,
-            delete=True,
+            checksum=False,
+            delete=False,
             append=True,
-            populate_stats=True,
+            populate_stats=False,
         )
 
     def _populate_roi_collection(
@@ -1009,6 +1009,14 @@ class Migration:
         """Refresh all catalogues for the destination XNAT project."""
         for subject in self.destination_connection.projects[self.destination_info.id].subjects:
             for experiment in subject.experiments:
+                if experiment.project != self.destination_info.id:
+                    LOGGER.info(
+                        "Skipping catalogue refresh for shared experiment %s in project %s; owner is %s",
+                        experiment.label,
+                        self.destination_info.id,
+                        experiment.project,
+                    )
+                    continue
                 for scan in experiment.scans:
                     resource_path = (
                         f"/archive/projects/{self.destination_info.id}/subjects/{subject.label}/"
@@ -1030,7 +1038,7 @@ class Migration:
                     self._refresh_catalogue(resource_path)
 
                     # Assessors are experiments in the XNAT DB, so refresh at the experiment level too
-                    resource_path = f"/archive/experiments/{assessor.id}/"
+                    resource_path = f"/archive/experiments/{assessor.id}"
                     self._refresh_catalogue(resource_path)
 
                     if assessor.label in self._roi_collections_to_populate:
