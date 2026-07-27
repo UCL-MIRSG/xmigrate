@@ -49,14 +49,14 @@ RUN mkdir -p \
 ## XNAT and plugins
 WORKDIR /tmp
 RUN curl -fSL -o xnat.war \
-        "https://api.bitbucket.org/2.0/repositories/xnatdev/xnat-web/downloads/xnat-web-${XNAT_VERSION}.war" \
+        "https://github.com/NrgXnat/xnat-web/releases/download/${XNAT_VERSION}/xnat-web-${XNAT_VERSION}.war" \
     && unzip -o xnat.war -d "${TOMCAT_XNAT_FOLDER_PATH}" \
     && curl -fSL -o "${XNAT_HOME}/plugins/container-service.jar" \
-        "https://api.bitbucket.org/2.0/repositories/xnatdev/container-service/downloads/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar" \
+        "https://github.com/NrgXnat/container-service/releases/download/${XNAT_CS_PLUGIN_VERSION}/container-service-${XNAT_CS_PLUGIN_VERSION}-fat.jar" \
     && curl -fSL -o "${XNAT_HOME}/plugins/batch-launch.jar" \
-        "https://api.bitbucket.org/2.0/repositories/xnatx/xnatx-batch-launch-plugin/downloads/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}-xpl.jar" \
+        "https://github.com/NrgXnat/batch-launch-plugin/releases/download/${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}/batch-launch-${XNAT_BATCH_LAUNCH_PLUGIN_VERSION}-xpl.jar" \
     && curl -fSL -o "${XNAT_HOME}/plugins/ohif-viewer.jar" \
-        "https://www.xnat.org/files/ohif-viewer-xnat-plugin/ohif-viewer-${XNAT_OHIF_VIEWER_VERSION}.jar" \
+        "https://github.com/xnatworks/ohif-viewer-xnat-plugin/releases/download/${XNAT_OHIF_VIEWER_VERSION}/ohif-viewer-${XNAT_OHIF_VIEWER_VERSION}.jar" \
     && rm -rf /tmp/*
 
 ## Database initialisation
