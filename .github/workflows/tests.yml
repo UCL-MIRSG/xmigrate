@@ -46,7 +46,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fpart
-          which fpsync
 
       - name: Test with nox
         run: uv run nox -s tests_integration
