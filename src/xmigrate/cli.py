@@ -56,6 +56,7 @@ def migrate(  # noqa: PLR0913
     source_projects: list[str] | None = None,
     *,
     include_rsync: bool = True,
+    parallel_jobs: int | None = None,
 ) -> None:
     """
     Migrate a project or projects from source to destination XNAT instance.
@@ -85,6 +86,13 @@ def migrate(  # noqa: PLR0913
     """
     logging_file_path = log_dir / "migrate.log"
     configure_logging(logging_file_path)
+    
+    if parallel_jobs is None:
+        parallel_jobs = min(8, os.cpu_count() or 1)
+
+    if parallel_jobs < 1:
+        msg = f"parallel_jobs: {parallel_jobs} value too small. Must be at least 1"
+        raise ValueError(msg)
 
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to migrate all projects."
@@ -117,6 +125,7 @@ def migrate(  # noqa: PLR0913
                     destination_proj,
                     source_rsync,
                     source_proj,
+                    parallel_jobs
                 )
 
         try:
