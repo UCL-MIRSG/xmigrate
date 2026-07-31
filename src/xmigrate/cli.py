@@ -3,7 +3,7 @@
 import logging
 import pathlib
 from logging.handlers import RotatingFileHandler
-
+import os
 import cyclopts
 import requests
 
@@ -183,6 +183,7 @@ def rsync(
     destination_rsync: str,
     log_dir: pathlib.Path = pathlib.Path("logs"),
     source_projects: list[str] | None = None,
+    parallel_jobs: int | None = None,
 ) -> None:
     """
     Migrating data from source to destination project archive or archives using rsync.
@@ -211,6 +212,13 @@ def rsync(
     logging_file_path = log_dir / "rsync.log"
     configure_logging(logging_file_path)
 
+    if parallel_jobs < 1:
+        msg = f"parallel_jobs: {parallel_jobs} value too small. Must be at least 1"
+        raise ValueError(msg)
+
+    if parallel_jobs is None:
+          parallel_jobs = min(8, os.cpu_count() or 1)
+
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to rsync all projects."
         raise ValueError(msg)
@@ -227,6 +235,7 @@ def rsync(
             destination_proj,
             source_rsync,
             source_proj,
+            parallel_jobs
         )
 
 
