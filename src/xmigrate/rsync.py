@@ -45,7 +45,7 @@ def run_rsync(
     cmd = [
         "fpsync",
         "-n",
-        parallel_jobs,
+        str(parallel_jobs),
         "-v",
         "-o",
         "--checksum --ignore-existing --exclude=*.log --exclude=.*",
