@@ -14,6 +14,7 @@ def run_rsync(
     destination_project: str,
     source_rsync_path: str,
     source_project: str,
+    parallel_jobs: int,
 ) -> None:
     """
     Migrating data from source to destination project archive using rsync.
@@ -44,7 +45,7 @@ def run_rsync(
     cmd = [
         "fpsync",
         "-n",
-        "8",
+        parallel_jobs,
         "-v",
         "-o",
         "--checksum --ignore-existing --exclude=*.log --exclude=.*",
