@@ -86,7 +86,7 @@ def migrate(  # noqa: PLR0913
     """
     logging_file_path = log_dir / "migrate.log"
     configure_logging(logging_file_path)
-    
+
     if parallel_jobs is None:
         parallel_jobs = min(8, os.cpu_count() or 1)
 
@@ -120,13 +120,7 @@ def migrate(  # noqa: PLR0913
 
         if include_rsync:
             for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
-                run_rsync(
-                    destination_rsync,
-                    destination_proj,
-                    source_rsync,
-                    source_proj,
-                    parallel_jobs
-                )
+                run_rsync(destination_rsync, destination_proj, source_rsync, source_proj, parallel_jobs)
 
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
