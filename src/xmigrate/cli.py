@@ -1,9 +1,10 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
+import os
 import pathlib
 from logging.handlers import RotatingFileHandler
-import os
+
 import cyclopts
 import requests
 
@@ -177,7 +178,7 @@ def migrate(  # noqa: PLR0913
 
 
 @app.command
-def rsync(
+def rsync(  # noqa: PLR0913
     source: str,
     source_rsync: str,
     destination_rsync: str,
@@ -212,12 +213,12 @@ def rsync(
     logging_file_path = log_dir / "rsync.log"
     configure_logging(logging_file_path)
 
+    if parallel_jobs is None:
+        parallel_jobs = min(8, os.cpu_count() or 1)
+
     if parallel_jobs < 1:
         msg = f"parallel_jobs: {parallel_jobs} value too small. Must be at least 1"
         raise ValueError(msg)
-
-    if parallel_jobs is None:
-          parallel_jobs = min(8, os.cpu_count() or 1)
 
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to rsync all projects."
@@ -230,13 +231,7 @@ def rsync(
     destination_projects = source_projects
 
     for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
-        run_rsync(
-            destination_rsync,
-            destination_proj,
-            source_rsync,
-            source_proj,
-            parallel_jobs
-        )
+        run_rsync(destination_rsync, destination_proj, source_rsync, source_proj, parallel_jobs)
 
 
 @app.default
