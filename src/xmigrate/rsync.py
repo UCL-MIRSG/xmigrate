@@ -14,6 +14,7 @@ def run_rsync(
     destination_project: str,
     source_rsync_path: str,
     source_project: str,
+    parallel_jobs: int,
 ) -> None:
     """
     Migrating data from source to destination project archive using rsync.
@@ -35,19 +36,20 @@ def run_rsync(
             If there was an error executing the rsync command.
 
     """
+    destination_rsync_path = destination_rsync_path.rstrip("/")
     rsync_destination = f"{destination_rsync_path}/{destination_project}"
-    rsync_source = f"{source_rsync_path}/{source_project}/"
+    source_rsync_path = source_rsync_path.rstrip("/")
+    rsync_source = f"{source_rsync_path}/{source_project}"
     pathlib.Path(rsync_destination).mkdir(parents=True, exist_ok=True)
 
     cmd = [
-        "rsync",
-        "-azP",
-        "--ignore-existing",
-        "--exclude=*.log",
-        "--exclude=.*",
-        "--stats",
-        "--checksum",
-        rsync_source,
+        "fpsync",
+        "-n",
+        str(parallel_jobs),
+        "-v",
+        "-o",
+        "--checksum --ignore-existing --exclude=*.log --exclude=.*",
+        rsync_source + "/",
         rsync_destination,
     ]
     LOGGER.info("rsync command to be run: %s", shlex.join(cmd))

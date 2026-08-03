@@ -1,6 +1,7 @@
 """A cyclopts cli for XNAT data migration using xmigrate."""
 
 import logging
+import os
 import pathlib
 from logging.handlers import RotatingFileHandler
 
@@ -55,6 +56,7 @@ def migrate(  # noqa: PLR0913
     source_projects: list[str] | None = None,
     *,
     include_rsync: bool = True,
+    parallel_jobs: int | None = None,
 ) -> None:
     """
     Migrate a project or projects from source to destination XNAT instance.
@@ -85,6 +87,13 @@ def migrate(  # noqa: PLR0913
     logging_file_path = log_dir / "migrate.log"
     configure_logging(logging_file_path)
 
+    if parallel_jobs is None:
+        parallel_jobs = min(8, os.cpu_count() or 1)
+
+    if parallel_jobs < 1:
+        msg = f"parallel_jobs: {parallel_jobs} value too small. Must be at least 1"
+        raise ValueError(msg)
+
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to migrate all projects."
         raise ValueError(msg)
@@ -111,12 +120,7 @@ def migrate(  # noqa: PLR0913
 
         if include_rsync:
             for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
-                run_rsync(
-                    destination_rsync,
-                    destination_proj,
-                    source_rsync,
-                    source_proj,
-                )
+                run_rsync(destination_rsync, destination_proj, source_rsync, source_proj, parallel_jobs)
 
         try:
             source_archive = source_connection.get("/xapi/siteConfig/archivePath").text
@@ -177,12 +181,13 @@ def migrate(  # noqa: PLR0913
 
 
 @app.command
-def rsync(
+def rsync(  # noqa: PLR0913
     source: str,
     source_rsync: str,
     destination_rsync: str,
     log_dir: pathlib.Path = pathlib.Path("logs"),
     source_projects: list[str] | None = None,
+    parallel_jobs: int | None = None,
 ) -> None:
     """
     Migrating data from source to destination project archive or archives using rsync.
@@ -211,6 +216,13 @@ def rsync(
     logging_file_path = log_dir / "rsync.log"
     configure_logging(logging_file_path)
 
+    if parallel_jobs is None:
+        parallel_jobs = min(8, os.cpu_count() or 1)
+
+    if parallel_jobs < 1:
+        msg = f"parallel_jobs: {parallel_jobs} value too small. Must be at least 1"
+        raise ValueError(msg)
+
     if source_projects is not None and not source_projects:
         msg = "source_projects cannot be an empty list. Use None to rsync all projects."
         raise ValueError(msg)
@@ -222,12 +234,7 @@ def rsync(
     destination_projects = source_projects
 
     for source_proj, destination_proj in zip(source_projects, destination_projects, strict=True):
-        run_rsync(
-            destination_rsync,
-            destination_proj,
-            source_rsync,
-            source_proj,
-        )
+        run_rsync(destination_rsync, destination_proj, source_rsync, source_proj, parallel_jobs)
 
 
 @app.default

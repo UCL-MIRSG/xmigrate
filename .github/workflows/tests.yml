@@ -42,6 +42,11 @@ jobs:
       - name: Install only dev dependencies
         run: uv sync --only-dev
 
+      - name: Install fpsync
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpart
+
       - name: Test with nox
         run: uv run nox -s tests_integration
         env:

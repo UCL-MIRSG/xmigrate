@@ -4,3 +4,4 @@ source_projects = ["dummydicomproject", "OPENNEURO_T1W"]
 destination = "http://localhost:8889"
 include_rsync = true
 log_dir = "logs"
+parallel_jobs = 1
