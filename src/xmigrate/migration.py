@@ -499,15 +499,26 @@ class Migration:
         if owner_project != self.source_info.id:
             requested_projects = {info.id for info in self.all_source_info}
 
-            if owner_project not in requested_projects:
-                msg = f"Cannot migrate subject {subject.label!r} in project {self.source_info.id!r}: "
-                f"it is owned by project {owner_project!r}, which is not included in this migration. "
-                f"Migrate {owner_project!r} first, include it in the same migration run, or rerun with."
+            owner_in_current_run = owner_project in requested_projects
+
+            owner_exists_on_destination = (
+                owner_project in self.destination_connection.projects
+                and subject.label in self.destination_connection.projects[owner_project].subjects
+            )
+
+            if not owner_in_current_run and not owner_exists_on_destination:
+                msg = (
+                    f"Cannot migrate subject {subject.label!r} in project {self.source_info.id!r}: "
+                    f"it is owned by project {owner_project!r}, which is not included in this migration "
+                    f"and does not already exist on the destination. "
+                    f"Migrate {owner_project!r} first, or include it in the same migration run."
+                )
                 raise RuntimeError(msg)
 
-            # this project is not the owner of the resource, no need to create it on the destination
             sharing_info["projects"].append(self.destination_info.id)
             sharing_info["source_id"] = subject.id  # Store the source ID
+            sharing_info["owner"] = owner_project
+            sharing_info["label"] = subject.label
             self.subject_sharing[subject.label] = sharing_info
             return
         # otherwise, this project is the owner
@@ -737,7 +748,7 @@ class Migration:
 
         self._create_custom_forms_data(scan)
 
-    def _create_assessor(self, assessor: xnat.core.XNATListing) -> None:
+    def _create_assessor(self, assessor: xnat.core.XNATListing) -> None:  # noqa: PLR0915
         """
         Create an assessor on the destination XNAT instance.
 
@@ -764,10 +775,17 @@ class Migration:
         sharing_info = self.assessor_sharing.get(assessor.id, {"owner": None, "projects": []})
         if root.attrib["project"] != self.source_info.id:
             # this project is not the owner of the resource, no need to create it on the destination
-            sharing_info["projects"].append(self.destination_info.id)
+            owner_project = root.attrib["project"]
+            sharing_info["owner"] = owner_project
+            sharing_info["label"] = assessor.label
             sharing_info["source_id"] = assessor.id  # Store the source ID
+
+            if self.destination_info.id not in sharing_info["projects"]:
+                sharing_info["projects"].append(self.destination_info.id)
+
             self.assessor_sharing[assessor.label] = sharing_info
             return
+
         # otherwise, this project is the owner
         sharing_info["owner"] = self.destination_info.id
         sharing_info["label"] = assessor.label
@@ -789,43 +807,52 @@ class Migration:
             resource_type=XnatType.assessor,
         )
         xml_bytes = ET.tostring(root, encoding="utf-8")
-        if (
-            assessor.label
-            not in self.destination_connection.projects[self.destination_info.id]
+
+        destination_experiment = (
+            self.destination_connection.projects[self.destination_info.id]
             .subjects[subject.label]
             .experiments[experiment.label]
-            .assessors
-        ):
+        )
+
+        existing_assessors = self.destination_connection.get(
+            f"/data/experiments/{destination_experiment.id}/assessors",
+            query={"format": "json"},
+        ).json()["ResultSet"]["Result"]
+
+        existing_by_label = {
+            existing_assessor["label"]: existing_assessor["ID"] for existing_assessor in existing_assessors
+        }
+
+        if assessor.label not in existing_by_label:
             self.destination_connection.post(
                 f"/data/projects/{self.destination_info.id}/subjects/{subject.label}/experiments/{experiment.label}/assessors",
                 data=xml_bytes,
                 headers={"Content-Type": "text/xml"},
             )
-        self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments[
-            experiment.label
-        ].assessors.clearcache()
+        else:
+            msg = f"Skipping creation of assessor {assessor.label} as already exists on destination."
+            LOGGER.info(msg)
+
+        destination_experiment.assessors.clearcache()
+
         try:
+            destination_assessor_id = existing_by_label.get(assessor.label)
+            if destination_assessor_id is None:
+                destination_assessor_id = destination_experiment.assessors[assessor.label].id
+
             self.mapper.update_id_map(
                 source=assessor.id,
-                destination=self.destination_connection.projects[self.destination_info.id]
-                .subjects[subject.label]
-                .experiments[experiment.label]
-                .assessors[assessor.label]
-                .id,
+                destination=destination_assessor_id,
                 map_type=XnatType.assessor,
             )
         except (KeyError, AttributeError):
             self.assess_failed_count = self.assess_failed_count + 1
-            self.destination_connection.projects[self.destination_info.id].subjects[subject.label].experiments[
-                experiment.label
-            ].assessors.clearcache()
+            destination_experiment.assessors.clearcache()
+
+            destination_assessor_id = destination_experiment.assessors[assessor.label].id
             self.mapper.update_id_map(
                 source=assessor.id,
-                destination=self.destination_connection.projects[self.destination_info.id]
-                .subjects[subject.label]
-                .experiments[experiment.label]
-                .assessors[assessor.label]
-                .id,
+                destination=destination_assessor_id,
                 map_type=XnatType.assessor,
             )
 
@@ -925,13 +952,13 @@ class Migration:
         for subject in source_project.subjects:
             self._create_subject(subject)
 
-            # Skip resource creation for this subject if it is shared and this project is not the owner
-            sharing_info = self.subject_sharing[subject.label]
-            if sharing_info["owner"] != self.destination_info.id:
-                continue
+            subject_sharing_info = self.subject_sharing[subject.label]
+            subject_is_shared = subject_sharing_info["owner"] != self.destination_info.id
 
             for experiment in subject.experiments:
                 self._create_experiment(experiment, destination_datatypes)
+                if subject_is_shared:
+                    continue
                 for scan in experiment.scans:
                     self._create_scan(scan)
                 for assessor in experiment.assessors:
@@ -1069,32 +1096,37 @@ class Migration:
             if not sharing_info["projects"]:
                 continue
 
-            # Get the correct mapper based on the owner of the subject
             owner = sharing_info["owner"]
-            for mapper in self.mappers:
-                if mapper.destination.id == owner:
-                    break
-            else:
-                msg = f"Could not find mapper for owner {owner} of subject {label}"
-                LOGGER.warning(msg)
-                continue
 
-            destination_subject_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.subject)
-            if destination_subject_id is None:
-                msg = f"Could not find destination ID for subject {label}"
-                LOGGER.warning(msg)
-                continue
+            mapper = None
+            for candidate in self.mappers:
+                if candidate.destination.id == owner:
+                    mapper = candidate
+                    break
+
+            if mapper is not None:
+                destination_subject_id = mapper.get_destination_id(
+                    sharing_info["source_id"],
+                    XnatType.subject,
+                )
+            else:
+                if (
+                    owner not in self.destination_connection.projects
+                    or label not in self.destination_connection.projects[owner].subjects
+                ):
+                    LOGGER.warning("Could not find destination subject %s in owner project %s", label, owner)
+                    continue
+
+                destination_subject_id = self.destination_connection.projects[owner].subjects[label].id
 
             for project_id in sharing_info["projects"]:
                 try:
                     self.destination_connection.put(
                         f"/data/projects/{owner}/subjects/{destination_subject_id}/projects/{project_id}?label={label}",
                     )
-                    msg = f"Shared subject {label} with project {project_id}"
-                    LOGGER.info(msg)
+                    LOGGER.info("Shared subject %s with project %s", label, project_id)
                 except XNATResponseError as e:
-                    msg = f"Failed to share subject {label} with project {project_id}: {e}"
-                    LOGGER.warning(msg)
+                    LOGGER.warning("Failed to share subject %s with project %s: %s", label, project_id, e)
 
         # Share experiments
         for label, sharing_info in self.experiment_sharing.items():
@@ -1103,15 +1135,34 @@ class Migration:
 
             # Get the correct mapper based on the owner of the experiment
             owner = sharing_info["owner"]
-            for mapper in self.mappers:
-                if mapper.destination.id == owner:
+            mapper = None
+            for candidate in self.mappers:
+                if candidate.destination.id == owner:
+                    mapper = candidate
                     break
-            else:
-                msg = f"Could not find mapper for owner {owner} of experiment {label}"
-                LOGGER.warning(msg)
-                continue
 
-            destination_experiment_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.experiment)
+            if mapper is not None:
+                destination_experiment_id = mapper.get_destination_id(
+                    sharing_info["source_id"],
+                    XnatType.experiment,
+                )
+            else:
+                # The owner project may have been migrated in a previous run.
+                # In that case, there is no mapper for it in this run, so look up
+                # the existing destination experiment directly by label.
+                destination_experiment_id = None
+
+                if owner not in self.destination_connection.projects:
+                    msg = f"Could not find owner project {owner} for experiment {label}"
+                    LOGGER.warning(msg)
+                    continue
+
+                owner_project = self.destination_connection.projects[owner]
+                for subject in owner_project.subjects:
+                    if label in subject.experiments:
+                        destination_experiment_id = subject.experiments[label].id
+                        break
+
             if destination_experiment_id is None:
                 msg = f"Could not find destination ID for experiment {label}"
                 LOGGER.warning(msg)
@@ -1119,6 +1170,13 @@ class Migration:
 
             for project_id in sharing_info["projects"]:
                 try:
+                    LOGGER.info(
+                        "Sharing experiment owner=%s id=%s label=%s into project=%s",
+                        owner,
+                        destination_experiment_id,
+                        label,
+                        project_id,
+                    )
                     # Use experiment ID in the URL and add label parameter
                     self.destination_connection.put(
                         f"/data/projects/{owner}/experiments/{destination_experiment_id}/projects/{project_id}?label={label}",
@@ -1136,15 +1194,37 @@ class Migration:
 
             # Get the correct mapper based on the owner of the assessor
             owner = sharing_info["owner"]
-            for mapper in self.mappers:
-                if mapper.destination.id == owner:
+            mapper = None
+            for candidate in self.mappers:
+                if candidate.destination.id == owner:
+                    mapper = candidate
                     break
-            else:
-                msg = f"Could not find mapper for owner {owner} of assessor {label}"
-                LOGGER.warning(msg)
-                continue
 
-            destination_assessor_id = mapper.get_destination_id(sharing_info["source_id"], XnatType.assessor)
+            if mapper is not None:
+                destination_assessor_id = mapper.get_destination_id(
+                    sharing_info["source_id"],
+                    XnatType.assessor,
+                )
+            else:
+                # The owner project may have been migrated in a previous run.
+                # In that case, there is no mapper for it in this run, so look up
+                # the existing destination assessor directly by label.
+                destination_assessor_id = None
+
+                if owner not in self.destination_connection.projects:
+                    msg = f"Could not find owner project {owner} for assessor {label}"
+                    LOGGER.warning(msg)
+                    continue
+
+                owner_project = self.destination_connection.projects[owner]
+                for subject in owner_project.subjects:
+                    for experiment in subject.experiments:
+                        if label in experiment.assessors:
+                            destination_assessor_id = experiment.assessors[label].id
+                            break
+                    if destination_assessor_id is not None:
+                        break
+
             if destination_assessor_id is None:
                 msg = f"Could not find destination ID for assessor {label}"
                 LOGGER.warning(msg)
